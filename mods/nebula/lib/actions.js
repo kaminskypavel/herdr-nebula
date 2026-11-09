@@ -9,7 +9,9 @@ const ALL = [
   { id: "delete", label: "Delete", key: "d", danger: true },
 ];
 
-export const actionsFor = (row, hasLaunch) => ALL.filter((a) =>
+// A nebula row (kind "nebula") belongs to nebula: no row action applies, only a click or
+// Enter resumes it.
+export const actionsFor = (row, hasLaunch) => row.kind === "nebula" ? [] : ALL.filter((a) =>
   (!a.tab || row.tab)
   && (!a.launch || hasLaunch)
   && (a.id !== "archive" || !row.archived)

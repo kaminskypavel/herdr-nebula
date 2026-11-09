@@ -14,6 +14,7 @@
 //                   postfix (after it)
 //   confirmArchive  ask before archiving a session
 //   editor          the command that opens a checkout (the folder is appended)
+//   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
 import { HARNESSES } from "./harness.js";
 
 export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
@@ -22,7 +23,7 @@ export const SIDES = ["prefix", "postfix"];
 
 export const DEFAULTS = {
   view: "tree", harness: "claude", harnesses: {}, newWorktree: false, autoTitle: true,
-  presetSide: "prefix", confirmArchive: false, editor: "open", gradientTiles: true,
+  presetSide: "prefix", confirmArchive: false, editor: "open", gradientTiles: true, nebulaSessions: true,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -50,6 +51,7 @@ export function mergeSettings(stored) {
     confirmArchive: typeof s.confirmArchive === "boolean" ? s.confirmArchive : DEFAULTS.confirmArchive,
     editor: text(s.editor) ?? DEFAULTS.editor,
     gradientTiles: typeof s.gradientTiles === "boolean" ? s.gradientTiles : DEFAULTS.gradientTiles,
+    nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
   };
 }
 

@@ -14,6 +14,7 @@ const TOGGLES = {
   autoTitle: ["Auto-title", "Name each session after its first prompt"],
   confirmArchive: ["Confirm archive", "Ask before hiding a session"],
   gradientTiles: ["Gradient tiles", "Color each project tile on the rail"],
+  nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
 const PICK_W = 150;
 
@@ -37,7 +38,7 @@ export class Settings {
   }
 
   rows() {
-    return ["view", "newWorktree", "autoTitle", "confirmArchive", "presetSide", "editor", "harness", ...this.ids.map((id) => `h:${id}`), "gradientTiles", "import"];
+    return ["view", "newWorktree", "autoTitle", "confirmArchive", "presetSide", "editor", "harness", ...this.ids.map((id) => `h:${id}`), "gradientTiles", "nebulaSessions", "import"];
   }
 
   // Closes this overlay first: it would otherwise save its older copy over the import.
@@ -218,6 +219,7 @@ export class Settings {
         ]))
         .child(this.group(t, "Experimental", [toggle("gradientTiles")]))
         .child(this.group(t, "Data", [
+          toggle("nebulaSessions"),
           this.line(t, at("import"), "Import from nebula", "Projects and defaults from nebula's own files",
             button(t, "st-import", "Import...", "plain", () => this.openImport())),
         ])))

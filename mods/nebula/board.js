@@ -7,18 +7,21 @@
 //   nebula.repo         the selected repo's folder
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
 //   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
+//   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
 // Moving the cursor (j, k, arrows, the attention keys) only highlights a row; Enter or a
 // double click shows the agent. The cursor is a session's address, never an index.
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle } from "gpui-base";
 import {
-  theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay,
+  theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify,
 } from "herdr";
 import { STORE, projectList, digitTile, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
-import { REFOCUS_MS } from "./lib/focus.js";
-import { nebulaFiles } from "./lib/nebula-import.js";
+import { REFOCUS_MS, findNode } from "./lib/focus.js";
+import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
+import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed } from "./lib/nebula-sessions.js";
+import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION } from "./lib/shared.js";
+import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED } from "./lib/shared.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
   OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly,
@@ -97,11 +100,42 @@ export class Board {
     this.byKey = new Map();
     this.model = { repos: [] };
     this.hasNebula = false; // nebula's db or config exists: the empty state then offers an import
+    this.nebula = []; // nebula's own sessions (lib/nebula-sessions.js), read by loadNebula
+    this.nebulaBusy = false;
+    this.nebulaAt = 0;
+    this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
+    this.visible = findNode(layout(), "board")?.hidden !== true;
+    this.resuming = new Set();
     this.findNebula(cx);
     cx.timer.every(100, (c) => this.watch(c));
-    cx.timer.every(REFRESH_EVERY, (c) => this.loadAll(c));
+    cx.timer.every(REFRESH_EVERY, (c) => { this.loadAll(c); this.loadNebula(c); });
     cx.timer.every(30000, (c) => c.notify());
     this.loadAll(cx);
+    this.loadNebula(cx);
+  }
+
+  // Nebula's sessions: its CLI lists them and its db says which Claude conversation each
+  // holds (both read only). A missing CLI or db, or a failed read, keeps the last list.
+  loadNebula(cx) {
+    if (this.nebulaBusy) return;
+    this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
+    if (!this.nebulaOn) return;
+    this.nebulaBusy = true;
+    const files = nebulaFiles(home());
+    cx.spawn(async (cx) => {
+      try {
+        const [a, b] = await Promise.all([
+          exec(nebulaBin(home()), SESSIONS_ARGS, { timeout: 30000 }).catch(() => null),
+          exec(SQLITE, ["-readonly", "-json", files.db, AGENTS_SQL], { timeout: 30000 }).catch(() => null),
+        ]);
+        if (a?.code !== 0 || b?.code !== 0) return;
+        const list = joinSessions(parseSessions(a.stdout), parseAgents(b.stdout));
+        if (JSON.stringify(list) !== JSON.stringify(this.nebula)) { this.nebula = list; cx.notify(); }
+      } finally {
+        this.nebulaBusy = false;
+        this.nebulaAt = Date.now();
+      }
+    });
   }
 
   findNebula(cx) {
@@ -192,6 +226,10 @@ export class Board {
       cx.notify();
     }
     if (rootsKey(store()) !== this.rootsKey) this.loadAll(cx);
+    const visible = findNode(layout(), "board")?.hidden !== true;
+    if (visible && !this.visible && Date.now() - this.nebulaAt > MIN_GAP) this.loadNebula(cx);
+    this.visible = visible;
+    if (mergeSettings(shared(SETTINGS)).nebulaSessions !== this.nebulaOn) { this.loadNebula(cx); cx.notify(); }
     const picked = shared(ROW_ACTION);
     if (picked && picked.n !== this.acted) {
       this.acted = picked.n;
@@ -232,8 +270,32 @@ export class Board {
     this.persistFolds();
   }
 
-  // Shows the agent in the terminal (a parked one has no pane).
-  show(row) {
+  // Resumes a nebula session in Herdr: a new tab (or space) in its worktree running
+  // `claude --resume`, as a fork while nebula still runs it, named after it. Then shows it.
+  resume(row, cx) {
+    const s = row.nebula;
+    if (this.resuming.has(s.id)) return;
+    this.resuming.add(s.id);
+    const plan = planLaunch({
+      checkouts: [...this.repos().flatMap((r) => r.checkouts), { path: s.worktree, branch: s.branch }], checkout: s.worktree,
+      spaces: placedSpaces(spaces(), panes()), harness: "claude", model: s.model, effort: s.effort,
+      argv: resumeArgv(s), name: s.name, from: "board",
+    });
+    cx.spawn(async (cx) => {
+      const r = await runSteps(plan.steps, exec);
+      this.resuming.delete(s.id);
+      if (r.error || !r.terminal) { notify({ title: "Could not resume in Herdr", body: r.error || s.name, level: "error" }); return; }
+      setShared(RESUMED, recordResumed(shared(RESUMED), s.id, r.terminal, new Set(terminals().map((t) => t.address))));
+      const ask = () => run("pane.focus", { terminal: r.terminal });
+      ask();
+      for (const ms of REFOCUS_MS) cx.timer.after(ms, ask);
+      cx.notify();
+    });
+  }
+
+  // Shows the agent in the terminal (a parked one has no pane); a nebula row resumes.
+  show(row, cx) {
+    if (row.kind === "nebula") { this.resume(row, cx); return; }
     if (row.pane) run("pane.focus", { pane: row.pane });
     else run("agent.focus", { terminal: row.address });
   }
@@ -268,7 +330,7 @@ export class Board {
     if (item.type === "session") {
       this.col = 2;
       this.place(item.key);
-      this.show(item.row);
+      this.show(item.row, cx);
     } else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {
       this.place(item.key);
@@ -310,7 +372,7 @@ export class Board {
   rowMenu(key, _e, cx) {
     let item = this.byKey.get(key);
     if (item?.type === "sub") item = this.byKey.get(item.parent);
-    if (item?.type !== "session") return;
+    if (item?.type !== "session" || item.row.kind === "nebula") return;
     this.handle.focus();
     this.col = 2;
     this.place(item.key);
@@ -369,7 +431,7 @@ export class Board {
       this.reveal(cx, this.cursor);
     } else if (act && item?.type === "session") this.act(act, item.row, cx);
     else if (k === "enter") {
-      if (item?.type === "session") this.show(item.row);
+      if (item?.type === "session") this.show(item.row, cx);
       else if (item?.type === "repo") this.toggle(item.repo.root);
       else if (item?.type === "summary") this.pick(item.repo.root);
     } else if ((k === "left" || k === "right") && item?.type === "repo") {
@@ -394,6 +456,7 @@ export class Board {
     return {
       terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos(),
       wt: Object.assign({}, ...Object.values(this.wt)), now: Date.now(), showArchived,
+      nebula: this.nebulaOn ? this.nebula : [], resumed: shared(RESUMED) ?? {},
     };
   }
 

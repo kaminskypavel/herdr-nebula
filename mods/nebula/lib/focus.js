@@ -46,3 +46,13 @@ export function step(state, ev) {
       return to(state);
   }
 }
+
+// The layout node with this id (the rail and the board ask whether the board is hidden).
+export function findNode(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) {
+    const found = findNode(child, id);
+    if (found) return found;
+  }
+  return null;
+}

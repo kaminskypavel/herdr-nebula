@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball } from "./row.js";
+import { ball, badge } from "./row.js";
 
 export const items = (model, b) =>
   b?.pc ? projectItems(b.pc) : columnsModel(model).flatMap((c) => c.rows).map((row) => ({ key: row.id, type: "session", row }));
@@ -16,7 +16,9 @@ function mini(row, t, selected, click, menu) {
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
-    .child(div().min_w(0).truncate().text_size(12).text_color(dim ? t.dim : t.foreground).child(row.title))
+    .child(h_flex().gap(6).items_center()
+      .child(div().min_w(0).truncate().text_size(12).text_color(dim ? t.dim : t.foreground).child(row.title))
+      .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
     .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(row.where));
 }
 
@@ -64,7 +66,8 @@ function sessionRowLine(row, t, selected, focused, click, menu) {
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
     .child(h_flex().gap(8).items_center()
       .child(ball(row.status, t))
-      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title)))
+      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
+      .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
     .child(div().pl(16).min_w(0).truncate().text_size(11).text_color(t.dim).child([row.program, row.age].filter(Boolean).join(" · ")));
 }
 

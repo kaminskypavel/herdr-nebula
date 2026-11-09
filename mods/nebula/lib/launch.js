@@ -66,6 +66,15 @@ export function prefillOf(launch, ids) {
   };
 }
 
+// The folder each herdr space works in, for planLaunch's `spaces`: where its first
+// terminal is now, else the folder it was made in. Spaces on another machine are left out.
+export function placedSpaces(spaces, all) {
+  return spaces.filter((s) => !s.machine).map((s) => {
+    const tabs = new Set((s.tabs ?? []).map((c) => c.id));
+    return { id: s.id, path: all.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder || null };
+  }).filter((s) => s.path);
+}
+
 function spaceFor(folder, checkouts, spaces) {
   const i = checkoutIndex(folder, checkouts);
   return i < 0 ? null : spaces.find((s) => checkoutIndex(s.path, checkouts) === i)?.id ?? null;
@@ -73,11 +82,13 @@ function spaceFor(folder, checkouts, spaces) {
 
 // o: { repo: { root }, checkouts: [{ path, branch }], checkout (the chosen path),
 //   git (false for a plain folder: no worktree, newWorktree is ignored), newWorktree, branch, branchExists (a local branch of that name), spaces, harness,
-//   model, effort, preset (the chosen preset or null), task, from: "board" | "terminal" }.
+//   model, effort, preset (the chosen preset or null), task, from: "board" | "terminal",
+//   argv (the whole command, instead of one built from harness, model, effort and task),
+//   name (names the new tab, so auto-title leaves it alone) }.
 // Returns { steps, existing } where existing means the branch already had a worktree.
 export function planLaunch(o) {
   const task = o.preset ? composePrompt(o.preset, o.preset.skip_task ? "" : o.task) : String(o.task ?? "").trim();
-  const argv = buildArgv({ harness: o.harness, model: o.model, effort: o.effort, task });
+  const argv = o.argv ?? buildArgv({ harness: o.harness, model: o.model, effort: o.effort, task });
   const steps = [];
   let folder = o.checkout, existing = false;
   if (o.newWorktree && o.git !== false) {
@@ -91,8 +102,8 @@ export function planLaunch(o) {
   const space = folder === WT ? null : spaceFor(folder, o.checkouts, o.spaces);
   if (space) {
     steps.push({ type: "do", name: "space.select", args: { id: space } });
-    steps.push({ type: "do", name: "tab.new", args: { space, folder, argv }, launch: true });
-  } else steps.push({ type: "do", name: "space.new", args: { folder, argv }, launch: true });
+    steps.push({ type: "do", name: "tab.new", args: { space, folder, argv, ...(o.name ? { name: o.name } : {}) }, launch: true });
+  } else steps.push({ type: "do", name: "space.new", args: { folder, argv, ...(o.name ? { tab: o.name } : {}) }, launch: true });
   steps.push({ type: "labels", launch: { harness: o.harness, model: o.model || null, effort: o.effort || null, preset: o.preset?.name ?? null, checkout: folder } });
   steps.push({ type: "keys", to: o.from === "board" ? "board" : "agent" });
   return { steps, existing };

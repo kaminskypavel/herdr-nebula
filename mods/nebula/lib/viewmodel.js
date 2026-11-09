@@ -1,8 +1,9 @@
-import { groupSessions, norm, baseName } from "./projects.js";
+import { groupSessions, bestBand, norm, baseName } from "./projects.js";
 import { statusOf, tally, COLOR, STATUS_ORDER } from "./status.js";
 import { readLabels } from "./labels.js";
 import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subRow } from "./subagents.js";
 import { nextAttention } from "./order.js";
+import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
 
 export const OTHER = "other:";
 
@@ -65,21 +66,30 @@ const counts = (rows) => tally(rows.map((r) => r.status));
 
 const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 };
 
-export function buildBoard({ terminals = [], agents = [], panes = [], spaces = [], repos = [], wt = {}, now = Date.now(), showArchived = false }) {
+// `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
+// shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
+// worktree, or land in Other with the stray terminals.
+export function buildBoard({ terminals = [], agents = [], panes = [], spaces = [], repos = [], wt = {}, now = Date.now(), showArchived = false, nebula = [], resumed = {} }) {
   const where = tabLookup(agents, panes, spaces);
   const g = groupSessions(terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled), repos);
   const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
+  const mine = new Map(), strays = [];
+  for (const s of visibleSessions(nebula, resumed, new Set(terminals.map((t) => t.address)))) {
+    const b = bestBand(g.repos, s.worktree);
+    if (!b) strays.push(nebulaRow(s));
+    else mine.set(b, [...(mine.get(b) ?? []), nebulaRow(s)]);
+  }
   const out = g.repos.map((r) => {
-    const bands = r.bands.filter((b) => b.sessions.length).map((b) => {
+    const bands = r.bands.filter((b) => b.sessions.length || mine.has(b)).map((b) => {
       const git = gitOf(wt, b.path);
-      return { path: b.path, branch: b.branch ?? git.branch ?? null, label: b.branch ?? git.branch ?? baseName(b.path), ahead: git.ahead, added: git.added, deleted: git.deleted, rows: b.sessions.map(rowOf) };
+      return { path: b.path, branch: b.branch ?? git.branch ?? null, label: b.branch ?? git.branch ?? baseName(b.path), ahead: git.ahead, added: git.added, deleted: git.deleted, rows: [...b.sessions.map(rowOf), ...(mine.get(b) ?? [])] };
     });
     const rows = bands.flatMap((b) => b.rows);
     return { root: r.root, name: r.name, bands, rows, counts: counts(rows) };
   });
-  if (g.other.length) {
-    const rows = g.other.map(rowOf);
+  if (g.other.length || strays.length) {
+    const rows = [...g.other.map(rowOf), ...strays];
     out.push({ root: OTHER, name: "Other", bands: [{ path: "", branch: null, label: "", ahead: 0, added: 0, deleted: 0, rows }], rows, counts: counts(rows) });
   }
   return { repos: out };
@@ -182,16 +192,20 @@ export function stepCursor(stops, cursor, delta) {
   return i < 0 ? stops[0] : stops[Math.min(Math.max(i + delta, 0), stops.length - 1)];
 }
 
+// Rows of Herdr terminals: nebula's own rows are not agents Herdr can show or step to.
+const isLive = (r) => r.kind !== "nebula";
+const live = (model) => model.repos.flatMap((r) => r.rows).filter(isLive);
+
 export const attentionTarget = (model, from, dir) =>
-  nextAttention(model.repos.flatMap((r) => r.rows).map((r) => ({ id: r.id, status: r.status })), from, dir);
+  nextAttention(live(model).map((r) => ({ id: r.id, status: r.status })), from, dir);
 
 // opts: { mode: "projects", sel } puts Columns' selected project first, in worktree order.
 export function agentOrder(model, view, root, opts = {}) {
-  const tree = model.repos.flatMap((r) => r.rows).map((r) => r.id);
+  const tree = live(model).map((r) => r.id);
   let first = [];
-  if (view === "columns" && opts.mode === "projects") first = (model.repos.find((r) => r.root === projectColumns(model, opts.sel, root).sel.project)?.rows ?? []).map((r) => r.id);
-  else if (view === "columns") first = columnsModel(model).flatMap((c) => c.rows).map((r) => r.id);
-  else if (view === "cards" || view === "list") first = (selectedRepo(model, root)?.rows ?? []).map((r) => r.id);
+  if (view === "columns" && opts.mode === "projects") first = (model.repos.find((r) => r.root === projectColumns(model, opts.sel, root).sel.project)?.rows ?? []).filter(isLive).map((r) => r.id);
+  else if (view === "columns") first = columnsModel(model).flatMap((c) => c.rows).filter(isLive).map((r) => r.id);
+  else if (view === "cards" || view === "list") first = (selectedRepo(model, root)?.rows ?? []).filter(isLive).map((r) => r.id);
   const seen = new Set(first);
   return [...first, ...tree.filter((id) => !seen.has(id))];
 }

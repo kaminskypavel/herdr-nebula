@@ -30,6 +30,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null }) {
     .when(Boolean(click), (el) => el.id(`session-${row.id}`).cursor_pointer().on_click((_e, cx) => click(row.id, cx)))
     .child(ball(row.status, t))
     .child(div().min_w(0).truncate().text_color(dim ? t.dim : t.foreground).child(row.title))
+    .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
     .when(Boolean(row.program), (el) => el.child(div().flex_none().text_size(12).text_color(t.dim).child(`· ${row.program}`)))
     .child(div().flex_1())
     .child(age(row.age, selected ? t.muted : t.dim));

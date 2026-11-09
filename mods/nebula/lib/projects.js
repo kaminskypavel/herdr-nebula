@@ -29,6 +29,18 @@ export const baseName = (path) => String(path ?? "").replace(/\/+$/, "").split("
 // repo) stands for itself.
 export const repoRoot = (commonDir) => norm(commonDir).replace(/\/\.git$/, "");
 
+// The band whose folder holds cwd, the longest folder winning, or null.
+export function bestBand(repos, cwd) {
+  let best = null, depth = -1;
+  for (const repo of repos) {
+    for (const b of repo.bands) {
+      const len = norm(b.path).length;
+      if (inside(cwd, b.path) && len > depth) { best = b; depth = len; }
+    }
+  }
+  return best;
+}
+
 const band = (path, branch = null) => ({ path, branch, label: branch ?? baseName(path), sessions: [] });
 
 export function groupSessions(terminals, projects) {
@@ -39,13 +51,7 @@ export function groupSessions(terminals, projects) {
   const extra = new Map();
 
   const place = (t) => {
-    let best = null, depth = -1;
-    for (const repo of repos) {
-      for (const b of repo.bands) {
-        const len = norm(b.path).length;
-        if (inside(t.cwd, b.path) && len > depth) { best = b; depth = len; }
-      }
-    }
+    const best = bestBand(repos, t.cwd);
     if (best) return best;
     if (!t.commonDir || !t.cwd) return null;
     const home = repos.find((repo) => norm(repo.root) === repoRoot(t.commonDir));

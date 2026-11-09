@@ -13,7 +13,7 @@ import {
   theme, run, shared, setShared, exec, terminals, focused, panes, layout, openOverlay, nextCommand,
 } from "herdr";
 import { groupSessions } from "./lib/projects.js";
-import { step, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
+import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, railTiles, reposWith, rootsKey, listCheckouts, initials, jumpTarget, statusTarget } from "./lib/repos.js";
 import { REPO, FOCUS_BOARD, LAUNCHED, BOARD_KEYS } from "./lib/shared.js";
 import { chip } from "./views/row.js";
@@ -26,15 +26,7 @@ const TILE_PATH = PathBuilder.fill().move_to(R, 0).line_to(TILE - R, 0).arc_to(R
   .line_to(TILE, TILE - R).arc_to(R, R, 0, false, true, TILE - R, TILE).line_to(R, TILE).arc_to(R, R, 0, false, true, 0, TILE - R)
   .line_to(0, R).arc_to(R, R, 0, false, true, R, 0).close().build();
 
-function find(node, id) {
-  if (node?.id === id) return node;
-  for (const child of node?.children ?? []) {
-    const found = find(child, id);
-    if (found) return found;
-  }
-  return null;
-}
-const boardShown = () => find(layout(), "board")?.hidden !== true;
+const boardShown = () => findNode(layout(), "board")?.hidden !== true;
 const store = () => shared(STORE) ?? {};
 const STATUS_WORDS = { needs: "need you", working: "working", unseen: "done, not seen yet", seen: "done and seen" };
 
