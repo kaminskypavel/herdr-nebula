@@ -263,6 +263,19 @@ export class Board {
     cx.notify();
   }
 
+  // Tree view: fold or unfold every project at once.
+  foldAll(fold) {
+    this.folded = new Set(fold ? this.model.repos.map((r) => r.root) : []);
+    this.persistFolds();
+  }
+
+  foldButton(t, icon, tip, action) {
+    return div().id(`tree-${icon}`).size(24).flex().items_center().justify_center().rounded(6).cursor_pointer()
+      .text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
+      .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); action(); cx.notify(); })
+      .child(svg(`mods/nebula/icons/${icon}.svg`).size(14));
+  }
+
   persistFolds() { localStorage.setItem("tree.folded", JSON.stringify([...this.folded])); }
   unfold(root) { if (this.folded.delete(root)) this.persistFolds(); }
   toggle(root) {
@@ -500,6 +513,9 @@ export class Board {
               .when(!compact, (el) => el.child(div().child(VIEW_TITLE[v.id])));
           })))
         .child(div().flex_1())
+        .when(this.view === "tree" && this.model.repos.length > 1, (el) => el.child(h_flex().gap(2).mr(8)
+          .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
+          .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))))
         .child(h_flex().id("new-session").h(24).items_center().gap(7).pl(10).pr(6).border_1().border_color(t.border).rounded(6).bg(t.raised)
           .text_size(12).text_color(t.foreground).cursor_pointer().hover((s) => s.bg(t.hover)).on_click(() => this.openLaunch())
           .when(compact, (el) => el.tooltip("New session"))
