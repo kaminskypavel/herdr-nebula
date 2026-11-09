@@ -38,7 +38,7 @@ test("a session that newly needs you opens its closed project; one already waiti
   const quiet = syncOpen(["/r/a"], board([term("b", "t1", "blocked")]), store, first.seen);
   assert.deepEqual(quiet.open, ["/r/a"]);
   const fresh = syncOpen(["/r/a"], board([term("b", "t1", "blocked"), term("c", "t2", "blocked")]), store, first.seen);
-  assert.deepEqual(fresh.open, ["/r/a", "/r/c"]);
+  assert.deepEqual(fresh.open, ["/r/c", "/r/a"]);
   assert.equal(fresh.changed, true);
 });
 
@@ -50,7 +50,7 @@ test("a session that needs you in an open project changes nothing", () => {
 });
 
 test("opening appends once; closing the selected tab selects a neighbor", () => {
-  assert.deepEqual(openProject(["/r/a"], "/r/b"), ["/r/a", "/r/b"]);
+  assert.deepEqual(openProject(["/r/a"], "/r/b"), ["/r/b", "/r/a"]);
   const open = ["/r/a", "/r/b"];
   assert.equal(openProject(open, "/r/a"), open);
   assert.deepEqual(closeProject(["/r/a", "/r/b", "/r/c"], "/r/b", "/r/b"), { open: ["/r/a", "/r/c"], select: "/r/c" });

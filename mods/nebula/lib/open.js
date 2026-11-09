@@ -47,7 +47,7 @@ export function syncOpen(open, model, store, seen = null) {
     list = initialOpen(model, store);
   }
   const now = needing(model);
-  if (seen) for (const n of now) if (!seen.has(n.id) && !list.includes(n.root)) list = [...list, n.root];
+  if (seen) for (const n of now) if (!seen.has(n.id) && !list.includes(n.root)) list = [n.root, ...list];
   const changed = !Array.isArray(open) || JSON.stringify(open) !== JSON.stringify(list);
   return { open: list, seen: new Set(now.map((n) => n.id)), changed };
 }
@@ -55,7 +55,8 @@ export function syncOpen(open, model, store, seen = null) {
 // The list as it stands, for the dialogs that edit it (never null).
 export const currentOpen = (open, model, store) => syncOpen(open, model, store).open ?? [];
 
-export const openProject = (open, root) => (open.includes(root) ? open : [...open, root]);
+// A newly opened project goes first, so it is on top of the icon bar.
+export const openProject = (open, root) => (open.includes(root) ? open : [root, ...open]);
 
 // Closing a tab: -> { open, select }. select is the root to show when the closed tab was
 // the selected one (its right neighbor, else its left), else null.
