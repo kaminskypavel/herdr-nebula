@@ -76,6 +76,7 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 | Anywhere | <kbd>⌃`</kbd> | Board takes the keys; again hands them back |
 | Anywhere | <kbd>⌘]</kbd> <kbd>⌘[</kbd> | Next, previous session that needs you |
 | Anywhere | <kbd>⌘K</kbd> | New session |
+| Anywhere | <kbd>⌘1</kbd> to <kbd>⌘9</kbd> | Select a project in the icon bar |
 | Board | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click | Move, show the agent |
 | Board | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd> | New session, presets, next view |
 | Board | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete |

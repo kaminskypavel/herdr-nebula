@@ -81,6 +81,7 @@ const SHORTCUTS = [
     { keys: [b("nebula.focus", "⌃`")], text: "board: take keys, fold" },
     { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
     { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
+    { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
   ] },
   { group: "New-session box", col: 0, rows: [
     { keys: ["^P", "^T", "Tab"], text: "repo, checkout, agent" },

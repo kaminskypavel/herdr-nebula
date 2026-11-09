@@ -675,8 +675,7 @@ export class Board {
   header(t) {
     const compact = (this.width ?? 9999) < COMPACT_BELOW;
     return v_flex().flex_none()
-      // pl(34): the macOS window buttons sit over the left of this row.
-      .child(h_flex().h(42).items_center().pl(34).pr(14).border_b(1).border_color(t.border)
+      .child(h_flex().h(42).items_center().pl(20).pr(14).border_b(1).border_color(t.border)
         .child(h_flex().border_1().border_color(t.border).rounded(6).p(1).bg(t.background)
           .children(VIEWS.map((v) => {
             const on = v.id === this.view;

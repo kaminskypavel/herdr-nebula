@@ -29,6 +29,9 @@ import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
 import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL } from "./lib/shared.js";
 
+// The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
+const RAIL_W = 76;
+
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
 const store = () => shared(STORE) ?? {};
 const icon = (name) => `mods/nebula/icons/${name}.svg`;
@@ -48,6 +51,7 @@ export class Rail {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
         if (c === "focus") this.send({ type: "chord" }, cx);
         else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
+        else if (/^tab[1-9]$/.test(c)) { const p = this.tabs.items[Number(c.slice(3)) - 1]; if (p) setShared(REPO, p.root); } // ⌘1 to ⌘9
         cx.notify();
       }
     });
@@ -154,7 +158,7 @@ export class Rail {
       .when(!on, (el) => el.hover((s) => s.bg(t.hover).text_color(t.foreground)))
       .when(Boolean(menu), (el) => el.on_mouse_down("right", menu))
       .on_click(action).child(child)
-      .when(on && mark, (el) => el.child(div().absolute().left((size - 44) / 2).top((size - 16) / 2).w(3).h(16).rounded(2).bg(t.accent)))
+      .when(on && mark, (el) => el.child(div().absolute().left((size - RAIL_W) / 2).top((size - 16) / 2).w(3).h(16).rounded(2).bg(t.accent)))
       .when(dot, (el) => el.child(div().absolute().top(5).right(5).size(7).rounded_full().bg(t.ansi1).border_1().border_color(t.chrome)));
   }
 
@@ -166,8 +170,8 @@ export class Rail {
   projectTab(t, p, { open, selected }) {
     const icons = shared(ICONS) ?? {};
     return this.button(t, `proj-${p.root}`, p.name, () => setShared(REPO, p.root),
-      projectIcon({ icon: iconFor(icons, p.root, p.name), size: 28, badge: ball(p.status, t, 7), ring: p.on ? t.selected : t.chrome }),
-      { on: p.on, mark: true, size: 36, menu: () => this.projectMenu(p, open, selected) });
+      projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: ball(p.status, t, 8), ring: p.on ? t.selected : t.chrome }),
+      { on: p.on, mark: true, size: 42, menu: () => this.projectMenu(p, open, selected) });
   }
 
   render() {

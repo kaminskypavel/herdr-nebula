@@ -3,6 +3,15 @@
     "ctrl-`": "nebula.focus",
     "cmd-]": "nebula.next",
     "cmd-[": "nebula.prev",
-    "cmd-k": "mod.open:nebula-box"
+    "cmd-k": "mod.open:nebula-box",
+    "cmd-1": "nebula.tab1",
+    "cmd-2": "nebula.tab2",
+    "cmd-3": "nebula.tab3",
+    "cmd-4": "nebula.tab4",
+    "cmd-5": "nebula.tab5",
+    "cmd-6": "nebula.tab6",
+    "cmd-7": "nebula.tab7",
+    "cmd-8": "nebula.tab8",
+    "cmd-9": "nebula.tab9"
   }
 }

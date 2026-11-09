@@ -14,7 +14,7 @@
           "id": "rail-col",
           "type": "column",
           "size": {
-            "px": 44
+            "px": 76
           },
           "background": "chrome",
           "resizable": false,
