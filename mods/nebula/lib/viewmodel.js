@@ -4,6 +4,7 @@ import { readLabels } from "./labels.js";
 import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subRow } from "./subagents.js";
 import { nextAttention } from "./order.js";
 import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
+import { byName } from "./arrange.js";
 
 export const OTHER = "other:";
 
@@ -107,7 +108,12 @@ export const selectedRepo = (model, root) =>
 export const summaryParts = (repo) =>
   STATUS_ORDER.filter((s) => repo.counts[s] > 0).map((s) => ({ status: s, n: repo.counts[s], color: COLOR[s], label: LABEL[s] }));
 
-export const bandParts = (b) => [b.ahead > 0 && `↑${b.ahead}`, b.added > 0 && `+${b.added}`, b.deleted > 0 && `−${b.deleted}`].filter(Boolean);
+// The git stats of a worktree band as coloured pieces: ahead (cyan), added (green), deleted (red).
+export const BAND_COLOR = { ahead: "ansi6", added: "ansi2", deleted: "ansi1" };
+export const bandStats = (b) => [
+  b.ahead > 0 && { kind: "ahead", text: `↑${b.ahead}` }, b.added > 0 && { kind: "added", text: `+${b.added}` }, b.deleted > 0 && { kind: "deleted", text: `−${b.deleted}` },
+].filter(Boolean);
+export const bandParts = (b) => bandStats(b).map((p) => p.text);
 
 // Items are what a view draws, one per line: { key, type, ... }. Types: repo, band,
 // session (with its row), sub (nested under the session before it), summary (another
@@ -125,17 +131,17 @@ function bandItems(repo) {
   ]);
 }
 
-export function treeItems(model, folded) {
-  if (!model.repos.length) return [{ key: "empty", type: "empty", text: "No repos yet" }];
+export function treeItems(model, folded, empty = "No repos yet") {
+  if (!model.repos.length) return [{ key: "empty", type: "empty", text: empty }];
   return model.repos.flatMap((repo) => [
     { key: repoKey(repo), type: "repo", repo, folded: folded.has(repo.root) },
     ...(folded.has(repo.root) ? [] : bandItems(repo)),
   ]);
 }
 
-export function listItems(model, root) {
+export function listItems(model, root, empty = "No repos yet") {
   const repo = selectedRepo(model, root);
-  if (!repo) return [{ key: "empty", type: "empty", text: "No repos yet" }];
+  if (!repo) return [{ key: "empty", type: "empty", text: empty }];
   const others = model.repos.filter((r) => r !== repo);
   return [
     ...(repo.rows.length ? bandItems(repo) : [{ key: "empty", type: "empty", text: "No sessions" }]),
@@ -149,7 +155,8 @@ const columnsMemo = new WeakMap();
 export function columnsModel(model) {
   if (columnsMemo.has(model)) return columnsMemo.get(model);
   const all = model.repos.flatMap((repo) => repo.bands.flatMap((b) => b.rows.map((row) => ({ ...row, where: [repo.name, b.label].filter(Boolean).join(" / ") }))));
-  const out = COLUMNS.map((c) => ({ ...c, color: COLOR[c.status], rows: byStatus(all.filter((r) => (c.status === "seen" ? r.status === "seen" || r.status === "exited" : r.status === c.status))) }));
+  const order = model.sort === "name" ? (rows) => [...rows].sort(byName((r) => r.title)) : byStatus;
+  const out = COLUMNS.map((c) => ({ ...c, color: COLOR[c.status], rows: order(all.filter((r) => (c.status === "seen" ? r.status === "seen" || r.status === "exited" : r.status === c.status))) }));
   columnsMemo.set(model, out);
   return out;
 }
@@ -163,7 +170,8 @@ export function columnsModel(model) {
 const URGENT = [...STATUS_ORDER, "exited"];
 export const rollup = (rows) => URGENT.find((s) => rows.some((r) => r.status === s)) ?? "exited";
 
-const byUrgency = (items) => [...items].sort((a, b) => rank(a.status) - rank(b.status));
+// A model sorted by name (lib/arrange.js) keeps its own order.
+const byUrgency = (items, model) => (model.sort === "name" ? items : [...items].sort((a, b) => rank(a.status) - rank(b.status)));
 
 export function projectColumns(model, sel = {}, rail = null) {
   const repos = model.repos;
@@ -171,8 +179,8 @@ export function projectColumns(model, sel = {}, rail = null) {
     ?? repos.find((r) => r.rows.length) ?? repos[0] ?? null;
   const band = repo?.bands.find((b) => b.path === sel?.worktree) ?? repo?.bands[0] ?? null;
   return {
-    projects: byUrgency(repos.map((r) => ({ key: r.root, name: r.name, status: rollup(r.rows), count: r.rows.length }))),
-    worktrees: byUrgency((repo?.bands ?? []).map((b) => ({ key: b.path, label: b.label || repo.name, status: rollup(b.rows), count: b.rows.length }))),
+    projects: byUrgency(repos.map((r) => ({ key: r.root, name: r.name, status: rollup(r.rows), count: r.rows.length })), model),
+    worktrees: byUrgency((repo?.bands ?? []).map((b) => ({ key: b.path, label: b.label || repo.name, status: rollup(b.rows), count: b.rows.length })), model),
     sessions: band?.rows ?? [],
     sel: { project: repo?.root ?? null, worktree: band?.path ?? null },
   };

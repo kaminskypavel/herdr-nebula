@@ -5,7 +5,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { COLOR } from "../lib/status.js";
-import { bandParts, summaryParts } from "../lib/viewmodel.js";
+import { bandStats, summaryParts, BAND_COLOR } from "../lib/viewmodel.js";
 import { rowMeta } from "../lib/rowmeta.js";
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
@@ -58,10 +58,11 @@ export function subLine(sub, t, { indent = 30 }) {
 }
 
 export function bandLine(band, t, { indent = 10 }) {
-  const parts = bandParts(band);
+  const parts = bandStats(band);
   return h_flex().h(HEIGHT.band).flex_none().pt(4).items_center().gap(8).pl(indent).pr(10).text_size(11).text_color(t.muted)
     .child(div().flex_none().child(band.label))
-    .when(parts.length > 0, (el) => el.child(div().flex_none().text_color(t.dim).child(parts.join(" "))))
+    .when(parts.length > 0, (el) => el.child(h_flex().flex_none().gap(5)
+      .children(parts.map((p) => div().flex_none().text_color(t[BAND_COLOR[p.kind]]).child(p.text)))))
     .child(div().flex_1().h(1).bg(t.border));
 }
 

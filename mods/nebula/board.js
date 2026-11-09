@@ -12,7 +12,7 @@
 // Moving the cursor (j, k, arrows, the attention keys) only highlights a row; Enter or a
 // double click shows the agent. The cursor is a session's address, never an index.
 import { div, svg } from "gpui-kit";
-import { h_flex, v_flex, VirtualListScrollHandle } from "gpui-base";
+import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
 import {
   theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify,
 } from "herdr";
@@ -28,6 +28,7 @@ import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, where
 import {
   OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly,
 } from "./lib/viewmodel.js";
+import { arrange, cleanSort, SORTS, SORT_TITLE } from "./lib/arrange.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
@@ -77,6 +78,15 @@ export class Board {
     this.view = viewOf(load("view", mergeSettings(shared(SETTINGS)).view)).id;
     this.folded = new Set(load("tree.folded", []));
     this.showArchived = false;
+    this.sort = cleanSort(load("sort", "status"));
+    this.filter = ""; // not persisted
+    this.filtering = false; // the filter input has the keyboard
+    this.leftAt = 0;
+    this.input = InputState.new({ placeholder: "Filter" });
+    this.input.on("change", (_e, cx) => { this.filter = this.input.value(); cx.notify(); });
+    this.input.on("focus", (_e, cx) => { this.filtering = true; cx.notify(); });
+    this.input.on("blur", (_e, cx) => { this.filtering = false; cx.notify(); });
+    this.input.on("submit", (_e, cx) => this.leaveFilter(cx, true));
     this.colMode = load("columns.mode", "status") === "projects" ? "projects" : "status";
     this.col = 0;
     this.cols = {};
@@ -269,9 +279,40 @@ export class Board {
     cx.notify();
   }
 
+  setSort(sort, cx) {
+    this.sort = sort;
+    localStorage.setItem("sort", JSON.stringify(sort));
+    cx.notify();
+  }
+
+  // Hands the keyboard back to the board (Esc clears the filter first). Enter also puts the
+  // cursor on the first match; `leftAt` stops the same Enter from then acting on that row.
+  leaveFilter(cx, toFirst) {
+    if (!this.filtering) return;
+    this.filtering = false;
+    this.leftAt = Date.now();
+    this.handle.focus();
+    if (toFirst) {
+      const first = this.stops.find((id) => this.byKey.get(id)?.type === "session") ?? this.stops[0];
+      if (this.pc) this.choose(this.stops[0]);
+      else if (first) { this.place(first); this.reveal(cx, first); }
+    }
+    cx.notify();
+  }
+
+  // Keys while the filter input has the keyboard: only Esc and Enter are the board's.
+  filterKey(k, cx) {
+    if (k === "escape") {
+      this.input.set_value("");
+      this.filter = "";
+      this.leaveFilter(cx, false);
+      cx.stop_propagation();
+    } else if (k === "enter") this.leaveFilter(cx, true);
+  }
+
   // Tree view: fold or unfold every project at once.
   foldAll(fold) {
-    this.folded = new Set(fold ? this.model.repos.map((r) => r.root) : []);
+    this.folded = new Set(fold ? this.base.repos.map((r) => r.root) : []);
     this.persistFolds();
   }
 
@@ -488,7 +529,9 @@ export class Board {
 
   key(e, cx) {
     const m = e.modifiers ?? {};
+    if (this.filtering) { this.filterKey(e.key, cx); return; }
     if (m.control || m.alt || m.platform) return;
+    if (e.key === "enter" && Date.now() - this.leftAt < 150) return;
     const k = e.key, item = this.byKey.get(this.cursor), act = rowActionOf(k, m);
     if (this.pc && this.columnKey(k, m)) { cx.notify(); return; }
     if (k === "j" || k === "down" || k === "k" || k === "up") {
@@ -508,6 +551,9 @@ export class Board {
       if (item?.type === "session") this.pinRow(item.row);
     } else if (k === "v") {
       this.setView(cycleOf(VIEW_IDS, this.view, 1), cx);
+    } else if (k === "/") {
+      cx.timer.after(1, () => this.input.focus()); // after this key, so the "/" is not typed into it
+      return;
     } else if (k === "p") this.openLaunch();
     else if (k === "e") this.openPresets();
     else if (k === "A" || (k === "a" && m.shift)) this.showArchived = !this.showArchived;
@@ -529,7 +575,8 @@ export class Board {
 
   sync() {
     const picked = shared(REPO);
-    this.model = buildBoard(this.boardArgs(this.showArchived));
+    this.base = buildBoard(this.boardArgs(this.showArchived));
+    this.model = arrange(this.base, { filter: this.filter, sort: this.sort });
     this.pinned = shared(PINNED);
     this.root = selectedRepo(this.model, picked)?.root ?? null;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root) : null;
@@ -541,7 +588,8 @@ export class Board {
     this.cursor = at.id;
     this.index = at.index;
     if (this.pc) this.fitColumn();
-    const order = agentOrder(this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
+    // the agent order ignores the filter: a hidden agent keeps its place
+    const order = agentOrder(this.filter ? arrange(this.base, { sort: this.sort }) : this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
     const key = order.join("\n");
     if (key !== this.order) { this.order = key; setAgentOrder(order); }
   }
@@ -568,11 +616,32 @@ export class Board {
               .when(!compact, (el) => el.child(div().child(VIEW_TITLE[v.id])));
           })))
         .child(div().flex_1())
-        .when(this.view === "tree" && this.model.repos.length > 1, (el) => el.child(h_flex().gap(2).mr(8)
-          .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
-          .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))))
         .child(this.headerButton(t, "presets", "bookmark", "Presets", "e", compact, () => this.openPresets()).mr(8))
-        .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())));
+        .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())))
+      .child(this.toolbar(t));
+  }
+
+  // Under the view tabs: the filter on the left, the sort and (Tree only) fold buttons on the right.
+  toolbar(t) {
+    return h_flex().h(34).flex_none().items_center().gap(8).pl(20).pr(14).border_b(1).border_color(t.border)
+      .child(h_flex().id("filter").flex_1().min_w(0).h(24).items_center().gap(6).px(8).rounded(6).border_1()
+        .border_color(this.filtering ? t.accent : t.border).bg(t.background).cursor_text()
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .child(svg("mods/nebula/icons/search.svg").size(13).flex_none().text_color(t.dim))
+        .child(Input.new(this.input).flex_1().min_w(0).h_full().text_size(12).text_color(t.foreground)))
+      .child(h_flex().flex_none().border_1().border_color(t.border).rounded(6).p(1).bg(t.background)
+        .children(SORTS.map((id) => {
+          const on = id === this.sort;
+          return h_flex().id(`sort-${id}`).h(20).px(8).items_center().rounded(4).text_size(11.5).cursor_pointer()
+            .text_color(on ? t.foreground : t.muted)
+            .when(on, (el) => el.bg(t.selected))
+            .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+            .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); this.handle.focus(); this.setSort(id, cx); })
+            .child(div().child(SORT_TITLE[id]));
+        })))
+      .when(this.view === "tree" && this.base.repos.length > 1, (el) => el.child(h_flex().flex_none().gap(2)
+        .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
+        .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))));
   }
 
   headerButton(t, id, icon, label, hint, compact, action) {
@@ -618,7 +687,7 @@ export class Board {
       .on_mouse_down("left", (e) => { this.shift = Boolean(e.modifiers?.shift); this.handle.focus(); })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(!this.model.repos.length || !projectList(store()).length, (el) => el.child(this.noProjects(t, !this.model.repos.length)))
-      .when(this.model.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))));
+      .when(!this.base.repos.length || !projectList(store()).length, (el) => el.child(this.noProjects(t, !this.base.repos.length)))
+      .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))));
   }
 }

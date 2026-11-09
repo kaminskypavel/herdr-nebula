@@ -1,8 +1,9 @@
 import { v_flex, v_virtual_list, Scrollbar } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
+import { NO_MATCH } from "../lib/arrange.js";
 import { HEIGHT, drawItem } from "./row.js";
 
-export const items = (model, b) => listItems(model, b.root);
+export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined);
 
 export function virtualList(b, list, t, deep) {
   return v_flex().relative().size_full()
