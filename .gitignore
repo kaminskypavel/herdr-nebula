@@ -1,6 +1,8 @@
 # Herdr writes these into mod folders, through a symlink or a copy
 mods/**/jsconfig.json
 mods/**/gpui-kit.d.ts
+# the project icons the board copies out of your repos (it makes this folder next to the mod)
+mods/nebula/.icons/
 # a copy of mods/nebula/lib that scripts/install.sh keeps (a mod cannot import another folder)
 mods/nebula-box/lib/
 # local planning and research notes, not part of the mod

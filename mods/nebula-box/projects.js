@@ -10,7 +10,9 @@ import { props, closeOverlay, openOverlay, theme, shared, setShared, terminals, 
 import { STORE, reposWith } from "./lib/repos.js";
 import { buildBoard } from "./lib/viewmodel.js";
 import { COLOR } from "./lib/status.js";
-import { OPEN, REPO, SUMMARY } from "./lib/shared.js";
+import { OPEN, REPO, SUMMARY, ICONS } from "./lib/shared.js";
+import { iconFor } from "./lib/icons.js";
+import { projectIcon } from "./lib/icon-view.js";
 import { summarize, currentOpen, openProject, closeProject, pickerRows, PICKER_ROWS_MAX } from "./lib/open.js";
 import { escapeKey } from "./ui.js";
 
@@ -91,11 +93,14 @@ export class Projects {
   }
 
   render() {
-    const t = theme(), { rows } = this.data();
+    const t = theme(), { rows } = this.data(), icons = shared(ICONS) ?? {};
     this.at = Math.min(this.at, rows.length);
     const all = [
       ...rows.map((p, i) => this.line(t, `pk-${p.root}`, i, [
-        div().size(8).rounded_full().flex_none().bg(t[COLOR[p.status]] ?? t.unknown),
+        projectIcon({
+          icon: iconFor(icons, p.root, p.name), ring: i === this.at ? t.selected : t.popover,
+          badge: div().size(7).rounded_full().bg(t[COLOR[p.status]] ?? t.unknown),
+        }),
         div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
         div().flex_none().text_size(11).text_color(t.dim).child(p.count ? String(p.count) : ""),
         p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),

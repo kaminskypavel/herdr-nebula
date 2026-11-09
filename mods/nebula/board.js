@@ -5,7 +5,9 @@
 //   nebula.focusBoard   a token the rail changes to ask the board for the keyboard
 //   nebula.launched     a token the dialogs change after a launch from the board
 //   nebula.repo         the selected tab: a project's folder, or "all:" (the All tab; nothing stored is All too)
-//   nebula.open         the open projects, in tab order (lib/open.js; started and pruned here, edited by the picker)
+//   nebula.open         the open projects, in tab order (lib/open.js; started and pruned here, edited by the picker).
+//                       Picking a project moves it to the front (most recently used first), right after All.
+//   nebula.icons        { [root]: { path, initials, color } } each project's icon (lib/icons.js; worked out here, read by the picker)
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
 //   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
 //   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
@@ -15,7 +17,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
 import {
-  theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify, focused,
+  theme, shared, setShared, run, exec, watchFolder, home, appHome, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify, focused,
 } from "herdr";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
@@ -23,8 +25,12 @@ import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed, resumedTerminal } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN } from "./lib/shared.js";
-import { syncOpen, closeProject, openProject, onlyOpen, closedNeeding, pickerHeight, summarize } from "./lib/open.js";
+import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS } from "./lib/shared.js";
+import { syncOpen, closeProject, openProject, promote, onlyOpen, closedNeeding, pickerHeight, summarize } from "./lib/open.js";
+import { buildIcons, iconFor } from "./lib/icons.js";
+import { pickIcon } from "./lib/icon-scan.js";
+import { fitTabs, urgent, moreHeight } from "./lib/tablayout.js";
+import { projectIcon } from "./lib/icon-view.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
@@ -115,6 +121,9 @@ export class Board {
     this.watching = new Set();
     this.refreshed = {};
     this.rootsKey = "";
+    this.picks = {}; // { [root]: { hash, ext } | null } the icon file picked for each project (lib/icon-scan.js)
+    this.iconsKey = null; // the project list the published icons were worked out for
+    this.iconsBusy = false;
     this.order = "";
     this.click = (key, c) => this.onClick(key, c);
     this.menu = (key, e, c) => this.rowMenu(key, e, c);
@@ -232,6 +241,8 @@ export class Board {
   watch(cx) {
     // Shared writes happen here, not in render, where Herdr does not keep them reliably.
     if (this.pendingOpen) { const o = this.pendingOpen; this.pendingOpen = null; setShared(OPEN, o); }
+    if (this.pendingIcons) { const i = this.pendingIcons; this.pendingIcons = null; setShared(ICONS, i); }
+    this.syncIcons(cx);
     if (this.all) {
       const summary = JSON.stringify(summarize(this.all));
       if (summary !== this.summaryKey) { this.summaryKey = summary; setShared(SUMMARY, JSON.parse(summary)); }
@@ -257,6 +268,7 @@ export class Board {
     const repo = shared(REPO);
     if (repo !== this.repo) {
       this.repo = repo;
+      this.promote(repo);
       this.place(null);
       this.cols = {};
       if (this.view === "tree" && repo && repo !== ALL) { this.unfold(repo); this.cursor = `repo:${repo}`; this.reveal(cx, this.cursor, "top"); }
@@ -275,6 +287,35 @@ export class Board {
       const row = this.byKey.get(picked.id)?.row;
       if (row) this.act(picked.action, row, cx);
     }
+  }
+
+  // The icons of the listed projects, off the render path: a project's file is looked for once (when it
+  // first appears in the list), then buildIcons applies the framework-default filter over all of them.
+  syncIcons(cx) {
+    const list = projectList(store()), key = JSON.stringify(list.map((p) => [p.root, p.name]));
+    if (key === this.iconsKey || this.iconsBusy) return;
+    this.iconsBusy = true;
+    for (const root of Object.keys(this.picks)) if (!list.some((p) => p.root === root)) delete this.picks[root];
+    const todo = list.filter((p) => !(p.root in this.picks));
+    cx.spawn(async () => {
+      try {
+        // One project at a time: Herdr runs with a 256 open-file limit, and scanning every project at
+        // once ran it out ("Too many open files").
+        for (const p of todo) this.picks[p.root] = await pickIcon(exec, p.root, appHome());
+        const icons = JSON.stringify(buildIcons(list, this.picks));
+        if (icons !== this.iconsJson) { this.iconsJson = icons; this.pendingIcons = JSON.parse(icons); }
+        this.iconsKey = key;
+      } finally {
+        this.iconsBusy = false;
+      }
+    });
+  }
+
+  // Picking a project puts it first in the open list (after All). Every way of picking goes through the
+  // shared nebula.repo, which watch() sees; goTo does it itself.
+  promote(root) {
+    const open = shared(OPEN), next = Array.isArray(open) ? promote(open, root) : open;
+    if (next !== open) setShared(OPEN, next);
   }
 
   reveal(cx, key, strategy = "center") {
@@ -419,7 +460,9 @@ export class Board {
     const at = whereIs(this.all, id);
     if (!at) return;
     const land = landOn(this.tab, this.tabRoots, at.repo.root);
-    if (land.open) setShared(OPEN, openProject(this.open, at.repo.root));
+    let open = land.open ? openProject(this.open, at.repo.root) : this.open;
+    if (land.tab !== ALL) open = promote(open, at.repo.root);
+    if (open !== this.open) setShared(OPEN, open);
     if (land.tab !== this.tab) { this.repo = land.tab; setShared(REPO, land.tab); this.cols = {}; } // this.repo first, so watch() keeps the cursor
     if (this.pc) { this.cols = { project: at.repo.root, worktree: at.band.path }; this.col = 2; }
     this.unfoldBand(at.band.path);
@@ -648,29 +691,44 @@ export class Board {
     openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 320, height: pickerHeight(projectList(store()).length), props: { role: "projects" } });
   }
 
-  // The top row: an All tab, then a tab per open project (status dot, name, close), then + for the
-  // picker, with a red dot while a closed project needs you. It starts 34px in, clear of the window buttons.
+  openMore(roots) {
+    openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 300, height: moreHeight(roots.length), props: { role: "tabs-more", roots } });
+  }
+
+  // The top row: an All tab, then the project tabs (lib/tablayout.js decides how much of each fits the width:
+  // icon, name and close; or the selected one in full and the rest as icons; or a +N button for the ones left
+  // over), then + for the picker, with a red dot while a closed project needs you. Each project has its icon
+  // with the status dot at its corner. The row starts 34px in, clear of the window buttons.
   tabRow(t) {
     const shown = this.base.repos.filter((r) => r.root !== OTHER);
-    const base = (id, on, closable) => h_flex().id(id).h_full().min_w(0).max_w(150).items_center().gap(6).pl(10).pr(closable ? 5 : 10)
+    const icons = shared(ICONS) ?? {};
+    const fit = fitTabs({ width: this.width, tabs: shown.map((r) => ({ root: r.root, name: r.name })), selected: this.root });
+    const byRoot = new Map(shown.map((r) => [r.root, r]));
+    const base = (id, on, l, r) => h_flex().id(id).h_full().min_w(0).max_w(150).items_center().gap(6).pl(l).pr(r)
       .border_b(2).border_color(on ? t.accent : t.chrome).text_size(13).text_color(on ? t.foreground : t.muted).cursor_pointer()
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)));
-    const all = () => base("tab-all", this.tab === ALL, false).tooltip("All projects (0)").on_click(() => setShared(REPO, ALL)).child(div().child("All"));
-    const tab = (r) => {
-      return base(`tab-${r.root}`, r.root === this.tab, true)
-        .tooltip(r.name)
+    const all = () => base("tab-all", this.tab === ALL, 10, 10).tooltip("All projects (0)").on_click(() => setShared(REPO, ALL)).child(div().child("All"));
+    const icon = (r) => projectIcon({ icon: iconFor(icons, r.root, r.name), badge: ball(rollup(r.rows), t, 7), ring: t.chrome });
+    const tab = (r, compact) => {
+      const el = base(`tab-${r.root}`, r.root === this.tab, compact ? 6 : 10, compact ? 6 : 5).tooltip(r.name)
         .on_click(() => setShared(REPO, r.root))
         .on_mouse_down("right", () => box(440, 200, { role: "remove-project", root: r.root, name: r.name }))
-        .child(ball(rollup(r.rows), t, 7))
+        .child(icon(r));
+      return compact ? el.flex_none() : el
         .child(div().min_w(0).truncate().child(r.name))
         .child(div().id(`tab-x-${r.root}`).size(16).flex_none().flex().items_center().justify_center().rounded(4)
           .text_color(t.dim).hover((s) => s.bg(t.selected).text_color(t.foreground))
           .on_click((_e, cx) => { cx.stop_propagation(); this.closeTab(r.root, cx); })
           .child(svg("mods/nebula/icons/x.svg").size(11)));
     };
+    const more = (roots) => base("tab-more", false, 8, 8).flex_none().tooltip(`${roots.length} more: ${roots.map((r) => byRoot.get(r).name).join(", ")}`)
+      .on_click(() => this.openMore(roots))
+      .child(ball(urgent(roots.map((r) => rollup(byRoot.get(r).rows))), t, 8))
+      .child(div().text_size(12).child(`+${roots.length}`));
     return h_flex().h(42).flex_none().items_center().pl(34).pr(10).gap(2)
       .when(this.base.repos.length > 0, (el) => el.child(all()))
-      .children(shown.map(tab))
+      .children([...fit.full.map((r) => tab(byRoot.get(r), false)), ...fit.icons.map((r) => tab(byRoot.get(r), true))])
+      .when(fit.folded.length > 0, (el) => el.child(more(fit.folded)))
       .child(div().id("tab-add").relative().size(26).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer()
         .text_color(t.dim).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip("Open or close projects")
         .on_click(() => this.openPicker())
@@ -762,9 +820,9 @@ export class Board {
     this.sync();
     return v_flex().id("board").track_focus(this.handle).size_full().bg(t.chrome).text_size(13).text_color(t.muted)
       .on_size_change((size, cx) => {
-        const was = (this.width ?? 9999) < COMPACT_BELOW;
-        this.width = size.width;
-        if (was !== this.width < COMPACT_BELOW) cx.notify();
+        const was = this.width;
+        this.width = Math.round(size.width);
+        if (was !== this.width) cx.notify(); // the compact header and the tab row both depend on the width
       })
       .border_r(1).border_color(this.has ? t.accent : t.chrome)
       .on_mouse_down("left", (e) => { this.shift = Boolean(e.modifiers?.shift); this.handle.focus(); })

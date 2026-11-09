@@ -16,10 +16,11 @@ import { Help } from "./help.js";
 import { RemoveProject } from "./remove-project.js";
 import { Import } from "./import.js";
 import { Projects } from "./projects.js";
+import { TabsMore } from "./more.js";
 
 const PARTS = {
   add: AddRepo, launch: Launch, presets: Presets, "preset-edit": PresetEdit, menu: Menu, confirm: Confirm,
-  rename: Rename, settings: Settings, help: Help, "archive-confirm": ArchiveConfirm, "remove-project": RemoveProject, import: Import, projects: Projects,
+  rename: Rename, settings: Settings, help: Help, "archive-confirm": ArchiveConfirm, "remove-project": RemoveProject, import: Import, projects: Projects, "tabs-more": TabsMore,
 };
 
 export default class NebulaBox extends View {

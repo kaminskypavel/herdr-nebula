@@ -3,7 +3,7 @@
 # nothing. Usage: scripts/install.sh [target-dir]   (default ~/.config/herdr-app)
 #
 # - mods/nebula and mods/nebula-box -> <target>/mods, without the jsconfig.json and
-#   gpui-kit.d.ts Herdr writes into mod folders
+#   gpui-kit.d.ts Herdr writes into mod folders (and keeping mods/nebula/.icons, the cache of project icons)
 # - mods/nebula/lib -> <target>/mods/nebula-box/lib (a mod cannot import another folder)
 # - layouts/nebula.json -> <target>/layouts
 # - keys/nebula.keys.json merged into <target>/keys.json: bindings you have stay as they
@@ -22,7 +22,7 @@ skip="--exclude=jsconfig.json --exclude=gpui-kit.d.ts"
 mkdir -p "$repo/mods/nebula-box/lib" "$target/mods/nebula" "$target/mods/nebula-box/lib" "$target/layouts"
 
 # shellcheck disable=SC2086
-rsync -a --delete $skip "$repo/mods/nebula/" "$target/mods/nebula/"
+rsync -a --delete $skip --exclude=/.icons "$repo/mods/nebula/" "$target/mods/nebula/"
 # shellcheck disable=SC2086
 rsync -a --delete $skip --exclude=/lib "$repo/mods/nebula-box/" "$target/mods/nebula-box/"
 rsync -a --delete "$repo/mods/nebula/lib/" "$repo/mods/nebula-box/lib/"

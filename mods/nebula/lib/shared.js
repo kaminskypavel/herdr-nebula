@@ -11,3 +11,4 @@ export const RESUMED = "nebula.resumed";
 export const PINNED = "nebula.pinned";
 export const OPEN = "nebula.open";
 export const SUMMARY = "nebula.summary";
+export const ICONS = "nebula.icons";

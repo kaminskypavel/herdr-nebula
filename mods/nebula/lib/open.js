@@ -57,6 +57,10 @@ export const currentOpen = (open, model, store) => syncOpen(open, model, store).
 
 export const openProject = (open, root) => (open.includes(root) ? open : [...open, root]);
 
+// Most recently used first: the picked project moves to the front of the list (right after All, which is
+// no entry). The same array when it is already first or not open.
+export const promote = (open, root) => (!open.includes(root) || open[0] === root ? open : [root, ...open.filter((r) => r !== root)]);
+
 // Closing a tab: -> { open, select }. select is the root to show when the closed tab was
 // the selected one (its right neighbor, else its left), else null.
 export function closeProject(open, root, selected) {
