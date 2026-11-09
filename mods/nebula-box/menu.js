@@ -17,7 +17,7 @@ export class Menu {
 
   items() {
     const p = props() ?? {};
-    return actionsFor({ archived: Boolean(p.archived), tab: p.tab ?? null }, Boolean(p.launch));
+    return actionsFor({ kind: p.kind, archived: Boolean(p.archived), tab: p.tab ?? null }, Boolean(p.launch));
   }
 
   choose(i) {

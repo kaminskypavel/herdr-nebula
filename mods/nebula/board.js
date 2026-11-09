@@ -26,7 +26,7 @@ import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed, resumedTerminal } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS } from "./lib/shared.js";
+import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS, HIDDEN } from "./lib/shared.js";
 import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/open.js";
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
@@ -521,8 +521,10 @@ export class Board {
 
   act(action, row, cx) {
     const launch = row.launch;
+    if (row.kind === "nebula" && (action === "delete" || action === "archive")) action = "hide";
     if (!actionsFor(row, Boolean(launch)).some((a) => a.id === action)) return;
-    if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : row.title });
+    if (action === "hide") setShared(HIDDEN, [...new Set([...(shared(HIDDEN) ?? []), row.nebula.id])]);
+    else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : row.title });
     else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive) box(440, 190, { role: "archive-confirm", tab: row.tab, title: row.title });
     else if (action === "archive" || action === "unarchive") { const c = tabCommand(action, row.tab); run(c.name, c.args); }
     else if (action === "delete") {
@@ -542,7 +544,7 @@ export class Board {
   rowMenu(key, _e, cx) {
     let item = this.byKey.get(key);
     if (item?.type === "sub") item = this.byKey.get(item.parent);
-    if (item?.type !== "session" || item.row.kind === "nebula") return;
+    if (item?.type !== "session") return;
     this.handle.focus();
     this.col = 2;
     this.place(item.key);
@@ -550,7 +552,7 @@ export class Board {
     const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
     openOverlay({
       mod: "nebula-box", kind: "popup", at: "pointer", width: 270, height,
-      props: { role: "menu", id: row.id, archived: row.archived, tab: row.tab, launch: list.some((a) => a.id === "relaunch") },
+      props: { role: "menu", id: row.id, kind: row.kind, archived: row.archived, tab: row.tab, launch: list.some((a) => a.id === "relaunch") },
     });
     cx.notify();
   }
@@ -634,7 +636,7 @@ export class Board {
     return {
       terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos(),
       wt: Object.assign({}, ...Object.values(this.wt)), now: Date.now(), showArchived,
-      nebula: this.nebulaOn ? this.nebula : [], resumed: shared(RESUMED) ?? {},
+      nebula: this.nebulaOn ? this.nebula.filter((s) => !(shared(HIDDEN) ?? []).includes(s.id)) : [], resumed: shared(RESUMED) ?? {},
     };
   }
 

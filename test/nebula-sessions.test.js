@@ -70,7 +70,7 @@ test("recordResumed adds the new terminal and drops entries whose terminal is go
   assert.deepEqual(recordResumed(undefined, "c", "t3", new Set()), { c: "t3" });
 });
 
-test("nebulaRow: grey dim row with a nebula badge, words in age, no actions", () => {
+test("nebulaRow: grey dim row with a nebula badge, words in age, only Hide", () => {
   const idle = nebulaRow({ id: "x", name: "Fix login", worktree: "/w/app", summary: "Fix login", status: "idle", alive: false, forked: false });
   assert.equal(idle.kind, "nebula");
   assert.equal(idle.id, "nebula:x");
@@ -81,7 +81,7 @@ test("nebulaRow: grey dim row with a nebula badge, words in age, no actions", ()
   assert.equal(idle.prompt, "");
   assert.equal(nebulaRow({ id: "y", name: "n", summary: "s", alive: true, forked: false }).age, "running in nebula");
   assert.equal(nebulaRow({ id: "y", name: "n", summary: "s", alive: true, forked: true }).age, "running in nebula (forked)");
-  assert.deepEqual(actionsFor(idle, true), []);
+  assert.deepEqual(actionsFor(idle, true).map((a) => a.id), ["hide"]);
 });
 
 const repos = [

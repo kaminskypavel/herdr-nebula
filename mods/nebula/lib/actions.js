@@ -9,9 +9,10 @@ const ALL = [
   { id: "delete", label: "Delete", key: "d", danger: true },
 ];
 
-// A nebula row (kind "nebula") belongs to nebula: no row action applies, only a click or
-// Enter resumes it.
-export const actionsFor = (row, hasLaunch) => row.kind === "nebula" ? [] : ALL.filter((a) =>
+// A nebula row (kind "nebula") belongs to nebula: a click or Enter resumes it, and the one
+// action hides it from the board (a or d), since nothing here can delete nebula's session.
+const HIDE = [{ id: "hide", label: "Hide from board", key: "d" }];
+export const actionsFor = (row, hasLaunch) => row.kind === "nebula" ? HIDE : ALL.filter((a) =>
   (!a.tab || row.tab)
   && (!a.launch || hasLaunch)
   && (a.id !== "archive" || !row.archived)

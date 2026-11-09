@@ -176,3 +176,7 @@ test("a failed re-check or an unknown first check never allows -f", () => {
   const unknown = summarizeCheck({ code: 1, stdout: "" }, ok(""));
   assert.equal(recheckRemove(unknown, ok(" M a")).changed, true);
 });
+
+test("a nebula row offers only Hide from board", () => {
+  assert.deepEqual(actionsFor({ kind: "nebula" }, false).map((a) => a.id), ["hide"]);
+});
