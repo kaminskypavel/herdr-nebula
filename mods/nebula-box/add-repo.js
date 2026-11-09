@@ -1,12 +1,13 @@
-// AddRepo puts a folder on the rail (role "add-repo"). A git repo, or any of its
+// AddRepo puts a folder on the project list (role "add"), open as a tab. A git repo, or any of its
 // worktrees, resolves to the main repo through git's common dir; a plain folder is its
 // own project. Enter adds, Esc closes, Choose opens the system folder picker. A folder
-// already on the rail is selected there and reported in the dialog.
+// already on the list is opened and selected, and reported in the dialog.
 import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { props, closeOverlay, theme, shared, setShared, exec, home, pickFolder } from "herdr";
 import { STORE, addProject, resolveAdd, resolveFolder } from "./lib/repos.js";
-import { REPO } from "./lib/shared.js";
+import { REPO, OPEN } from "./lib/shared.js";
+import { openProject } from "./lib/open.js";
 import { button, dialogTitle, escapeKey, inputBox, keyHint } from "./ui.js";
 
 const HINT = "A folder, a git repo, or one of its worktrees. A worktree adds its main repo.";
@@ -45,7 +46,9 @@ export class AddRepo {
       const store = shared(STORE) ?? {};
       const { root, existing } = resolveAdd(store, found.root);
       setShared(REPO, root);
-      if (existing) { this.note = { text: `${existing.name} is already on the rail.`, bad: false }; cx.notify(); return; }
+      const open = shared(OPEN); // absent until the board has started it, which then opens the first project
+      if (Array.isArray(open)) setShared(OPEN, openProject(open, root));
+      if (existing) { this.note = { text: `${existing.name} is already added.`, bad: false }; cx.notify(); return; }
       setShared(STORE, addProject(store, root));
       closeOverlay(props()?.overlay);
     });

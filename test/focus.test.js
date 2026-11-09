@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { step, FOLDED, TERMINAL, BOARD } from "../mods/nebula/lib/focus.js";
 import { groupSessions } from "../mods/nebula/lib/projects.js";
 import {
-  railTiles, digitTile, initials, parseWorktrees, resolveAdd, jumpTarget,
+  digitTile, parseWorktrees, resolveAdd, jumpTarget,
   projectList, addProject, removeProject, taken,
 } from "../mods/nebula/lib/repos.js";
 
@@ -73,43 +73,13 @@ const acme = {
 const dns = { root: "/Users/dev/devl/docs-site", name: "docs-site", checkouts: [{ path: "/Users/dev/devl/docs-site", branch: "main" }] };
 const term = (address, cwd, status, extra = {}) => ({ address, cwd, status, state: "live", ...extra });
 
-test("rail counts for acme with 1 blocked, 2 working and 1 unseen session read 1 2 1 in those colors", () => {
-  const cwd = acme.root;
-  const grouped = groupSessions(
-    [term("a", cwd, "blocked"), term("b", cwd, "working"), term("c", cwd, "working"), term("d", cwd, "done")],
-    [acme, dns],
-  );
-  const tiles = railTiles(grouped);
-  assert.deepEqual(tiles[0].counts, [
-    { status: "needs", n: 1, color: "ansi1" },
-    { status: "working", n: 2, color: "ansi3" },
-    { status: "unseen", n: 1, color: "ansi6" },
-  ]);
-  assert.deepEqual(tiles[1].counts, []);
-  assert.equal(tiles[0].name, "acme-web");
-  assert.equal(tiles[0].root, acme.root);
-});
-
-test("sub-agents never add to rail counts", () => {
-  const cwd = acme.root;
-  const grouped = groupSessions([term("a", cwd, "working"), term("k1", cwd, "working", { parent: "a" }), term("k2", cwd, "blocked", { parent: "a" })], [acme]);
-  assert.deepEqual(railTiles(grouped)[0].counts, [{ status: "working", n: 1, color: "ansi3" }]);
-});
-
-test("the 10th repo has no digit shortcut", () => {
+test("the 10th open tab has no digit shortcut", () => {
   const tiles = Array.from({ length: 10 }, (_, i) => ({ root: `/r/${i}` }));
   assert.equal(digitTile(tiles, "1").root, "/r/0");
   assert.equal(digitTile(tiles, "9").root, "/r/8");
   assert.equal(digitTile(tiles, "0"), null);
   assert.equal(digitTile(tiles, "a"), null);
   assert.equal(digitTile(tiles.slice(0, 2), "3"), null);
-});
-
-test("tile initials come from the repo name", () => {
-  assert.equal(initials("docs-site"), "DS");
-  assert.equal(initials("acme-web"), "AW");
-  assert.equal(initials("hit_pilot app"), "HP");
-  assert.equal(initials(""), "?");
 });
 
 test("a worktree list becomes checkouts with the main one first", () => {

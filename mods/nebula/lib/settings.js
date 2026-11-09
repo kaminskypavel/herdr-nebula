@@ -23,7 +23,7 @@ export const SIDES = ["prefix", "postfix"];
 
 export const DEFAULTS = {
   view: "tree", harness: "claude", harnesses: {}, newWorktree: false, autoTitle: true,
-  presetSide: "prefix", confirmArchive: false, editor: "open", gradientTiles: true, nebulaSessions: true,
+  presetSide: "prefix", confirmArchive: false, editor: "open", nebulaSessions: true,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -50,7 +50,6 @@ export function mergeSettings(stored) {
     presetSide: SIDES.includes(s.presetSide) ? s.presetSide : DEFAULTS.presetSide,
     confirmArchive: typeof s.confirmArchive === "boolean" ? s.confirmArchive : DEFAULTS.confirmArchive,
     editor: text(s.editor) ?? DEFAULTS.editor,
-    gradientTiles: typeof s.gradientTiles === "boolean" ? s.gradientTiles : DEFAULTS.gradientTiles,
     nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
   };
 }
@@ -97,7 +96,7 @@ const SHORTCUTS = [
     { keys: ["s"], text: "pin beside, again to unpin" },
     { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
     { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
-    { keys: ["1 to 9"], text: "repo" },
+    { keys: ["1 to 9"], text: "open project tab" },
   ] },
 ];
 
@@ -109,8 +108,3 @@ export function groupShortcuts(binds, mac) {
   };
   return SHORTCUTS.map((g) => ({ group: g.group, col: g.col, rows: g.rows.map((r) => ({ keys: r.keys.map(label).join(" "), text: r.text })) }));
 }
-
-// The two theme colors of a project tile's gradient, by the tile's place on the rail, so
-// neighbours never share colors. Pairs of the theme's ANSI colors.
-const TILE_PAIRS = [["ansi5", "ansi4"], ["ansi6", "ansi4"], ["ansi2", "ansi6"], ["ansi3", "ansi1"], ["ansi1", "ansi5"], ["ansi4", "ansi6"], ["ansi3", "ansi2"], ["ansi5", "ansi1"]];
-export const tileColors = (index) => TILE_PAIRS[((index % TILE_PAIRS.length) + TILE_PAIRS.length) % TILE_PAIRS.length];

@@ -14,7 +14,7 @@
           "id": "rail-col",
           "type": "column",
           "size": {
-            "px": 76
+            "px": 44
           },
           "background": "chrome",
           "resizable": false,
@@ -47,8 +47,8 @@
               }
             }
           ],
-          "min": 76,
-          "max": 76
+          "min": 44,
+          "max": 44
         },
         {
           "id": "board",

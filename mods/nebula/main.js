@@ -1,5 +1,5 @@
 // One mod, three parts of the window told apart by props.role: "top" (the strip under
-// the window buttons), "rail" (the repo tiles) and "board" (the sessions). Dialogs are
+// the window buttons), "rail" (the icon bar) and "board" (the project tabs and sessions). Dialogs are
 // in the nebula-box mod: letter keys bound to this mod would swallow typing in a text
 // field here.
 import { View, div } from "gpui-kit";

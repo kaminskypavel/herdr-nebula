@@ -13,7 +13,6 @@ const TOGGLES = {
   newWorktree: ["New worktree", "Start new sessions in their own wt worktree"],
   autoTitle: ["Auto-title", "Name each session after its first prompt"],
   confirmArchive: ["Confirm archive", "Ask before hiding a session"],
-  gradientTiles: ["Gradient tiles", "Color each project tile on the rail"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
 const PICK_W = 150;
@@ -38,7 +37,7 @@ export class Settings {
   }
 
   rows() {
-    return ["view", "newWorktree", "autoTitle", "confirmArchive", "presetSide", "editor", "harness", ...this.ids.map((id) => `h:${id}`), "gradientTiles", "nebulaSessions", "import"];
+    return ["view", "newWorktree", "autoTitle", "confirmArchive", "presetSide", "editor", "harness", ...this.ids.map((id) => `h:${id}`), "nebulaSessions", "import"];
   }
 
   // Closes this overlay first: it would otherwise save its older copy over the import.
@@ -217,7 +216,6 @@ export class Settings {
             : div().text_size(12.5).text_color(t.dim).child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026")),
           ...this.ids.map(agent),
         ]))
-        .child(this.group(t, "Experimental", [toggle("gradientTiles")]))
         .child(this.group(t, "Data", [
           toggle("nebulaSessions"),
           this.line(t, at("import"), "Import from nebula", "Projects and defaults from nebula's own files",

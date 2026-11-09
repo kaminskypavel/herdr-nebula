@@ -4,14 +4,14 @@
 
 **[nebula](https://github.com/AgentSystemLabs/nebula)'s mission control, inside [Herdr](https://herdr.dev).**
 
-Every coding agent you run, on one board: projects on a rail, their worktrees and sessions beside them,
+Every coding agent you run, on one board: open projects as tabs, their worktrees and sessions beside them,
 and Herdr's own terminal next to it all.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/kaminskypavel/herdr-nebula/main/install.sh | sh
 ```
 
-<img src="assets/cards.png" alt="herdr-nebula in Herdr: a rail of project tiles with status counts, a board of session cards grouped by worktree, and the agent's terminal beside it" width="100%">
+<img src="assets/cards.png" alt="herdr-nebula in Herdr: a thin icon bar, a board of session cards grouped by worktree, and the agent's terminal beside it" width="100%">
 
 </div>
 
@@ -25,7 +25,8 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 
 ## What you get
 
-- **A rail of projects.** Git repos or plain folders, each tile with a count of its sessions by status. Click a count to jump to that session.
+- **Project tabs.** Git repos or plain folders. The board shows only the projects you have open, as tabs with a status dot; <kbd>×</kbd> closes one, <kbd>+</kbd> opens the projects picker (search, session counts, a check on the open ones, and "Add a project"). A closed project whose agent needs you opens as a tab by itself, and <kbd>+</kbd> carries a red dot until it does.
+- **An icon bar.** A thin bar on the left: Board (show or fold it), Projects, New session, Presets, and at the bottom New window, Shortcuts and Settings.
 - **A board in four views.** Tree, Cards, List and Columns. Columns groups by status, or nebula-style as Projects, Worktrees, Sessions.
 - **Status at a glance.** 🔴 needs you, 🟡 working, 🔵 done and not seen yet, 🟢 done and seen.
 - **A new-session box** (<kbd>⌘K</kbd> or <kbd>p</kbd>). Pick the project, checkout, agent (only the installed ones) and preset, type the task, and optionally start it in a fresh [`wt`](https://github.com/max-sixty/worktrunk) worktree.
@@ -33,7 +34,7 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **One-click import from nebula.** Your projects and per-agent defaults, straight from nebula's own files.
 - **Sessions that name themselves.** Claude Code and Codex title their tab after the first prompt. A name you give always wins.
 - **Row actions.** Rename, archive, relaunch with the same setup, open the folder, or delete. Delete offers to remove the worktree and shows uncommitted files and unpushed commits first.
-- **A second window.** The window button on the rail opens another Herdr window on the same agents, for two boards side by side.
+- **A second window.** The New window button on the icon bar opens another Herdr window on the same agents, for two boards side by side.
 - **Keyboard first.** <kbd>⌃`</kbd> hands the keys to the board and back. <kbd>⌘]</kbd> jumps to the next agent that needs you, from anywhere.
 
 <table>
@@ -76,9 +77,9 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 | Board | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd> | New session, presets, next view |
 | Board | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete |
 | Board | <kbd>s</kbd>, or shift-click | Pin the agent beside the active one (again to unpin) |
-| Board | <kbd>1</kbd> to <kbd>9</kbd> | Pick a project |
+| Board | <kbd>1</kbd> to <kbd>9</kbd> | Select the open project tab |
 
-The <kbd>?</kbd> on the rail lists them all, live.
+The <kbd>?</kbd> button on the icon bar lists them all, live.
 
 ## Roll back
 

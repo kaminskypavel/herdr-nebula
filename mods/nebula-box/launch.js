@@ -342,7 +342,7 @@ export class Launch {
   go(cx) {
     if (this.busy || !this.ready) return;
     const repo = this.repo();
-    if (!repo) { this.error = "Add a project on the rail first."; cx.notify(); return; }
+    if (!repo) { this.error = "Add a project first."; cx.notify(); return; }
     if (!this.harness) { this.error = "No supported agent is installed."; cx.notify(); return; }
     const now = this.task.value(), task = withoutEnter(this.now === now ? this.before : this.now, now);
     this.busy = "Launching…";

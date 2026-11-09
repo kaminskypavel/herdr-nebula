@@ -1,10 +1,11 @@
 // The board column: the session views (Tree, Cards, List, Columns) and the keyboard.
 // It also owns the focus handle the rail asks for, the 1px accent edge while it has the
-// keys, and the 1 to 9 repo keys. Through shared values it talks to the rail:
+// keys, the project tabs at its top and the 1 to 9 tab keys. Through shared values it talks to the rail:
 //   nebula.boardKeys    true while the board has the keyboard (written here)
 //   nebula.focusBoard   a token the rail changes to ask the board for the keyboard
 //   nebula.launched     a token the dialogs change after a launch from the board
-//   nebula.repo         the selected repo's folder
+//   nebula.repo         the selected repo's folder (the selected tab)
+//   nebula.open         the open projects, in tab order (lib/open.js; started and pruned here, edited by the picker)
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
 //   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
 //   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
@@ -16,23 +17,25 @@ import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui
 import {
   theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify,
 } from "herdr";
-import { STORE, projectList, digitTile, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
+import { STORE, projectList, digitTile, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED } from "./lib/shared.js";
+import { SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN } from "./lib/shared.js";
+import { syncOpen, closeProject, onlyOpen, closedNeeding, pickerHeight, summarize } from "./lib/open.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
-  OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly, bandPaths, foldBands,
+  OTHER, NEW_SESSION, LABEL, rollup, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly, bandPaths, foldBands,
 } from "./lib/viewmodel.js";
 import { arrange, cleanSort, SORTS, SORT_TITLE } from "./lib/arrange.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
+import { ball } from "./views/row.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -97,6 +100,8 @@ export class Board {
     this.last = { key: null, at: 0 };
     this.range = null;
     this.repo = shared(REPO);
+    this.open = []; // the open project roots, in tab order (sync keeps it)
+    this.seen = null; // the ids that needed you at the last sync (lib/open.js)
     this.checkouts = {};
     this.wt = {};
     this.common = {};
@@ -220,6 +225,12 @@ export class Board {
   }
 
   watch(cx) {
+    // Shared writes happen here, not in render, where Herdr does not keep them reliably.
+    if (this.pendingOpen) { const o = this.pendingOpen; this.pendingOpen = null; setShared(OPEN, o); }
+    if (this.all) {
+      const summary = JSON.stringify(summarize(this.all));
+      if (summary !== this.summaryKey) { this.summaryKey = summary; setShared(SUMMARY, JSON.parse(summary)); }
+    }
     const asked = shared(FOCUS_BOARD);
     if (asked !== this.asked) {
       this.asked = asked;
@@ -508,7 +519,7 @@ export class Board {
     if (!it) return;
     if (it.type === "project") {
       this.cols = { project: it.project.key, worktree: it.project.key === this.cols.project ? this.cols.worktree : null };
-      // the rail and the header follow, as when a rail tile is clicked; this.repo is set first so watch() keeps the selection
+      // the rail and the header follow, as when a tab is clicked; this.repo is set first so watch() keeps the selection
       if (it.project.key !== OTHER && it.project.key !== shared(REPO)) { this.repo = it.project.key; setShared(REPO, it.project.key); }
     }
     else if (it.type === "worktree") this.cols = { ...this.cols, worktree: it.worktree.key };
@@ -572,9 +583,9 @@ export class Board {
     else if (k === "e") this.openPresets();
     else if (k === "A" || (k === "a" && m.shift)) this.showArchived = !this.showArchived;
     else {
-      const tile = digitTile(projectList(store()), k);
-      if (!tile) return;
-      setShared(REPO, tile.root);
+      const tab = digitTile(this.tabs(), k);
+      if (!tab) return;
+      setShared(REPO, tab.root);
     }
     cx.notify();
   }
@@ -589,7 +600,12 @@ export class Board {
 
   sync() {
     const picked = shared(REPO);
-    this.base = buildBoard(this.boardArgs(this.showArchived));
+    this.all = buildBoard(this.boardArgs(this.showArchived));
+    const stored = shared(OPEN), r = syncOpen(stored, this.all, store(), this.seen);
+    this.open = r.open ?? [];
+    this.seen = r.seen;
+    if (r.changed && r.open) this.pendingOpen = r.open; // first run, a gone project, a closed project that needs you; written by watch
+    this.base = onlyOpen(this.all, this.open);
     this.model = arrange(this.base, { filter: this.filter, sort: this.sort });
     this.pinned = shared(PINNED);
     this.root = selectedRepo(this.model, picked)?.root ?? null;
@@ -603,19 +619,59 @@ export class Board {
     this.index = at.index;
     if (this.pc) this.fitColumn();
     // the agent order ignores the filter: a hidden agent keeps its place
-    const order = agentOrder(this.filter ? arrange(this.base, { sort: this.sort }) : this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
+    const shown = agentOrder(this.filter ? arrange(this.base, { sort: this.sort }) : this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
+    const order = [...shown, ...agentOrder(this.all, "tree", null).filter((id) => !shown.includes(id))]; // closed projects' agents follow
     const key = order.join("\n");
     if (key !== this.order) { this.order = key; setAgentOrder(order); }
   }
 
+  tabs() { return this.base.repos.filter((r) => r.root !== OTHER); }
+
+  closeTab(root, cx) {
+    const r = closeProject(this.open, root, this.root);
+    this.open = r.open;
+    setShared(OPEN, r.open);
+    if (r.select) setShared(REPO, r.select);
+    cx.notify();
+  }
+
+  openPicker() {
+    openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 320, height: pickerHeight(projectList(store()).length), props: { role: "projects" } });
+  }
+
+  // The top row: a tab per open project (status dot, name, close), the Other group while it is
+  // the selection, then + for the picker, with a red dot while a closed project needs you. It
+  // starts 34px in, clear of the window buttons.
+  tabRow(t) {
+    const shown = this.base.repos.filter((r) => r.root !== OTHER || r.root === this.root);
+    const tab = (r) => {
+      const on = r.root === this.root, closable = r.root !== OTHER;
+      return h_flex().id(`tab-${r.root}`).h_full().min_w(0).max_w(150).items_center().gap(6).pl(10).pr(closable ? 5 : 10)
+        .border_b(2).border_color(on ? t.accent : t.chrome).text_size(13).text_color(on ? t.foreground : t.muted).cursor_pointer()
+        .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+        .tooltip(r.name)
+        .on_click(() => setShared(REPO, r.root))
+        .on_mouse_down("right", () => closable && box(440, 200, { role: "remove-project", root: r.root, name: r.name }))
+        .child(ball(rollup(r.rows), t, 7))
+        .child(div().min_w(0).truncate().child(r.name))
+        .when(closable, (el) => el.child(div().id(`tab-x-${r.root}`).size(16).flex_none().flex().items_center().justify_center().rounded(4)
+          .text_color(t.dim).hover((s) => s.bg(t.selected).text_color(t.foreground))
+          .on_click((_e, cx) => { cx.stop_propagation(); this.closeTab(r.root, cx); })
+          .child(svg("mods/nebula/icons/x.svg").size(11))));
+    };
+    return h_flex().h(42).flex_none().items_center().pl(34).pr(10).gap(2)
+      .children(shown.map(tab))
+      .child(div().id("tab-add").relative().size(26).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer()
+        .text_color(t.dim).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip("Open or close projects")
+        .on_click(() => this.openPicker())
+        .child(svg("mods/nebula/icons/plus.svg").size(14))
+        .when(closedNeeding(this.all, this.open), (el) => el.child(div().absolute().top(3).right(3).size(7).rounded_full().bg(t.ansi1))));
+  }
+
   header(t) {
     const compact = (this.width ?? 9999) < COMPACT_BELOW;
-    const repo = this.model.repos.find((r) => r.root === this.root);
-    const path = !repo || repo.root === OTHER ? "" : tilde(repo.root, home());
     return v_flex().flex_none()
-      .child(h_flex().h(42).items_center().gap(8).pl(20).pr(14)
-        .child(div().min_w(0).truncate().font_semibold().text_size(14).text_color(t.foreground).child(repo?.name ?? "Board"))
-        .child(div().min_w(0).truncate().text_size(12).text_color(t.dim).child(path)))
+      .child(this.tabRow(t))
       .child(h_flex().h(38).items_center().pl(20).pr(14).border_b(1).border_color(t.border)
         .child(h_flex().border_1().border_color(t.border).rounded(6).p(1).bg(t.background)
           .children(VIEWS.map((v) => {
@@ -672,24 +728,25 @@ export class Board {
       .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(10).text_color(t.muted).child(hint));
   }
 
-  // No project on the rail: a centered empty state when there is nothing else to list, or a
-  // slim banner above the stray sessions (the Other group) when there is.
-  noProjects(t, alone) {
+  // No project to show: a centered empty state when there is nothing else to list, or a
+  // slim banner above the stray sessions (the Other group) when there is. With projects in the
+  // store but none open, it offers the picker instead of adding.
+  noProjects(t, alone, listed) {
     const action = (id, text, kind, role, w, h) => h_flex().id(id).h(30).px(14).items_center().rounded(6).border_1().text_size(12).cursor_pointer()
       .border_color(kind === "primary" ? t.solid : t.border).bg(kind === "primary" ? t.solid : t.raised)
       .text_color(kind === "primary" ? t.solid_foreground : t.foreground)
-      .hover((s) => s.opacity(0.88)).on_click(() => box(w, h, { role })).child(text);
-    const buttons = h_flex().gap(8).flex_none()
+      .hover((s) => s.opacity(0.88)).on_click(() => (role ? box(w, h, { role }) : this.openPicker())).child(text);
+    const buttons = listed ? h_flex().gap(8).flex_none().child(action("empty-open", "Open a project", "primary", null)) : h_flex().gap(8).flex_none()
         .when(this.hasNebula, (el) => el.child(action("empty-import", "Import from nebula", "primary", "import", 520, 420)))
         .child(action("empty-add", "Add a project", this.hasNebula ? "plain" : "primary", "add", 460, 240));
     if (!alone) {
       return h_flex().id("board-banner").flex_none().mx(12).mt(10).px(14).py(10).gap(12).items_center().rounded(10)
         .border_1().border_color(t.border).bg(t.raised)
-        .child(div().flex_1().min_w(0).truncate().text_size(12.5).text_color(t.muted).child("No projects yet"))
+        .child(div().flex_1().min_w(0).truncate().text_size(12.5).text_color(t.muted).child(listed ? "No project open" : "No projects yet"))
         .child(buttons);
     }
     return v_flex().id("board-empty").flex_1().items_center().justify_center().gap(14)
-      .child(div().text_size(13).text_color(t.dim).child("No projects yet"))
+      .child(div().text_size(13).text_color(t.dim).child(listed ? "No project open" : "No projects yet"))
       .child(buttons);
   }
 
@@ -706,7 +763,7 @@ export class Board {
       .on_mouse_down("left", (e) => { this.shift = Boolean(e.modifiers?.shift); this.handle.focus(); })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(!this.base.repos.length || !projectList(store()).length, (el) => el.child(this.noProjects(t, !this.base.repos.length)))
+      .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))));
   }
 }

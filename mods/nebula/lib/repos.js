@@ -1,13 +1,13 @@
-// The rail's data: the project list (shared "nebula.projects"), a tile per project with
-// its agent counts, the git helpers that find a project's checkouts, and the jump and
-// status targets the rail's keys use. No herdr imports, so node can test it.
+// The project list (shared "nebula.projects"), the git helpers that find a project's
+// checkouts, the digit key of the tabs and the jump target the rail's keys use. No herdr
+// imports, so node can test it.
 //
 // The project list is one shared value: { list: [{ root, name }], removed: [root] }.
-// `removed` remembers the folders the user took off the rail, so code that adds projects
+// `removed` remembers the folders the user took off the list, so code that adds projects
 // in bulk can tell them from folders it has not seen yet.
-import { COLOR, STATUS_ORDER, statusOf } from "./status.js";
+import { statusOf } from "./status.js";
 import { nextAttention, flatten } from "./order.js";
-import { groupSessions, repoCounts, repoRoot, norm, baseName } from "./projects.js";
+import { groupSessions, repoRoot, norm, baseName } from "./projects.js";
 import { PROJECTS } from "./shared.js";
 
 export const STORE = PROJECTS;
@@ -80,28 +80,9 @@ export function tilde(path, home) {
   return p === h ? "~" : p.startsWith(h + "/") ? "~" + p.slice(h.length) : p;
 }
 
-export function railTiles(grouped) {
-  return grouped.repos.map((r) => {
-    const n = repoCounts(r);
-    return { root: r.root, name: r.name, counts: STATUS_ORDER.filter((s) => n[s] > 0).map((s) => ({ status: s, n: n[s], color: COLOR[s] })) };
-  });
-}
-
 export const digitTile = (tiles, key) => (/^[1-9]$/.test(key) ? tiles[Number(key) - 1] ?? null : null);
-
-export function initials(name) {
-  const words = String(name ?? "").split(/[\s\-_.]+/).filter(Boolean);
-  const s = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "").slice(0, 2);
-  return s ? s.toUpperCase() : "?";
-}
 
 export function jumpTarget(terminals, repos, from, dir) {
   const rows = flatten(groupSessions(terminals, repos)).map((t) => ({ id: t.address, status: statusOf(t) }));
   return nextAttention(rows, from, dir);
-}
-
-export function statusTarget(terminals, repos, root, status, from) {
-  const repo = groupSessions(terminals, repos).repos.find((r) => r.root === root);
-  const ids = (repo?.bands ?? []).flatMap((b) => b.sessions).filter((t) => statusOf(t) === status).map((t) => t.address);
-  return ids.length ? ids[(ids.indexOf(from) + 1) % ids.length] : null;
 }
