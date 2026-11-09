@@ -116,16 +116,20 @@ test("sessions outside every repo land in an Other group that Tree and List can 
   assert.equal(selectedRepo(m, "/nope").root, "/r/alpha");
 });
 
-test("the cursor stays on a session when it moves from blocked to working", () => {
+test("the cursor stays on a session when its status change moves the row", () => {
   const f = fleet();
   const before = stopsOf(treeItems(buildBoard(f), new Set()));
-  const i = before.indexOf("t1");
+  const i = before.indexOf("t9");
+  // t9 (idle) starts needing you: it moves above t1 (working) in alpha's main band, the cursor follows the address
+  f.terminals[8].status = "blocked";
+  f.agents[8].status = "blocked";
   f.terminals[0].status = "working";
   f.agents[0].status = "working";
-  for (const stops of [stopsOf(treeItems(buildBoard(f), new Set())), stopsOf(columnsModel(buildBoard(f)).flatMap((c) => c.rows).map((r) => ({ type: "session", key: r.id })))]) {
-    assert.equal(placeCursor(stops, "t1", i).id, "t1");
-  }
-  assert.deepEqual(stopsOf(treeItems(buildBoard(f), new Set())), before);
+  const after = stopsOf(treeItems(buildBoard(f), new Set()));
+  assert.ok(after.indexOf("t9") < after.indexOf("t1"));
+  assert.equal(placeCursor(after, "t9", i).id, "t9");
+  const cols = stopsOf(columnsModel(buildBoard(f)).flatMap((c) => c.rows).map((r) => ({ type: "session", key: r.id })));
+  assert.equal(placeCursor(cols, "t9", i).id, "t9");
 });
 
 test("the cursor follows the address, not the index, when rows above it appear", () => {
@@ -327,4 +331,59 @@ test("Projects mode puts the selected project's sessions first, in worktree orde
   assert.deepEqual(order.slice(0, beta.rows.length), beta.rows.map((r) => r.id));
   assert.equal(new Set(order).size, 15);
   assert.equal(agentOrder(m, "columns", "/r/alpha", { mode: "projects" }).slice(0, m.repos[0].rows.length).join(), m.repos[0].rows.map((r) => r.id).join());
+});
+
+// Sorting by status: needs you, working, unseen, seen, then grey (exited and nebula rows) last.
+function mixed() {
+  const mk = (address, status, shell) => ({ address, cwd: "/r/alpha", status, state: "live", app: "claude-code", program: { key: shell ? "shell" : "claude", name: shell ? "zsh" : "Claude Code", shell: Boolean(shell) }, labels: shell ? { "nebula.board": "1" } : {} });
+  const terminals = [mk("e1", undefined, true), mk("s1", "idle"), mk("w1", "working"), mk("s2", "idle"), mk("u1", "done"), mk("n1", "blocked"), mk("w2", "working"), mk("e2", undefined, true)];
+  return { terminals, agents: [], panes: [], spaces: [], repos, now: NOW };
+}
+const ids = (rows) => rows.map((r) => r.id);
+
+test("every band lists needs you, working, unseen, seen, then grey rows, in today's order within a status", () => {
+  const m = buildBoard(mixed());
+  assert.deepEqual(ids(m.repos[0].bands[0].rows), ["n1", "w1", "w2", "u1", "s1", "s2", "e1", "e2"]);
+  assert.deepEqual(ids(m.repos[0].rows), ids(m.repos[0].bands[0].rows));
+  assert.deepEqual(ids(treeItems(m, new Set()).filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
+  assert.deepEqual(ids(listItems(m, "/r/alpha").filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
+});
+
+test("nebula rows and the Other group sort grey last too", () => {
+  const f = { ...mixed(), nebula: [{ id: "x", name: "old", summary: "old", worktree: "/r/alpha", status: "idle", alive: false }] };
+  f.terminals.push({ address: "o1", cwd: "/Users/x", status: "idle", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} },
+    { address: "o2", cwd: "/Users/x", status: "blocked", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} });
+  const m = buildBoard(f);
+  assert.deepEqual(ids(m.repos[0].rows).slice(-3), ["e1", "e2", "nebula:x"]);
+  assert.deepEqual(ids(m.repos.find((r) => r.root === OTHER).rows), ["o2", "o1"]);
+});
+
+test("Columns Status keeps grey rows last inside the Seen column", () => {
+  const cols = columnsModel(buildBoard(mixed()));
+  assert.deepEqual(ids(cols[3].rows), ["s1", "s2", "e1", "e2"]);
+});
+
+test("Columns Projects orders projects and worktrees by urgency, all-grey last, and the sessions by status", () => {
+  const f = mixed();
+  // beta: one idle session; gamma: only an exited one; delta: a working one, in feat
+  const add = (address, root, status, shell) => f.terminals.push({ address, cwd: root, status, state: "live", program: { key: shell ? "shell" : "claude", name: "x", shell: Boolean(shell) }, labels: shell ? { "nebula.board": "1" } : {} });
+  add("b1", "/r/beta", "idle");
+  add("g1", "/r/gamma", undefined, true);
+  add("d1", "/r/delta-worktrees/feat", "working");
+  add("a-feat", "/r/alpha-worktrees/feat", undefined, true);
+  const m = buildBoard(f);
+  const pc = projectColumns(m, { project: "/r/alpha" });
+  assert.deepEqual(pc.projects.map((p) => p.key), ["/r/alpha", "/r/delta", "/r/beta", "/r/gamma"]);
+  assert.deepEqual(pc.worktrees.map((w) => w.key), ["/r/alpha", "/r/alpha-worktrees/feat"]);
+  assert.deepEqual(ids(pc.sessions), ["n1", "w1", "w2", "u1", "s1", "s2", "e1", "e2"]);
+  // no project in the column is reordered when nothing changes: equal rank keeps the tree order
+  assert.deepEqual(projectColumns(buildBoard({ ...f, terminals: f.terminals.filter((t) => ["b1", "g1"].includes(t.address) === false) }), {}).projects.map((p) => p.key).slice(0, 2), ["/r/alpha", "/r/delta"]);
+});
+
+test("the attention walk still goes needs you first, then unseen, after the sort", () => {
+  const m = buildBoard(mixed());
+  assert.equal(attentionTarget(m, null, 1), "n1");
+  assert.equal(attentionTarget(m, "n1", 1), "u1");
+  assert.equal(attentionTarget(m, "u1", 1), "n1");
+  assert.equal(attentionTarget(m, "n1", -1), "u1");
 });

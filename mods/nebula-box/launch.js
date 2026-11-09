@@ -55,7 +55,7 @@ export class Launch {
     this.effort = null;
     this.presets = [];
     this.preset = null;
-    this.newWt = props()?.prefill ? Boolean(props().prefill.newWorktree) : this.settings.newWorktree;
+    this.newWt = props()?.prefill && "harness" in props().prefill ? Boolean(props().prefill.newWorktree) : this.settings.newWorktree;
     this.typed = null;
     this.auto = "";
     this.random = props()?.prefill?.branch || branchName("");

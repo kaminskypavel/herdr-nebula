@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nextAttention, flatten } from "../mods/nebula/lib/order.js";
-import { groupSessions } from "../mods/nebula/lib/projects.js";
+import { nextAttention } from "../mods/nebula/lib/order.js";
 
 const row = (id, status) => ({ id, status });
 
@@ -28,14 +27,4 @@ test("forward and backward walks wrap around the board order", () => {
 
 test("a walk that starts on nothing in the list begins at the top", () => {
   assert.equal(nextAttention([row("a", "needs"), row("b", "needs")], null), "a");
-});
-
-test("a status change from blocked to working keeps the band order unchanged", () => {
-  const repo = { root: "/r/app", name: "app", checkouts: [{ path: "/r/app", branch: "main" }] };
-  const term = (address, status) => ({ address, status, cwd: "/r/app", state: "live" });
-  const ids = (ts) => flatten(groupSessions(ts, [repo])).map((s) => s.address);
-  const before = ids([term("t1", "blocked"), term("t2", "working"), term("t3", "done")]);
-  const after = ids([term("t1", "working"), term("t2", "working"), term("t3", "done")]);
-  assert.deepEqual(before, ["t1", "t2", "t3"]);
-  assert.deepEqual(after, before);
 });

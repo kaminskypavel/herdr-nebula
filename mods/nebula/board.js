@@ -374,7 +374,31 @@ export class Board {
     cx.notify();
   }
 
-  openLaunch(extra = {}) { box(640, 520, { role: "launch", ...extra }); }
+  // The project (and checkout) the user is looking at, for the new session box to preselect:
+  // Projects mode follows its columns, other views the highlighted row, else the board's repo.
+  launchTarget() {
+    const real = (root) => (root && root !== OTHER ? root : null);
+    let root = null, checkout = null;
+    if (this.pc) {
+      root = real(this.pc.sel.project);
+      if (root && this.col > 0) checkout = this.pc.sel.worktree;
+    } else {
+      const item = this.byKey.get(this.cursor);
+      if (item?.type === "repo" || item?.type === "summary") root = real(item.repo.root);
+      else if (item?.type === "session") {
+        const at = whereIs(this.model, item.key);
+        root = real(at?.repo.root);
+        if (root) checkout = at.band.path || null;
+      }
+      root = root ?? real(this.root);
+    }
+    return root ? { root, ...(checkout ? { checkout } : {}) } : null;
+  }
+
+  openLaunch(extra = {}) {
+    const prefill = this.launchTarget();
+    box(640, 520, { role: "launch", ...(prefill ? { prefill } : {}), ...extra });
+  }
 
   deleteProps(row) {
     const full = buildBoard(this.boardArgs(true));
@@ -425,7 +449,11 @@ export class Board {
   choose(key) {
     const it = this.byKey.get(key);
     if (!it) return;
-    if (it.type === "project") this.cols = { project: it.project.key, worktree: it.project.key === this.cols.project ? this.cols.worktree : null };
+    if (it.type === "project") {
+      this.cols = { project: it.project.key, worktree: it.project.key === this.cols.project ? this.cols.worktree : null };
+      // the rail and the header follow, as when a rail tile is clicked; this.repo is set first so watch() keeps the selection
+      if (it.project.key !== OTHER && it.project.key !== shared(REPO)) { this.repo = it.project.key; setShared(REPO, it.project.key); }
+    }
     else if (it.type === "worktree") this.cols = { ...this.cols, worktree: it.worktree.key };
     this.col = COLUMN_TYPES.indexOf(it.type);
     this.place(key);
