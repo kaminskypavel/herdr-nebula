@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, badge } from "./row.js";
+import { ball, badge, metaLine } from "./row.js";
 
 export const items = (model, b) =>
   b?.pc ? projectItems(b.pc) : columnsModel(model).flatMap((c) => c.rows).map((row) => ({ key: row.id, type: "session", row }));
@@ -56,9 +56,9 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
     .child(div().flex_none().text_size(11).text_color(t.dim).child(String(count)));
 }
 
-// A session: title on the first line, program and age under it, so it fits a narrow column.
+// A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
 function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
-  const dim = row.exited || row.archived;
+  const dim = row.exited || row.archived, meta = metaLine(row, t, 11);
   return v_flex().id(`pcs-${row.id}`).flex_none().gap(1).px(8).py(4).rounded(6).cursor_pointer()
     .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
@@ -70,7 +70,9 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
       .child(ball(row.status, t))
       .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
       .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
-    .child(div().pl(16).min_w(0).truncate().text_size(11).text_color(t.dim).child([row.program, pinned ? "pinned" : row.age].filter(Boolean).join(" · ")));
+    .child(h_flex().pl(16).min_w(0).items_center().gap(5).text_size(11).text_color(t.dim)
+      .when(Boolean(meta), (el) => el.child(meta))
+      .child(div().flex_none().child([meta && "·", pinned ? "pinned" : row.age].filter(Boolean).join(" "))));
 }
 
 function column(i, title, rows, empty, focused, t) {

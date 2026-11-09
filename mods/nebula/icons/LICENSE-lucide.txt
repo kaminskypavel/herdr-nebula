@@ -1,4 +1,4 @@
-The icons in this folder (tree, cards, list, columns, plus, copy, star, collapse-all, expand-all) are from Lucide,
+The icons in this folder (tree, cards, list, columns, plus, copy, star, collapse-all, expand-all, bookmark) are from Lucide,
 https://lucide.dev, used under the ISC License:
 
 ISC License

@@ -71,7 +71,7 @@ export function nebulaRow(s) {
   return {
     id: `nebula:${s.id}`, kind: "nebula", nebula: s, address: null, pane: null, tab: null, cwd: s.worktree,
     status: "exited", exited: true, offers: [], archived: false, title: s.name, badge: "nebula",
-    program: "", model: "", launch: null, prompt: s.summary === s.name ? "" : s.summary,
+    program: "claude", model: s.model ?? "", effort: s.effort ?? "", launch: null, prompt: s.summary === s.name ? "" : s.summary,
     age: s.forked ? `${state} (forked)` : state, subs: [],
   };
 }

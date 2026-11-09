@@ -400,6 +400,8 @@ export class Board {
     box(640, 520, { role: "launch", ...(prefill ? { prefill } : {}), ...extra });
   }
 
+  openPresets() { box(600, 540, { role: "presets" }); }
+
   deleteProps(row) {
     const full = buildBoard(this.boardArgs(true));
     return {
@@ -507,7 +509,7 @@ export class Board {
     } else if (k === "v") {
       this.setView(cycleOf(VIEW_IDS, this.view, 1), cx);
     } else if (k === "p") this.openLaunch();
-    else if (k === "e") box(600, 540, { role: "presets" });
+    else if (k === "e") this.openPresets();
     else if (k === "A" || (k === "a" && m.shift)) this.showArchived = !this.showArchived;
     else {
       const tile = digitTile(projectList(store()), k);
@@ -569,12 +571,17 @@ export class Board {
         .when(this.view === "tree" && this.model.repos.length > 1, (el) => el.child(h_flex().gap(2).mr(8)
           .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
           .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))))
-        .child(h_flex().id("new-session").h(24).items_center().gap(7).pl(10).pr(6).border_1().border_color(t.border).rounded(6).bg(t.raised)
-          .text_size(12).text_color(t.foreground).cursor_pointer().hover((s) => s.bg(t.hover)).on_click(() => this.openLaunch())
-          .when(compact, (el) => el.tooltip("New session"))
-          .child(svg("mods/nebula/icons/plus.svg").size(13).flex_none())
-          .when(!compact, (el) => el.child(div().child("New session")))
-          .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(10).text_color(t.muted).child("p"))));
+        .child(this.headerButton(t, "presets", "bookmark", "Presets", "e", compact, () => this.openPresets()).mr(8))
+        .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())));
+  }
+
+  headerButton(t, id, icon, label, hint, compact, action) {
+    return h_flex().id(id).h(24).items_center().gap(7).pl(10).pr(6).border_1().border_color(t.border).rounded(6).bg(t.raised)
+      .text_size(12).text_color(t.foreground).cursor_pointer().hover((s) => s.bg(t.hover)).on_click(() => action())
+      .when(compact, (el) => el.tooltip(label))
+      .child(svg(`mods/nebula/icons/${icon}.svg`).size(13).flex_none())
+      .when(!compact, (el) => el.child(div().child(label)))
+      .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(10).text_color(t.muted).child(hint));
   }
 
   // No project on the rail: a centered empty state when there is nothing else to list, or a

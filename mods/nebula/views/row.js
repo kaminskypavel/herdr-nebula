@@ -2,10 +2,11 @@
 // header and a repo's summary row. They only draw; lib/viewmodel.js decides what is
 // there. A virtual list's renderer takes no handlers, so `click` is optional: the plain
 // views (Cards, Columns) pass it, the lists answer on_item_click in the board instead.
-import { div } from "gpui-kit";
+import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { COLOR } from "../lib/status.js";
 import { bandParts, summaryParts } from "../lib/viewmodel.js";
+import { rowMeta } from "../lib/rowmeta.js";
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
 export const HEIGHT = { repo: 28, band: 32, session: 26, sub: 22, divider: 34, summary: 24, empty: 40 };
@@ -19,10 +20,20 @@ export function ball(status, t, size = 8) {
 
 const age = (text, color) => div().flex_none().text_size(12).text_color(color).child(text);
 
+// The agent's icon (12px, dim like the text) and its model and effort; null when there is nothing to say.
+// The text shrinks and truncates, so a long value never pushes the age off.
+export function metaLine(row, t, size = 12) {
+  const { icon, text } = rowMeta(row);
+  if (!icon && !text) return null;
+  return h_flex().min_w(0).items_center().gap(5).text_size(size).text_color(t.dim)
+    .when(Boolean(icon), (el) => el.child(svg(icon).size(12).flex_none().text_color(t.dim)))
+    .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
+}
+
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(10).text_color(t.dim).child(text);
 
 export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false }) {
-  const dim = row.exited || row.archived;
+  const dim = row.exited || row.archived, meta = metaLine(row, t);
   return h_flex().h(HEIGHT.session).flex_none().items_center().gap(10).pl(indent).pr(10).rounded(6).text_size(13)
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
@@ -32,7 +43,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     .child(ball(row.status, t))
     .child(div().min_w(0).truncate().text_color(dim ? t.dim : t.foreground).child(row.title))
     .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
-    .when(Boolean(row.program), (el) => el.child(div().flex_none().text_size(12).text_color(t.dim).child(`· ${row.program}`)))
+    .when(Boolean(meta), (el) => el.child(meta))
     .child(div().flex_1())
     .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim));
 }

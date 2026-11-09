@@ -1,12 +1,12 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
-import { ball, badge, drawItem } from "./row.js";
+import { ball, badge, drawItem, metaLine } from "./row.js";
 
 export const items = (model, b) => listItems(model, b.root);
 
 function card(row, t, selected, click, menu, pinned) {
-  const meta = [row.program, row.model].filter(Boolean).join(" · ");
+  const meta = metaLine(row, t, 11);
   const dim = row.exited || row.archived;
   return h_flex().id(`card-${row.id}`).flex_1().min_w(0).gap(7).p(8).rounded(8).border_1().cursor_pointer()
     .border_color(selected || pinned ? t.accent : row.status === "needs" ? t.ansi1 : t.border)
@@ -20,7 +20,7 @@ function card(row, t, selected, click, menu, pinned) {
         .child(div().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
       .child(h_flex().gap(6).items_center().text_size(11).text_color(t.muted)
-        .child(div().flex_1().min_w(0).truncate().child(meta))
+        .child(div().flex_1().min_w(0).when(Boolean(meta), (el) => el.child(meta)))
         .child(div().flex_none().text_color(t.dim).child(pinned ? "pinned" : row.age)))
       .when(Boolean(row.prompt), (el) => el.child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(`› ${row.prompt}`)))
       .children(row.subs.map((s) => h_flex().gap(6).items_center().text_size(11).text_color(t.muted)

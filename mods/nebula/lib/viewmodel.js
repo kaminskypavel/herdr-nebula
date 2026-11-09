@@ -56,7 +56,7 @@ function sessionRow(t, where, ctx) {
     id: t.address, address: t.address, pane: where?.pane ?? null, tab: tab?.id ?? null, cwd: t.cwd ?? "",
     status, exited, offers: exited ? ["relaunch", "delete"] : [], archived: Boolean(tab?.settled),
     title: tab?.named && tab.name ? tab.name : NEW_SESSION,
-    program: programName(t), model: labels.launch?.model ?? "", launch: labels.launch, prompt: labels.prompt,
+    program: programName(t), model: labels.launch?.model ?? "", effort: labels.launch?.effort ?? "", launch: labels.launch, prompt: labels.prompt,
     age: exited ? "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
   };
