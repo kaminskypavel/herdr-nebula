@@ -56,6 +56,14 @@ curl -fsSL https://raw.githubusercontent.com/kaminskypavel/herdr-nebula/main/ins
 
 That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mods and the `nebula` layout into `~/.config/herdr-app`, adds the layout's keys, links the `herdr-nebula` command into `~/.local/bin`, adds the auto-title hook to Claude Code and Codex (with backups), and switches Herdr to the layout. Run it again to update. In Codex, approve the hook once with `/hooks`.
 
+## Coming from nebula?
+
+<img src="assets/import-banner.png" alt="The empty board offers Import from nebula and Add a project" width="560">
+
+- **Bring your projects.** Click **Import from nebula** on the empty board, or Settings, Data, Import. It reads nebula's own files: your projects and per-agent defaults. Nothing in nebula changes.
+- **Presets just work.** herdr-nebula reads and writes nebula's `agent_presets.json`, so both tools share one list.
+- **Same keys, same colors.** <kbd>p</kbd> opens the new-session box (<kbd>^P</kbd> <kbd>^T</kbd> <kbd>Tab</kbd> <kbd>^O</kbd> as in nebula), worktrees land in `<repo>-worktrees/<branch>` via `wt`, and the status colors mean the same. Running sessions stay in nebula; start new ones here.
+
 ## Keys
 
 | Where | Key | Does |
