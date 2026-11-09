@@ -1,0 +1,13 @@
+{
+  "_comment": "Merged into ~/.codex/hooks.json by `herdr-nebula install-hooks`: the group is appended after the user's own UserPromptSubmit hooks (Codex trusts hooks by position) and tagged so a rerun updates it in place.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "_herdrNebulaManaged": true,
+        "hooks": [
+          { "type": "command", "command": "command -v herdr-nebula >/dev/null 2>&1 && herdr-nebula hook prompt codex || true", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

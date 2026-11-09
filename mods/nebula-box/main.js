@@ -1,0 +1,36 @@
+// The dialogs and overlays of the nebula layout, told apart by props.role. They live
+// apart from the rail and board so a letter bound to the board never reaches a text
+// field here.
+import { View, div } from "gpui-kit";
+import { props, theme } from "herdr";
+import { AddRepo } from "./add-repo.js";
+import { Launch } from "./launch.js";
+import { Presets } from "./presets.js";
+import { PresetEdit } from "./preset-edit.js";
+import { Menu } from "./menu.js";
+import { Confirm } from "./confirm.js";
+import { Rename } from "./rename.js";
+import { Settings } from "./settings.js";
+import { ArchiveConfirm } from "./archive-confirm.js";
+import { Help } from "./help.js";
+import { RemoveProject } from "./remove-project.js";
+import { Import } from "./import.js";
+
+const PARTS = {
+  add: AddRepo, launch: Launch, presets: Presets, "preset-edit": PresetEdit, menu: Menu, confirm: Confirm,
+  rename: Rename, settings: Settings, help: Help, "archive-confirm": ArchiveConfirm, "remove-project": RemoveProject, import: Import,
+};
+
+export default class NebulaBox extends View {
+  init(_props, cx) {
+    const role = props()?.role || "launch";
+    if (!Object.hasOwn(PARTS, role)) return;
+    this.part = new PARTS[role]();
+    this.part.init(cx);
+  }
+
+  render(cx) {
+    if (this.part) return this.part.render(cx);
+    return div().size_full().bg(theme().chrome);
+  }
+}

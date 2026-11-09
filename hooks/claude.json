@@ -1,0 +1,49 @@
+{
+  "_comment": "Merged into ~/.claude/settings.json by `herdr-nebula install-hooks`: each group is appended after the user's own hooks for its event and tagged so a rerun updates it in place.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "_herdrNebulaManaged": true,
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v herdr-nebula >/dev/null 2>&1 && herdr-nebula hook prompt claude || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "_herdrNebulaManaged": true,
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v herdr-nebula >/dev/null 2>&1 && herdr-nebula hook subagent claude start || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "_herdrNebulaManaged": true,
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v herdr-nebula >/dev/null 2>&1 && herdr-nebula hook subagent claude stop || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(herdr-nebula title:*)"
+    ]
+  }
+}

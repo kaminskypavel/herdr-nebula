@@ -1,0 +1,9 @@
+# Herdr writes these into mod folders, through a symlink or a copy
+mods/**/jsconfig.json
+mods/**/gpui-kit.d.ts
+# a copy of mods/nebula/lib that scripts/install.sh keeps (a mod cannot import another folder)
+mods/nebula-box/lib/
+# local planning and research notes, not part of the mod
+docs/
+.impeccable/
+.DS_Store

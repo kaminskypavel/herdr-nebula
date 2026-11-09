@@ -1,0 +1,26 @@
+// A stand-in for `hc` and `herdr-app` (run with node; the .txt name keeps `node --test` from
+// treating it as a test file). argv[2] is which tool it plays. All state lives in the JSON
+// file named by FAKE_STATE: { labels, tabs: [{ id, name }], calls: [[tool, ...args]] }.
+const fs = require("node:fs");
+
+const [, , tool, ...args] = process.argv;
+const file = process.env.FAKE_STATE;
+const state = JSON.parse(fs.readFileSync(file, "utf8"));
+state.calls.push([tool, ...args]);
+const save = () => fs.writeFileSync(file, JSON.stringify(state));
+
+if (tool === "hc" && args[0] === "get") {
+  console.log(JSON.stringify({ address: args[1], labels: state.labels }));
+} else if (tool === "hc" && args[0] === "label") {
+  const i = args[2].indexOf("=");
+  const k = args[2].slice(0, i), v = args[2].slice(i + 1);
+  if (v === "") delete state.labels[k]; else state.labels[k] = v;
+} else if (tool === "herdr-app" && args[0] === "ls") {
+  console.log(JSON.stringify({ spaces: [{ id: "sp1", tabs: state.tabs }] }));
+} else if (tool === "herdr-app" && args[0] === "do" && args[1] === "tab.rename") {
+  const { id, name } = JSON.parse(args[2]);
+  state.tabs.find((t) => t.id === id).name = name;
+} else {
+  process.exit(1);
+}
+save();

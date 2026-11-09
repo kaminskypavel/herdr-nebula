@@ -1,0 +1,29 @@
+// The labels the board keeps on a terminal in herdr-core, which outlive Herdr
+// restarts: nebula.board (launched from the board), nebula.launch (JSON: harness,
+// model, effort, preset, checkout), nebula.prompt (the last prompt, condensed to one
+// line), nebula.autotitle (the title the agent gave its tab) and nebula.claudetitle
+// (the title last read from Claude's own rename file). No herdr imports.
+
+export const BOARD = "nebula.board";
+export const LAUNCH = "nebula.launch";
+export const PROMPT = "nebula.prompt";
+export const AUTOTITLE = "nebula.autotitle";
+export const CLAUDETITLE = "nebula.claudetitle";
+
+export const isBoardLaunched = (labels) => Boolean(labels?.[BOARD]);
+
+const text = (v) => (typeof v === "string" ? v : "");
+
+function launchOf(v) {
+  try {
+    const d = JSON.parse(v);
+    return d && typeof d === "object" && !Array.isArray(d) ? d : null;
+  } catch { return null; }
+}
+
+export function readLabels(labels) {
+  const l = labels ?? {};
+  return { board: isBoardLaunched(l), launch: launchOf(l[LAUNCH]), prompt: text(l[PROMPT]), autotitle: text(l[AUTOTITLE]), claudetitle: text(l[CLAUDETITLE]) };
+}
+
+export const launchLabels = (launch) => ({ [BOARD]: "1", [LAUNCH]: JSON.stringify(launch) });

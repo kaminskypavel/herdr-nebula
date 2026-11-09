@@ -1,0 +1,90 @@
+import { div } from "gpui-kit";
+import { h_flex, v_flex } from "gpui-base";
+import { columnsModel, projectItems } from "../lib/viewmodel.js";
+import { ball } from "./row.js";
+
+export const items = (model, b) =>
+  b?.pc ? projectItems(b.pc) : columnsModel(model).flatMap((c) => c.rows).map((row) => ({ key: row.id, type: "session", row }));
+
+const MODES = [{ id: "status", title: "Status" }, { id: "projects", title: "Projects" }];
+
+function mini(row, t, selected, click, menu) {
+  const dim = row.exited || row.archived;
+  return v_flex().id(`mini-${row.id}`).flex_none().gap(1).px(6).py(4).rounded(6).cursor_pointer()
+    .when(selected, (el) => el.bg(t.selected))
+    .when(!selected, (el) => el.bg(t.raised).hover((s) => s.bg(t.hover)))
+    .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
+    .on_click((_e, cx) => click(row.id, cx))
+    .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
+    .child(div().min_w(0).truncate().text_size(12).text_color(dim ? t.dim : t.foreground).child(row.title))
+    .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(row.where));
+}
+
+function modeSwitch(b, t) {
+  return h_flex().flex_none().px(8).pt(6).child(h_flex().border_1().border_color(t.border).rounded(6).p(1).bg(t.background)
+    .children(MODES.map((m) => {
+      const on = m.id === b.colMode;
+      return h_flex().id(`columns-mode-${m.id}`).h(22).px(10).items_center().rounded(4).text_size(12).cursor_pointer()
+        .text_color(on ? t.foreground : t.muted)
+        .when(on, (el) => el.bg(t.selected))
+        .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+        .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); b.handle.focus(); b.setMode(m.id, cx); })
+        .child(div().child(m.title));
+    })));
+}
+
+function statusBody(b, t) {
+  const cols = columnsModel(b.model);
+  return v_flex().id("board-columns").flex_1().min_h(0).px(8).py(6).overflow_y_scrollbar()
+    .child(h_flex().gap(6).items_start().children(cols.map((c) => v_flex().flex_1().min_w(0).gap(4)
+      .child(h_flex().gap(6).items_center().px(2).pb(4).text_size(12).font_semibold().text_color(t.foreground)
+        .child(ball(c.status, t)).child(div().min_w(0).truncate().child(`${c.title} ${c.rows.length}`)))
+      .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu))))));
+}
+
+// A project or a worktree: status ball (its most urgent session), name, session count.
+function navRow(id, key, name, status, count, selected, focused, t, click) {
+  return h_flex().id(id).flex_none().h(26).items_center().gap(8).px(8).rounded(6).cursor_pointer().text_size(13)
+    .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
+    .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+    .on_click((_e, cx) => click(key, cx))
+    .child(ball(status, t))
+    .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(name))
+    .child(div().flex_none().text_size(11).text_color(t.dim).child(String(count)));
+}
+
+// A session: title on the first line, program and age under it, so it fits a narrow column.
+function sessionRowLine(row, t, selected, focused, click, menu) {
+  const dim = row.exited || row.archived;
+  return v_flex().id(`pcs-${row.id}`).flex_none().gap(1).px(8).py(4).rounded(6).cursor_pointer()
+    .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
+    .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+    .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
+    .on_click((_e, cx) => click(row.id, cx))
+    .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
+    .child(h_flex().gap(8).items_center()
+      .child(ball(row.status, t))
+      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title)))
+    .child(div().pl(16).min_w(0).truncate().text_size(11).text_color(t.dim).child([row.program, row.age].filter(Boolean).join(" · ")));
+}
+
+function column(i, title, rows, empty, focused, t) {
+  return v_flex().flex_1().min_w(0).h_full().pl(i ? 6 : 0).pr(6)
+    .when(i > 0, (el) => el.border_l(1).border_color(t.border))
+    .child(div().flex_none().px(8).pb(4).text_size(11).font_semibold().text_color(focused ? t.foreground : t.dim).child(title))
+    .child(v_flex().id(`pcol-${i}`).flex_1().min_h(0).gap(2).overflow_y_scrollbar()
+      .children(rows.length ? rows : [div().px(8).text_size(12).text_color(t.dim).child(empty)]));
+}
+
+function projectsBody(b, t) {
+  const { pc, col } = b, sel = pc.sel;
+  return h_flex().flex_1().min_h(0).px(8).py(6)
+    .child(column(0, "PROJECTS", pc.projects.map((p) =>
+      navRow(`proj-${p.key}`, `proj:${p.key}`, p.name, p.status, p.count, p.key === sel.project, col === 0, t, b.click)), "No projects", col === 0, t))
+    .child(column(1, "WORKTREES", pc.worktrees.map((w) =>
+      navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)), "No sessions", col === 1, t))
+    .child(column(2, "SESSIONS", pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu)), "No sessions", col === 2, t));
+}
+
+export const body = (b, t) =>
+  v_flex().id("board-columns-root").size_full().child(modeSwitch(b, t)).child(b.pc ? projectsBody(b, t) : statusBody(b, t));
