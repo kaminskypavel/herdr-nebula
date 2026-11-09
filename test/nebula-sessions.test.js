@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  nebulaBin, parseSessions, parseAgents, joinSessions, visibleSessions, nebulaRow, resumeArgv, recordResumed,
+  nebulaBin, parseSessions, parseAgents, joinSessions, visibleSessions, nebulaRow, resumeArgv, recordResumed, resumedTerminal,
 } from "../mods/nebula/lib/nebula-sessions.js";
 import { buildBoard, treeItems, listItems, columnsModel, projectColumns, agentOrder, attentionTarget, OTHER } from "../mods/nebula/lib/viewmodel.js";
 import { actionsFor } from "../mods/nebula/lib/actions.js";
@@ -176,4 +176,12 @@ test("setting nebulaSessions defaults on and only a boolean changes it", () => {
   assert.equal(mergeSettings({}).nebulaSessions, true);
   assert.equal(mergeSettings({ nebulaSessions: false }).nebulaSessions, false);
   assert.equal(mergeSettings({ nebulaSessions: "no" }).nebulaSessions, true);
+});
+
+test("resumedTerminal finds the copy already resumed here, only while its terminal exists", () => {
+  const resumed = { s1: "t7" };
+  assert.equal(resumedTerminal(resumed, "s1", new Set(["t7"])), "t7");
+  assert.equal(resumedTerminal(resumed, "s1", new Set(["t8"])), null);
+  assert.equal(resumedTerminal(resumed, "s2", new Set(["t7"])), null);
+  assert.equal(resumedTerminal(undefined, "s1", new Set(["t7"])), null);
 });

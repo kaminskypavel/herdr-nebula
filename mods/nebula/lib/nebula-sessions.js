@@ -51,13 +51,19 @@ export function joinSessions(sessions, agents) {
   return out.sort((x, y) => Number(y.alive) - Number(x.alive));
 }
 
+// The Herdr terminal this board already resumed nebula session `id` in, while it still exists; else null.
+export function resumedTerminal(resumed, id, live) {
+  const t = resumed?.[id];
+  return t && live.has(t) ? t : null;
+}
+
 // What stays on the board: not an idle session that is already open in Herdr. `live` is a
 // Set of the terminal addresses that exist now. Each gets `forked`: resumed here and still
 // running in nebula.
 export function visibleSessions(list, resumed, live) {
   const out = [];
   for (const s of list) {
-    const open = Boolean(resumed?.[s.id] && live.has(resumed[s.id]));
+    const open = Boolean(resumedTerminal(resumed, s.id, live));
     if (open && !s.alive) continue;
     out.push({ ...s, forked: open });
   }

@@ -20,7 +20,7 @@ import {
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
-import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed } from "./lib/nebula-sessions.js";
+import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed, resumedTerminal } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
 import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN } from "./lib/shared.js";
@@ -364,8 +364,11 @@ export class Board {
 
   // Resumes a nebula session in Herdr: a new tab (or space) in its worktree running
   // `claude --resume`, as a fork while nebula still runs it, named after it. Then shows it.
+  // Already resumed here: shows that copy instead of forking another.
   resume(row, cx) {
     const s = row.nebula;
+    const have = resumedTerminal(shared(RESUMED), s.id, new Set(terminals().map((t) => t.address)));
+    if (have) { run("pane.focus", { terminal: have }); return; }
     if (this.resuming.has(s.id)) return;
     this.resuming.add(s.id);
     const plan = planLaunch({
