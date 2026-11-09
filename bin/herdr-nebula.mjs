@@ -5,12 +5,13 @@
 //   herdr-nebula hook prompt claude|codex       the UserPromptSubmit hook (stdin: the hook JSON)
 //   herdr-nebula hook subagent claude start|stop  the SubagentStart / SubagentStop hooks (stdin: the hook JSON)
 //   herdr-nebula install-hooks                  merge the hooks into Claude and Codex settings
+//   herdr-nebula window                         open a second Herdr window on the same core
 // The hook prints nothing and exits 0 on every path that is not a reply to the agent.
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { AUTOTITLE, CLAUDETITLE, PROMPT } from "../mods/nebula/lib/labels.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
@@ -233,6 +234,73 @@ function installHooks() {
   if (!ok.every(Boolean)) process.exitCode = 1;
 }
 
+// A second Herdr window: another app instance with its own home and app id, on the same
+// herdr-core, so it shows the same agents with its own board, tabs and focus. The home
+// follows the main one (one-way copy on every run). Env overrides, for tests:
+//   HERDR_NEBULA_WINDOW_HOME  the second home    HERDR_NEBULA_WINDOW_APP  the app binary
+//   HERDR_NEBULA_WINDOW_DRY=1 print the launch command instead of running it
+const MAIN_HOME = path.join(os.homedir(), ".config", "herdr-app");
+const WINDOW_ID = "dev.herdr.app2";
+const WINDOW_DIRS = ["layouts", "mods", "themes", "icons"];
+const WINDOW_FILES = ["keys.json", "settings.json"];
+
+function appBinary() {
+  if (process.env.HERDR_NEBULA_WINDOW_APP) return process.env.HERDR_NEBULA_WINDOW_APP;
+  const home = os.homedir();
+  const guesses = [path.join(home, "Applications/Herdr.app/Contents/MacOS/Herdr"), "/Applications/Herdr.app/Contents/MacOS/Herdr"];
+  for (const dir of (process.env.PATH ?? "").split(path.delimiter).concat(path.join(home, ".local", "bin"))) {
+    if (dir) guesses.push(path.join(dir, "herdr-app"));
+  }
+  for (const g of guesses) {
+    try { return fs.realpathSync(g); } catch {}
+  }
+  return null;
+}
+
+// Copy only what changed (mods is ~20 MB), following symlinks.
+const changed = (src, dest) => {
+  try {
+    const a = fs.statSync(src), b = fs.statSync(dest);
+    return a.isDirectory() || a.size !== b.size || a.mtimeMs > b.mtimeMs;
+  } catch { return true; }
+};
+
+function syncWindowHome(home2) {
+  if (!fs.existsSync(MAIN_HOME)) throw new Error(`${MAIN_HOME} not found, is Herdr set up?`);
+  fs.mkdirSync(home2, { recursive: true });
+  for (const d of WINDOW_DIRS) {
+    if (fs.existsSync(path.join(MAIN_HOME, d))) fs.cpSync(path.join(MAIN_HOME, d), path.join(home2, d), { recursive: true, dereference: true, filter: (s, t) => changed(s, t) });
+  }
+  for (const f of WINDOW_FILES) {
+    if (fs.existsSync(path.join(MAIN_HOME, f))) fs.copyFileSync(path.join(MAIN_HOME, f), path.join(home2, f));
+  }
+  const shared = path.join(home2, "shared.json");
+  if (!fs.existsSync(shared) && fs.existsSync(path.join(MAIN_HOME, "shared.json"))) fs.copyFileSync(path.join(MAIN_HOME, "shared.json"), shared);
+}
+
+function openWindow() {
+  const home2 = process.env.HERDR_NEBULA_WINDOW_HOME || path.join(os.homedir(), ".config", "herdr-app-2");
+  const app = appBinary();
+  if (!app || !fs.existsSync(app)) { console.error("herdr-nebula: Herdr app not found (looked in ~/Applications, /Applications and for herdr-app on PATH)."); process.exitCode = 1; return; }
+  syncWindowHome(home2);
+  const env = { ...process.env, HERDR_APP_HOME: home2 };
+  const up = spawnSync(app, ["status"], { env, stdio: "ignore", timeout: 3000 });
+  if (up.status === 0) { console.log("Second window is already open."); return; }
+  // Nothing answers, so a leftover socket file is stale and would block the new window.
+  fs.rmSync(path.join(home2, "herdr-app.sock"), { force: true });
+  const home = os.homedir();
+  const vars = [
+    `HOME=${home}`, `USER=${os.userInfo().username}`, `LOGNAME=${os.userInfo().username}`,
+    `SHELL=${process.env.SHELL || "/bin/zsh"}`, `LANG=${process.env.LANG || "en_US.UTF-8"}`, `TERM=${process.env.TERM || "xterm-256color"}`,
+    `PATH=${home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+    `HERDR_APP_HOME=${home2}`, `HERDR_APP_ID=${WINDOW_ID}`,
+  ];
+  // A clean environment: whatever launched this (a Claude Code session) must not leak into every terminal the window opens.
+  if (process.env.HERDR_NEBULA_WINDOW_DRY === "1") { console.log(["env", "-i", ...vars, app].join(" ")); return; }
+  spawn("env", ["-i", ...vars, app], { detached: true, stdio: "ignore" }).unref();
+  console.log("Opened a second window.");
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 try {
   if (cmd === "hook" && rest[0] === "prompt" && (rest[1] === "claude" || rest[1] === "codex")) {
@@ -241,8 +309,9 @@ try {
     try { hookSubagent(rest[2]); } catch {}
   } else if (cmd === "title") title(rest);
   else if (cmd === "install-hooks") installHooks();
+  else if (cmd === "window") openWindow();
   else {
-    console.error("usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | install-hooks");
+    console.error("usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | install-hooks | window");
     process.exitCode = 2;
   }
 } catch (e) {

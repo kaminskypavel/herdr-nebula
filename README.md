@@ -33,6 +33,7 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **One-click import from nebula.** Your projects and per-agent defaults, straight from nebula's own files.
 - **Sessions that name themselves.** Claude Code and Codex title their tab after the first prompt. A name you give always wins.
 - **Row actions.** Rename, archive, relaunch with the same setup, open the folder, or delete. Delete offers to remove the worktree and shows uncommitted files and unpushed commits first.
+- **A second window.** The window button on the rail opens another Herdr window on the same agents, for two boards side by side.
 - **Keyboard first.** <kbd>⌃`</kbd> hands the keys to the board and back. <kbd>⌘]</kbd> jumps to the next agent that needs you, from anywhere.
 
 <table>

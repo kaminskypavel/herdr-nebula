@@ -1,4 +1,4 @@
-// The rail: a tile per repo with its agent counts, a + tile, then ? and the gear. It
+// The rail: a tile per repo with its agent counts, a + tile, then a new-window button, ? and the gear. It
 // also owns the keyboard cycle and the jump chords, because a hidden board receives no
 // key commands: keys.json binds them to this mod's commands (focus, next, prev), and the
 // rail shows, folds or focuses the board (lib/focus.js decides which). The board answers
@@ -10,7 +10,7 @@
 import { svg, div, Background, PathBuilder } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import {
-  theme, run, shared, setShared, exec, terminals, focused, panes, layout, openOverlay, nextCommand,
+  theme, run, shared, setShared, exec, terminals, focused, panes, layout, openOverlay, nextCommand, notify,
 } from "herdr";
 import { groupSessions } from "./lib/projects.js";
 import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
@@ -107,6 +107,21 @@ export class Rail {
     if (to) run("agent.focus", { terminal: to });
   }
 
+  // Opens a second Herdr window on the same core. exec's env may lack node, so give the
+  // shell the usual bin dirs; the command prints one line, which becomes the toast.
+  newWindow(cx) {
+    cx.spawn(async (cx) => {
+      let line = "Could not open a second window.", level = "error";
+      try {
+        const r = await exec("/bin/sh", ["-c", 'PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" herdr-nebula window']);
+        const out = r.stdout.trim() || r.stderr.trim();
+        if (out) line = out.split("\n").pop();
+        if (r.code === 0) level = "info";
+      } catch {}
+      notify({ title: line, level, timeout: 4000 });
+    });
+  }
+
   openBox(role, width, height) {
     openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width, height, props: { role } });
   }
@@ -155,6 +170,7 @@ export class Rail {
           .text_color(t.dim).text_size(18).hover((s) => s.bg(t.hover).text_color(t.foreground)).cursor_pointer()
           .tooltip("Add a repo").on_click(() => this.openBox("add", 460, 240)).child("+")))
       .child(v_flex().gap(4).items_center()
+        .child(small("window", "New window", (_e, cx) => this.newWindow(cx), svg("mods/nebula/icons/copy.svg").size(15)))
         .child(small("help", "Shortcuts", () => this.openBox("help", 560, 460), div().text_size(14).child("?")))
         .child(small("settings", "Settings", () => this.openBox("settings", 580, 660), svg("mods/workspace-chrome/settings.svg").size(15))));
   }
