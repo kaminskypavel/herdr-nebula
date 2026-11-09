@@ -111,6 +111,7 @@ export class Projects {
         .border_color(this.focusIn ? t.accent : t.input).bg(t.background)
         .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
         .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(12.5).text_color(t.foreground)))
-      .child(v_flex().id("pk-list").flex_1().min_h(0).gap(1).overflow_y_scrollbar().children(all));
+      // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).
+      .child(v_flex().id("pk-list").flex_none().h(Math.min(all.length, PICKER_ROWS_MAX + 1) * (ROW_H + 1)).gap(1).overflow_y_scrollbar().children(all));
   }
 }
