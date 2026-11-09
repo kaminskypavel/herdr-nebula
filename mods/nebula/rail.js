@@ -14,7 +14,7 @@
 import { svg, div } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import {
-  theme, run, shared, setShared, exec, terminals, agents, focused, panes, spaces, layout, openOverlay, nextCommand, notify,
+  theme, run, shared, setShared, exec, terminals, agents, focused, panes, spaces, layout, openOverlay, closeOverlay, nextCommand, notify,
 } from "herdr";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
@@ -51,7 +51,7 @@ export class Rail {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
         if (c === "focus") this.send({ type: "chord" }, cx);
         else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
-        else if (/^tab[1-9]$/.test(c)) { const p = this.tabs.items[Number(c.slice(3)) - 1]; if (p) setShared(REPO, p.root); } // ⌘1 to ⌘9
+        else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
         cx.notify();
       }
     });
@@ -79,6 +79,7 @@ export class Rail {
   }
 
   watch(cx) {
+    if (this.hud && Date.now() > this.hud.until) { closeOverlay(this.hud.id); this.hud = null; }
     if (this.state !== BOARD) this.lastPane = focused()?.pane ?? this.lastPane;
     if (rootsKey(store()) !== this.rootsKey) this.refresh(cx);
     const shown = boardShown(), keys = shared(BOARD_KEYS) === true, launched = shared(LAUNCHED);
@@ -143,6 +144,15 @@ export class Rail {
   toggleBoard(cx) {
     if (boardShown()) { run("layout.hide", { id: "board" }); this.toTerminal(); } // watch() sees the fold and updates the state
     else this.send({ type: "chord" }, cx);
+  }
+
+  // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
+  pickTab(n) {
+    const p = this.tabs.items[n - 1];
+    if (!p) return;
+    setShared(REPO, p.root);
+    const id = openOverlay({ mod: "nebula-box", kind: "window", key: "nebula-hud", frame: "none", width: 300, height: 60, props: { role: "hud", root: p.root, name: p.name, n } });
+    this.hud = { id, until: Date.now() + 900 }; // watch() closes it
   }
 
   openProjects() {
