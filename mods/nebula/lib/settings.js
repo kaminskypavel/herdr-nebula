@@ -94,6 +94,7 @@ const SHORTCUTS = [
     { keys: ["↩", "click"], text: "show agent" },
     { keys: [".", ","], text: "next, previous needs-you" },
     { keys: ["p", "e", "v"], text: "new, presets, view" },
+    { keys: ["s"], text: "pin beside, again to unpin" },
     { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
     { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
     { keys: ["1 to 9"], text: "repo" },

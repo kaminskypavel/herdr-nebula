@@ -6,3 +6,4 @@ export const BOARD_KEYS = "nebula.boardKeys";
 export const ROW_ACTION = "nebula.rowAction";
 export const PROJECTS = "nebula.projects";
 export const RESUMED = "nebula.resumed";
+export const PINNED = "nebula.pinned";

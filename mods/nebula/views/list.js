@@ -9,7 +9,7 @@ export function virtualList(b, list, t, deep) {
     .child(v_virtual_list("board-list", list.length, list.map((i) => HEIGHT[i.type]), (n) => list[n].key,
       (range) => {
         b.range = range;
-        return list.slice(range.start, range.end).map((i) => drawItem(i, t, { cursor: b.cursor, deep }));
+        return list.slice(range.start, range.end).map((i) => drawItem(i, t, { cursor: b.cursor, deep, pinned: b.pinned }));
       })
       .size_full().px(8).py(6).track_scroll(b.scroll).on_item_click((key, cx) => b.click(key, cx))
       .on_item_secondary_click((key, e, cx) => b.menu(key, e, cx)))

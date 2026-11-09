@@ -8,18 +8,19 @@ export const items = (model, b) =>
 
 const MODES = [{ id: "status", title: "Status" }, { id: "projects", title: "Projects" }];
 
-function mini(row, t, selected, click, menu) {
+function mini(row, t, selected, click, menu, pinned) {
   const dim = row.exited || row.archived;
   return v_flex().id(`mini-${row.id}`).flex_none().gap(1).px(6).py(4).rounded(6).cursor_pointer()
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.bg(t.raised).hover((s) => s.bg(t.hover)))
+    .when(pinned, (el) => el.border_1().border_color(t.accent))
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
     .child(h_flex().gap(6).items_center()
       .child(div().min_w(0).truncate().text_size(12).text_color(dim ? t.dim : t.foreground).child(row.title))
       .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
-    .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(row.where));
+    .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(pinned ? `${row.where} · pinned` : row.where));
 }
 
 function modeSwitch(b, t) {
@@ -41,7 +42,7 @@ function statusBody(b, t) {
     .child(h_flex().gap(6).items_start().children(cols.map((c) => v_flex().flex_1().min_w(0).gap(4)
       .child(h_flex().gap(6).items_center().px(2).pb(4).text_size(12).font_semibold().text_color(t.foreground)
         .child(ball(c.status, t)).child(div().min_w(0).truncate().child(`${c.title} ${c.rows.length}`)))
-      .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu))))));
+      .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu, b.pinned === r.id))))));
 }
 
 // A project or a worktree: status ball (its most urgent session), name, session count.
@@ -56,11 +57,12 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 }
 
 // A session: title on the first line, program and age under it, so it fits a narrow column.
-function sessionRowLine(row, t, selected, focused, click, menu) {
+function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
   const dim = row.exited || row.archived;
   return v_flex().id(`pcs-${row.id}`).flex_none().gap(1).px(8).py(4).rounded(6).cursor_pointer()
     .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+    .when(pinned, (el) => el.border_1().border_color(t.accent))
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
@@ -68,7 +70,7 @@ function sessionRowLine(row, t, selected, focused, click, menu) {
       .child(ball(row.status, t))
       .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
       .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
-    .child(div().pl(16).min_w(0).truncate().text_size(11).text_color(t.dim).child([row.program, row.age].filter(Boolean).join(" · ")));
+    .child(div().pl(16).min_w(0).truncate().text_size(11).text_color(t.dim).child([row.program, pinned ? "pinned" : row.age].filter(Boolean).join(" · ")));
 }
 
 function column(i, title, rows, empty, focused, t) {
@@ -86,7 +88,7 @@ function projectsBody(b, t) {
       navRow(`proj-${p.key}`, `proj:${p.key}`, p.name, p.status, p.count, p.key === sel.project, col === 0, t, b.click)), "No projects", col === 0, t))
     .child(column(1, "WORKTREES", pc.worktrees.map((w) =>
       navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)), "No sessions", col === 1, t))
-    .child(column(2, "SESSIONS", pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu)), "No sessions", col === 2, t));
+    .child(column(2, "SESSIONS", pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id)), "No sessions", col === 2, t));
 }
 
 export const body = (b, t) =>

@@ -74,6 +74,7 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 | Board | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click | Move, show the agent |
 | Board | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd> | New session, presets, next view |
 | Board | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete |
+| Board | <kbd>s</kbd>, or shift-click | Pin the agent beside the active one (again to unpin) |
 | Board | <kbd>1</kbd> to <kbd>9</kbd> | Pick a project |
 
 The <kbd>?</kbd> on the rail lists them all, live.

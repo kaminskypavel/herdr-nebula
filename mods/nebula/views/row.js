@@ -21,11 +21,12 @@ const age = (text, color) => div().flex_none().text_size(12).text_color(color).c
 
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(10).text_color(t.dim).child(text);
 
-export function sessionLine(row, t, { selected, indent = 14, click = null }) {
+export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false }) {
   const dim = row.exited || row.archived;
   return h_flex().h(HEIGHT.session).flex_none().items_center().gap(10).pl(indent).pr(10).rounded(6).text_size(13)
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+    .when(pinned, (el) => el.border_1().border_color(t.accent))
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .when(Boolean(click), (el) => el.id(`session-${row.id}`).cursor_pointer().on_click((_e, cx) => click(row.id, cx)))
     .child(ball(row.status, t))
@@ -33,7 +34,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null }) {
     .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
     .when(Boolean(row.program), (el) => el.child(div().flex_none().text_size(12).text_color(t.dim).child(`· ${row.program}`)))
     .child(div().flex_1())
-    .child(age(row.age, selected ? t.muted : t.dim));
+    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim));
 }
 
 export function subLine(sub, t, { indent = 30 }) {
@@ -86,12 +87,12 @@ export const dividerLine = (text, t) => h_flex().h(HEIGHT.divider).flex_none().p
 
 export const emptyLine = (text, t) => h_flex().h(HEIGHT.empty).flex_none().items_center().px(14).text_size(12).text_color(t.dim).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo": return repoLine(item.repo, t, { folded: item.folded, selected, click });
     case "band": return bandLine(item.band, t, { indent: deep ? 24 : 10 });
-    case "session": return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click });
+    case "session": return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned });
     case "sub": return subLine(item.sub, t, { indent: deep ? 48 : 30 });
     case "summary": return summaryLine(item.repo, t, { selected, click });
     case "divider": return dividerLine(item.text, t);

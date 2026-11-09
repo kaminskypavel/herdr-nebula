@@ -8,6 +8,7 @@
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
 //   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
 //   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
+//   nebula.pinned       the terminal pinned beside the active tab, or null (written here; lib/pin.js edits the layout)
 // Moving the cursor (j, k, arrows, the attention keys) only highlights a row; Enter or a
 // double click shows the agent. The cursor is a session's address, never an index.
 import { div, svg } from "gpui-kit";
@@ -21,7 +22,8 @@ import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED } from "./lib/shared.js";
+import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED } from "./lib/shared.js";
+import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
   OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly,
@@ -106,6 +108,8 @@ export class Board {
     this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
     this.visible = findNode(layout(), "board")?.hidden !== true;
     this.resuming = new Set();
+    this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
+    if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
     this.findNebula(cx);
     cx.timer.every(100, (c) => this.watch(c));
     cx.timer.every(REFRESH_EVERY, (c) => { this.loadAll(c); this.loadNebula(c); });
@@ -230,6 +234,8 @@ export class Board {
     if (visible && !this.visible && Date.now() - this.nebulaAt > MIN_GAP) this.loadNebula(cx);
     this.visible = visible;
     if (mergeSettings(shared(SETTINGS)).nebulaSessions !== this.nebulaOn) { this.loadNebula(cx); cx.notify(); }
+    const pinned = shared(PINNED), live = terminals();
+    if (live.length && pinGone(pinned, live.map((t) => t.address))) { this.setPin(null); cx.notify(); }
     const picked = shared(ROW_ACTION);
     if (picked && picked.n !== this.acted) {
       this.acted = picked.n;
@@ -306,6 +312,19 @@ export class Board {
     });
   }
 
+  // Pins one agent's terminal beside the active tab (null: unpins). Herdr can only take a
+  // whole layout tree, so lib/pin.js edits a copy of layout() and layout.set applies it.
+  setPin(address) {
+    const next = withPin(layout(), address);
+    if (!next) return;
+    setShared(PINNED, address);
+    run("layout.set", { layout: next });
+  }
+
+  pinRow(row) {
+    if (pinnable(row)) this.setPin(togglePin(shared(PINNED), row.address));
+  }
+
   // Shows the agent in the terminal (a parked one has no pane); a nebula row resumes.
   show(row, cx) {
     if (row.kind === "nebula") { this.resume(row, cx); return; }
@@ -340,10 +359,13 @@ export class Board {
     const now = Date.now(), dbl = this.last.key === key && now - this.last.at < DOUBLE_CLICK_MS;
     this.last = { key, at: now };
     if (item.type === "sub") item = this.byKey.get(item.parent) ?? item;
+    const shift = this.shift;
+    this.shift = false;
     if (item.type === "session") {
       this.col = 2;
       this.place(item.key);
-      this.show(item.row, cx);
+      if (shift) this.pinRow(item.row);
+      else this.show(item.row, cx);
     } else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {
       this.place(item.key);
@@ -452,6 +474,8 @@ export class Board {
     } else if (k === "." || k === ",") {
       const id = attentionTarget(this.model, item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
       if (id) this.goTo(id, cx);
+    } else if (k === "s") {
+      if (item?.type === "session") this.pinRow(item.row);
     } else if (k === "v") {
       this.setView(cycleOf(VIEW_IDS, this.view, 1), cx);
     } else if (k === "p") this.openLaunch();
@@ -476,6 +500,7 @@ export class Board {
   sync() {
     const picked = shared(REPO);
     this.model = buildBoard(this.boardArgs(this.showArchived));
+    this.pinned = shared(PINNED);
     this.root = selectedRepo(this.model, picked)?.root ?? null;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root) : null;
     if (this.pc) this.cols = this.pc.sel;
@@ -555,7 +580,7 @@ export class Board {
         if (was !== this.width < COMPACT_BELOW) cx.notify();
       })
       .border_r(1).border_color(this.has ? t.accent : t.chrome)
-      .on_mouse_down("left", () => this.handle.focus())
+      .on_mouse_down("left", (e) => { this.shift = Boolean(e.modifiers?.shift); this.handle.focus(); })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
       .when(!this.model.repos.length || !projectList(store()).length, (el) => el.child(this.noProjects(t, !this.model.repos.length)))
