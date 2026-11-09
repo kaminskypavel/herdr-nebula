@@ -3,7 +3,7 @@ import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { HEIGHT, drawItem } from "./row.js";
 
-export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined);
+export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined, b.filter ? new Set() : b.bandsFolded);
 
 export function virtualList(b, list, t, deep) {
   return v_flex().relative().size_full()

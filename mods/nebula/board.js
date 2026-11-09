@@ -26,7 +26,7 @@ import { REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED } 
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
-  OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly,
+  OTHER, NEW_SESSION, LABEL, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly, bandPaths, foldBands,
 } from "./lib/viewmodel.js";
 import { arrange, cleanSort, SORTS, SORT_TITLE } from "./lib/arrange.js";
 import * as tree from "./views/tree.js";
@@ -77,6 +77,7 @@ export class Board {
     this.acted = shared(ROW_ACTION)?.n ?? 0;
     this.view = viewOf(load("view", mergeSettings(shared(SETTINGS)).view)).id;
     this.folded = new Set(load("tree.folded", []));
+    this.bandsFolded = new Set(load("bands.folded", [])); // worktree band paths, in every view but Columns
     this.showArchived = false;
     this.sort = cleanSort(load("sort", "status"));
     this.filter = ""; // not persisted
@@ -310,10 +311,15 @@ export class Board {
     } else if (k === "enter") this.leaveFilter(cx, true);
   }
 
-  // Tree view: fold or unfold every project at once.
+  // Collapse all / Expand all. Tree: Collapse folds every project, Expand unfolds every project
+  // and band. Cards and List: the shown project's bands.
   foldAll(fold) {
-    this.folded = new Set(fold ? this.base.repos.map((r) => r.root) : []);
-    this.persistFolds();
+    if (this.view === "tree") {
+      this.folded = new Set(fold ? this.base.repos.map((r) => r.root) : []);
+      if (!fold) this.bandsFolded = foldBands(this.bandsFolded, this.base.repos, false);
+      this.persistFolds();
+    } else this.bandsFolded = foldBands(this.bandsFolded, [selectedRepo(this.base, this.root)].filter(Boolean), fold);
+    this.persistBands();
   }
 
   foldButton(t, icon, tip, action) {
@@ -324,6 +330,12 @@ export class Board {
   }
 
   persistFolds() { localStorage.setItem("tree.folded", JSON.stringify([...this.folded])); }
+  persistBands() { localStorage.setItem("bands.folded", JSON.stringify([...this.bandsFolded])); }
+  unfoldBand(path) { if (this.bandsFolded.delete(path)) this.persistBands(); }
+  toggleBand(path) {
+    if (!this.bandsFolded.delete(path)) this.bandsFolded.add(path);
+    this.persistBands();
+  }
   unfold(root) { if (this.folded.delete(root)) this.persistFolds(); }
   toggle(root) {
     if (!this.folded.delete(root)) this.folded.add(root);
@@ -387,6 +399,7 @@ export class Board {
   goTo(id, cx) {
     const at = whereIs(this.model, id), repo = at?.repo;
     if (this.pc && at) { this.cols = { project: repo.root, worktree: at.band.path }; this.col = 2; }
+    if (at) this.unfoldBand(at.band.path);
     if (repo && this.view === "tree") this.unfold(repo.root);
     else if (repo && this.view !== "columns" && repo.root !== this.root) this.pick(repo.root);
     this.cursor = id;
@@ -412,6 +425,7 @@ export class Board {
       this.place(item.key);
       if (!dbl) this.toggle(item.repo.root);
     } else if (item.type === "summary") this.pick(item.repo.root);
+    else if (item.type === "band") this.toggleBand(item.band.path);
     cx.notify();
   }
 
@@ -621,7 +635,7 @@ export class Board {
       .child(this.toolbar(t));
   }
 
-  // Under the view tabs: the filter on the left, the sort and (Tree only) fold buttons on the right.
+  // Under the view tabs: the filter on the left, the sort and (Tree, Cards, List) fold buttons on the right.
   toolbar(t) {
     return h_flex().h(34).flex_none().items_center().gap(8).pl(20).pr(14).border_b(1).border_color(t.border)
       .child(h_flex().id("filter").flex_1().min_w(0).h(24).items_center().gap(6).px(8).rounded(6).border_1()
@@ -639,9 +653,14 @@ export class Board {
             .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); this.handle.focus(); this.setSort(id, cx); })
             .child(div().child(SORT_TITLE[id]));
         })))
-      .when(this.view === "tree" && this.base.repos.length > 1, (el) => el.child(h_flex().flex_none().gap(2)
+      .when(this.canFoldAll(), (el) => el.child(h_flex().flex_none().gap(2)
         .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
         .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))));
+  }
+
+  canFoldAll() {
+    if (this.view === "tree") return this.base.repos.length > 0;
+    return (this.view === "cards" || this.view === "list") && bandPaths(selectedRepo(this.base, this.root)).length > 0;
   }
 
   headerButton(t, id, icon, label, hint, compact, action) {

@@ -4,7 +4,7 @@ import { readLabels } from "./labels.js";
 import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subRow } from "./subagents.js";
 import { nextAttention } from "./order.js";
 import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
-import { byName } from "./arrange.js";
+import { byName, rowGroup } from "./arrange.js";
 
 export const OTHER = "other:";
 
@@ -58,7 +58,7 @@ function sessionRow(t, where, ctx) {
     status, exited, offers: exited ? ["relaunch", "delete"] : [], archived: Boolean(tab?.settled),
     title: tab?.named && tab.name ? tab.name : NEW_SESSION,
     program: programName(t), model: labels.launch?.model ?? "", effort: labels.launch?.effort ?? "", launch: labels.launch, prompt: labels.prompt,
-    age: exited ? "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
+    age: tab?.settled ? "archived" : exited ? "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
   };
 }
@@ -68,6 +68,8 @@ function sessionRow(t, where, ctx) {
 const rank = (s) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? STATUS_ORDER.length : i; };
 const greyLast = (r) => rank(r.kind === "nebula" ? null : r.status);
 export const byStatus = (rows) => [...rows].sort((a, b) => greyLast(a) - greyLast(b));
+// A band's rows: live, then archived, then nebula's, each group in status order.
+export const byGroup = (rows) => [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || greyLast(a) - greyLast(b));
 
 const counts = (rows) => tally(rows.map((r) => r.status));
 
@@ -90,13 +92,13 @@ export function buildBoard({ terminals = [], agents = [], panes = [], spaces = [
   const out = g.repos.map((r) => {
     const bands = r.bands.filter((b) => b.sessions.length || mine.has(b)).map((b) => {
       const git = gitOf(wt, b.path);
-      return { path: b.path, branch: b.branch ?? git.branch ?? null, label: b.branch ?? git.branch ?? baseName(b.path), ahead: git.ahead, added: git.added, deleted: git.deleted, rows: byStatus([...b.sessions.map(rowOf), ...(mine.get(b) ?? [])]) };
+      return { path: b.path, branch: b.branch ?? git.branch ?? null, label: b.branch ?? git.branch ?? baseName(b.path), ahead: git.ahead, added: git.added, deleted: git.deleted, rows: byGroup([...b.sessions.map(rowOf), ...(mine.get(b) ?? [])]) };
     });
     const rows = bands.flatMap((b) => b.rows);
     return { root: r.root, name: r.name, bands, rows, counts: counts(rows) };
   });
   if (g.other.length || strays.length) {
-    const rows = byStatus([...g.other.map(rowOf), ...strays]);
+    const rows = byGroup([...g.other.map(rowOf), ...strays]);
     out.push({ root: OTHER, name: "Other", bands: [{ path: "", branch: null, label: "", ahead: 0, added: 0, deleted: 0, rows }], rows, counts: counts(rows) });
   }
   return { repos: out };
@@ -117,34 +119,48 @@ export const bandParts = (b) => bandStats(b).map((p) => p.text);
 
 // Items are what a view draws, one per line: { key, type, ... }. Types: repo, band,
 // session (with its row), sub (nested under the session before it), summary (another
-// repo in Cards and List), divider, empty. Only repo, session and summary can hold the
+// repo in Cards and List), divider, shelf (the thin "Archived" line above a band's archived rows), empty. Only repo, session and summary can hold the
 // cursor, and their keys are the cursor's ids: a session's address, or `repo:<root>`.
 const repoKey = (repo) => `repo:${repo.root}`;
 
-function bandItems(repo) {
+// A band folds by its path (`folded` is a Set of paths); the header stays and stands for
+// the hidden sessions with their status counts. A band with no label (Other) has no header
+// and cannot fold.
+export const bandSummary = (b) => summaryParts({ counts: tally(b.rows.map((r) => r.status)) });
+export const bandPaths = (repo) => (repo?.bands ?? []).filter((b) => b.label).map((b) => b.path);
+
+// Folds (true) or unfolds (false) every band of `repos` in a copy of the folded set.
+export function foldBands(folded, repos, fold) {
+  const out = new Set(folded);
+  for (const p of repos.flatMap(bandPaths)) fold ? out.add(p) : out.delete(p);
+  return out;
+}
+
+function bandItems(repo, folded) {
   return repo.bands.flatMap((b) => [
-    ...(b.label ? [{ key: `band:${b.path}`, type: "band", band: b }] : []),
-    ...b.rows.flatMap((row) => [
+    ...(b.label ? [{ key: `band:${b.path}`, type: "band", band: b, folded: folded.has(b.path) }] : []),
+    ...(b.label && folded.has(b.path) ? [] : b.rows).flatMap((row, i, rows) => [
+      ...(row.archived && !rows[i - 1]?.archived ? [{ key: `archived:${b.path}`, type: "shelf", text: "Archived" }] : []),
       { key: row.id, type: "session", row },
       ...row.subs.map((sub) => ({ key: `sub:${sub.key}`, type: "sub", sub, parent: row.id })),
     ]),
   ]);
 }
 
-export function treeItems(model, folded, empty = "No repos yet") {
+export function treeItems(model, folded, empty = "No repos yet", bands = new Set()) {
   if (!model.repos.length) return [{ key: "empty", type: "empty", text: empty }];
   return model.repos.flatMap((repo) => [
     { key: repoKey(repo), type: "repo", repo, folded: folded.has(repo.root) },
-    ...(folded.has(repo.root) ? [] : bandItems(repo)),
+    ...(folded.has(repo.root) ? [] : bandItems(repo, bands)),
   ]);
 }
 
-export function listItems(model, root, empty = "No repos yet") {
+export function listItems(model, root, empty = "No repos yet", bands = new Set()) {
   const repo = selectedRepo(model, root);
   if (!repo) return [{ key: "empty", type: "empty", text: empty }];
   const others = model.repos.filter((r) => r !== repo);
   return [
-    ...(repo.rows.length ? bandItems(repo) : [{ key: "empty", type: "empty", text: "No sessions" }]),
+    ...(repo.rows.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }]),
     ...(others.length ? [{ key: "others", type: "divider", text: "Other repos" }] : []),
     ...others.map((r) => ({ key: repoKey(r), type: "summary", repo: r })),
   ];

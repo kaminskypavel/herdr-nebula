@@ -2,23 +2,22 @@ import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
-import { ball, badge, drawItem, metaLine } from "./row.js";
+import { ball, badge, drawItem, metaLine, title } from "./row.js";
 
-export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined);
+export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined, b.filter ? new Set() : b.bandsFolded);
 
 function card(row, t, selected, click, menu, pinned) {
   const meta = metaLine(row, t, 11);
-  const dim = row.exited || row.archived;
   return h_flex().id(`card-${row.id}`).flex_1().min_w(0).gap(7).p(8).rounded(8).border_1().cursor_pointer()
     .border_color(selected || pinned ? t.accent : row.status === "needs" ? t.ansi1 : t.border)
     .bg(selected ? t.selected : t.raised)
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
-    .child(div().mt(4).child(ball(row.status, t)))
+    .child(div().mt(4).child(ball(row.status, t, 8, row.archived)))
     .child(v_flex().flex_1().min_w(0).gap(2)
       .child(h_flex().gap(6).items_center()
-        .child(div().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
+        .child(title(row, t).text_size(13))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
       .child(h_flex().gap(6).items_center().text_size(11).text_color(t.muted)
         .child(div().flex_1().min_w(0).when(Boolean(meta), (el) => el.child(meta)))

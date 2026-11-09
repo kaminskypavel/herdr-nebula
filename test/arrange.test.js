@@ -34,12 +34,12 @@ test("default sort is status, the same as asking for it", () => {
   assert.deepEqual(arrange(model()), arrange(model(), { sort: "status", filter: "" }));
 });
 
-test("name sort: projects, worktrees and sessions alphabetical and case-insensitive, grey not special", () => {
+test("name sort: projects, worktrees and sessions alphabetical and case-insensitive, nebula rows last in their band", () => {
   const m = arrange(model(), { sort: "name" });
   assert.deepEqual(ids(m), ["/apple", "/empty", "/mike", "/zed"]);
   assert.deepEqual(m.repos[2].bands.map((b) => b.label), ["Feature-X", "main"]);
   assert.deepEqual(m.repos[3].rows.map((r) => r.id), ["z2", "z1"]);
-  assert.deepEqual(m.repos[0].rows.map((r) => r.id), ["a2", "a1"]);
+  assert.deepEqual(m.repos[0].rows.map((r) => r.id), ["a1", "a2"]);
 });
 
 test("name sort keeps equal names in their order (stable)", () => {

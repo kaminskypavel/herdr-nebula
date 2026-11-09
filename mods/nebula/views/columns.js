@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, badge, metaLine } from "./row.js";
+import { ball, badge, metaLine, title } from "./row.js";
 
 export const items = (model, b) =>
   b?.pc ? projectItems(b.pc) : columnsModel(model).flatMap((c) => c.rows).map((row) => ({ key: row.id, type: "session", row }));
@@ -9,7 +9,6 @@ export const items = (model, b) =>
 const MODES = [{ id: "status", title: "Status" }, { id: "projects", title: "Projects" }];
 
 function mini(row, t, selected, click, menu, pinned) {
-  const dim = row.exited || row.archived;
   return v_flex().id(`mini-${row.id}`).flex_none().gap(1).px(6).py(4).rounded(6).cursor_pointer()
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.bg(t.raised).hover((s) => s.bg(t.hover)))
@@ -18,7 +17,7 @@ function mini(row, t, selected, click, menu, pinned) {
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
     .child(h_flex().gap(6).items_center()
-      .child(div().min_w(0).truncate().text_size(12).text_color(dim ? t.dim : t.foreground).child(row.title))
+      .child(title(row, t).text_size(12))
       .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
     .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(pinned ? `${row.where} · pinned` : row.where));
 }
@@ -58,7 +57,7 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
 function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
-  const dim = row.exited || row.archived, meta = metaLine(row, t, 11);
+  const meta = metaLine(row, t, 11);
   return v_flex().id(`pcs-${row.id}`).flex_none().gap(1).px(8).py(4).rounded(6).cursor_pointer()
     .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
@@ -67,8 +66,8 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
     .child(h_flex().gap(8).items_center()
-      .child(ball(row.status, t))
-      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(dim ? t.dim : t.foreground).child(row.title))
+      .child(ball(row.status, t, 8, row.archived))
+      .child(title(row, t).flex_1().text_size(13))
       .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))))
     .child(h_flex().pl(16).min_w(0).items_center().gap(5).text_size(11).text_color(t.dim)
       .when(Boolean(meta), (el) => el.child(meta))

@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import {
   OTHER, buildBoard, treeItems, listItems, columnsModel, stopsOf, stepCursor, placeCursor, attentionTarget,
   agentOrder, projectColumns, projectItems, rollup, summaryParts, bandParts, parseWt, objectsOnly, selectedRepo,
+  bandSummary, bandPaths, foldBands,
 } from "../mods/nebula/lib/viewmodel.js";
+import { arrange, rowGroup } from "../mods/nebula/lib/arrange.js";
 
 const NOW = 10_000_000;
 const repos = ["alpha", "beta", "gamma", "delta"].map((n) => ({
@@ -386,4 +388,119 @@ test("the attention walk still goes needs you first, then unseen, after the sort
   assert.equal(attentionTarget(m, "n1", 1), "u1");
   assert.equal(attentionTarget(m, "u1", 1), "n1");
   assert.equal(attentionTarget(m, "n1", -1), "u1");
+});
+
+test("a folded band keeps its header and hides its sessions, in Tree and List", () => {
+  const m = buildBoard(fleet());
+  const alpha = m.repos.find((r) => r.name === "alpha");
+  const band = alpha.bands[0];
+  const folded = new Set([band.path]);
+  for (const items of [treeItems(m, new Set(), undefined, folded), listItems(m, "/r/alpha", undefined, folded)]) {
+    const head = items.find((i) => i.key === `band:${band.path}`);
+    assert.equal(head.folded, true);
+    for (const row of band.rows) assert.ok(!items.some((i) => i.key === row.id));
+    for (const row of alpha.bands[1].rows) assert.ok(items.some((i) => i.key === row.id));
+    assert.equal(items.find((i) => i.key === `band:${alpha.bands[1].path}`).folded, false);
+  }
+  assert.ok(!stopsOf(listItems(m, "/r/alpha", undefined, folded)).includes(band.rows[0].id));
+});
+
+test("a folded band header still counts its sessions by status", () => {
+  const m = buildBoard(fleet());
+  const band = m.repos[0].bands[0];
+  const parts = bandSummary(band);
+  assert.equal(parts.reduce((n, p) => n + p.n, 0), band.rows.length);
+  assert.ok(parts.every((p) => p.n > 0 && p.label));
+});
+
+test("with no folded bands every session shows, folded bands only fold (Other has no header to fold)", () => {
+  const m = buildBoard(fleet());
+  assert.equal(treeItems(m, new Set(), undefined, new Set()).filter((i) => i.type === "session").length, 15);
+  const none = buildBoard({ ...fleet(), terminals: [{ address: "x", cwd: "/elsewhere", status: "idle", state: "live", labels: {} }], agents: [], spaces: [], repos });
+  const other = none.repos.find((r) => r.root === OTHER);
+  assert.deepEqual(bandPaths(other), []);
+  assert.ok(treeItems(none, new Set(), undefined, new Set([""])).some((i) => i.key === "x"));
+});
+
+test("Collapse all / Expand all helpers fold every band of the given repos and leave other paths alone", () => {
+  const m = buildBoard(fleet());
+  const alpha = m.repos.find((r) => r.name === "alpha");
+  const paths = bandPaths(alpha);
+  assert.equal(paths.length, alpha.bands.length);
+  const all = foldBands(new Set(["/keep"]), [alpha], true);
+  assert.deepEqual([...all].sort(), [...paths, "/keep"].sort());
+  assert.deepEqual([...foldBands(all, [alpha], false)], ["/keep"]);
+  const every = foldBands(new Set(), m.repos, true);
+  assert.equal(every.size, m.repos.flatMap(bandPaths).length);
+  assert.equal(foldBands(every, m.repos, false).size, 0);
+});
+
+test("a filter ignores folded bands when the view passes no folds (views do this, so matches stay visible)", () => {
+  const m = buildBoard(fleet());
+  const band = m.repos.find((r) => r.name === "alpha").bands[0];
+  const items = listItems(m, "/r/alpha", undefined, new Set());
+  assert.ok(band.rows.every((row) => items.some((i) => i.key === row.id)));
+});
+
+// Archived rows: after the live rows, before nebula's, each group in status order; a shelf line above the first.
+function archivedFleet(extra = {}) {
+  const f = fleet();
+  const tabs = f.spaces[0].tabs;
+  // alpha main band holds t1 (blocked, archived) and t9 (idle)
+  for (const id of ["tab1"]) tabs.find((t) => t.id === id).settled = true;
+  return { ...f, showArchived: true, ...extra };
+}
+
+test("archived rows sort after live rows in their band, keep status order, and read 'archived'", () => {
+  const m = buildBoard(archivedFleet());
+  const band = m.repos.find((r) => r.name === "alpha").bands.find((b) => b.rows.some((r) => r.archived));
+  const flags = band.rows.map((r) => r.archived);
+  assert.deepEqual(flags, [...flags].sort((a, b) => Number(a) - Number(b)));
+  assert.ok(flags.includes(true) && flags.includes(false));
+  assert.ok(band.rows.filter((r) => r.archived).every((r) => r.age === "archived"));
+  const arch = band.rows.filter((r) => r.archived).map((r) => r.status);
+  assert.deepEqual(arch, [...arch].sort((a, b) => ["needs", "working", "unseen", "seen"].indexOf(a) - ["needs", "working", "unseen", "seen"].indexOf(b)));
+});
+
+test("a shelf line sits above the first archived row of a band, and only there", () => {
+  const m = buildBoard(archivedFleet());
+  const items = listItems(m, "/r/alpha");
+  const shelves = items.filter((i) => i.type === "shelf");
+  assert.ok(shelves.length >= 1);
+  for (const sh of shelves) {
+    const at = items.indexOf(sh);
+    assert.equal(items[at + 1].type, "session");
+    assert.equal(items[at + 1].row.archived, true);
+    assert.ok(!items[at - 1]?.row?.archived);
+  }
+  assert.equal(shelves.length, new Set(shelves.map((s) => s.key)).size);
+  const none = listItems(buildBoard(fleet()), "/r/alpha");
+  assert.ok(!none.some((i) => i.type === "shelf"));
+  assert.ok(!stopsOf(items).includes(shelves[0].key));
+});
+
+test("nebula rows stay after the archived rows, and a folded band hides its shelf", () => {
+  const f = archivedFleet();
+  const m0 = buildBoard(f);
+  const band0 = m0.repos.find((r) => r.name === "alpha").bands.find((b) => b.rows.some((r) => r.archived));
+  const nebula = [{ id: "n1", name: "Neb", worktree: band0.path, status: "idle", alive: false, summary: "Neb", model: "", effort: "" }];
+  const m = buildBoard({ ...f, nebula });
+  const band = m.repos.find((r) => r.name === "alpha").bands.find((b) => b.path === band0.path);
+  assert.equal(band.rows.at(-1).kind, "nebula");
+  assert.ok(band.rows.at(-2).archived);
+  const items = listItems(m, "/r/alpha", undefined, new Set([band.path]));
+  assert.ok(!items.some((i) => i.key === `archived:${band.path}`));
+});
+
+test("Name sort keeps alphabetical order inside each group: live, archived, nebula", () => {
+  const f = archivedFleet();
+  const m = arrange(buildBoard(f), { sort: "name" });
+  for (const b of m.repos.flatMap((r) => r.bands)) {
+    const g = b.rows.map(rowGroup);
+    assert.deepEqual(g, [...g].sort((x, y) => x - y));
+    for (const n of [0, 1, 2]) {
+      const titles = b.rows.filter((r) => rowGroup(r) === n).map((r) => r.title.toLowerCase());
+      assert.deepEqual(titles, [...titles].sort());
+    }
+  }
 });

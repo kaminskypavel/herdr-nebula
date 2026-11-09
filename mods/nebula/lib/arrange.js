@@ -11,6 +11,9 @@ export const NO_MATCH = "No matches";
 
 export const cleanSort = (v) => (SORTS.includes(v) ? v : "status");
 
+// Where a row sits in its band: live rows, then archived ones, then nebula's own.
+export const rowGroup = (r) => (r.kind === "nebula" ? 2 : r.archived ? 1 : 0);
+
 const fold = (s) => String(s ?? "").toLowerCase();
 
 // Case-insensitive, stable on ties (Array.prototype.sort is stable).
@@ -36,7 +39,7 @@ export function arrange(model, { filter = "", sort = "status" } = {}) {
     for (const b of repo.bands) {
       const all = whole || has(b.label) || has(b.branch);
       const rows = all ? b.rows : b.rows.filter((r) => has(r.title));
-      if (rows.length || !q) bands.push({ ...b, rows: sort === "name" ? [...rows].sort(byTitle) : rows });
+      if (rows.length || !q) bands.push({ ...b, rows: sort === "name" ? [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || byTitle(a, b)) : rows });
     }
     if (q && !whole && !bands.length) continue;
     if (sort === "name") bands = [...bands].sort(byName((b) => b.label));
