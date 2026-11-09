@@ -35,15 +35,32 @@ export function savePreset(presets, edited, was) {
 export function presetFrom(base, f) {
   const known = Boolean(HARNESSES[f.harness]);
   return {
-    ...base, name: f.name.trim(), kind: known ? kindOf(f.harness) : "custom", custom_harness: known ? null : f.harness,
-    model: f.model.trim() || null, effort: f.effort.trim() || null, prefix: f.prefix, postfix: f.postfix,
+    ...base,
+    name: f.name.trim(),
+    kind: known ? kindOf(f.harness) : "custom",
+    custom_harness: known ? null : f.harness,
+    model: f.model.trim() || null,
+    effort: f.effort.trim() || null,
+    prefix: f.prefix,
+    postfix: f.postfix,
   };
 }
 
 // ctx also carries what the box had: task, checkout and root, so choosing a preset keeps them.
+/**
+ * @param {any} p
+ * @param {{ newWorktree: boolean, branch: string, task?: string, checkout?: string, root?: string }} o
+ */
 export const launchPrefill = (p, { newWorktree, branch, task, checkout, root }) => ({
-  harness: harnessOf(p), model: p.model ?? null, effort: p.effort ?? null, preset: p.name, newWorktree, branch,
-  ...(task ? { task } : {}), ...(checkout ? { checkout } : {}), ...(root ? { root } : {}),
+  harness: harnessOf(p),
+  model: p.model ?? null,
+  effort: p.effort ?? null,
+  preset: p.name,
+  newWorktree,
+  branch,
+  ...(task ? { task } : {}),
+  ...(checkout ? { checkout } : {}),
+  ...(root ? { root } : {}),
 });
 
 // A write the host refused because the file changed under us ("The file changed outside

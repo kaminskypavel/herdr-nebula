@@ -8,7 +8,10 @@ import { props, closeOverlay, openOverlay, setShared, theme } from "herdr";
 import { OPEN, REPO } from "./lib/shared.js";
 import { closeProject } from "./lib/open.js";
 
-const ITEMS = [{ id: "close", label: "Close" }, { id: "remove", label: "Remove from list...", danger: true }];
+const ITEMS = [
+  { id: "close", label: "Close" },
+  { id: "remove", label: "Remove from list...", danger: true },
+];
 
 export class ProjectMenu {
   init(cx) {
@@ -18,7 +21,8 @@ export class ProjectMenu {
   }
 
   choose(i) {
-    const id = ITEMS[i]?.id, p = props() ?? {};
+    const id = ITEMS[i]?.id,
+      p = props() ?? {};
     closeOverlay(p.overlay);
     if (id === "close") {
       const r = closeProject(p.open ?? [], p.root, p.selected ?? null);
@@ -31,7 +35,14 @@ export class ProjectMenu {
 
   render() {
     const t = theme();
-    return v_flex().id("project-menu").track_focus(this.handle).w_full().min_h(0).p(5).bg(t.popover).text_size(12.8)
+    return v_flex()
+      .id("project-menu")
+      .track_focus(this.handle)
+      .w_full()
+      .min_h(0)
+      .p(5)
+      .bg(t.popover)
+      .text_size(12.8)
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % ITEMS.length;
         else if (e.key === "up") this.at = (this.at + ITEMS.length - 1) % ITEMS.length;
@@ -40,11 +51,21 @@ export class ProjectMenu {
         else return;
         cx.notify();
       })
-      .children(ITEMS.map((a, i) => h_flex().id(`pm-${a.id}`).h(31).px(8).rounded(7).items_center().cursor_pointer()
-        .text_color(a.danger ? t.blocked : t.foreground)
-        .when(i === this.at, (el) => el.bg(t.selected))
-        .hover((s) => s.bg(t.hover))
-        .on_click(() => this.choose(i))
-        .child(div().flex_1().child(a.label))));
+      .children(
+        ITEMS.map((a, i) =>
+          h_flex()
+            .id(`pm-${a.id}`)
+            .h(31)
+            .px(8)
+            .rounded(7)
+            .items_center()
+            .cursor_pointer()
+            .text_color(a.danger ? t.blocked : t.foreground)
+            .when(i === this.at, (el) => el.bg(t.selected))
+            .hover((s) => s.bg(t.hover))
+            .on_click(() => this.choose(i))
+            .child(div().flex_1().child(a.label)),
+        ),
+      );
   }
 }

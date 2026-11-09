@@ -39,25 +39,48 @@ const subStatus = (k, listed) => statusOf({ status: kidStatus(k, listed) }) ?? "
 
 function subsOf(t, { kids, listed, now }) {
   const app = t.app ?? t.agent ?? t.program?.key;
-  const inside = hookSubs(t.labels, now).filter((h) => sameApp(app, h.app)).map((h) => ({
-    key: `${t.address}:${h.app}:${h.id}`, ...subRow(h), status: "working",
-    age: h.at > 0 ? duration(Math.max(0, now - h.at)) : "", lines: [],
-  }));
+  const inside = hookSubs(t.labels, now)
+    .filter((h) => sameApp(app, h.app))
+    .map((h) => ({
+      key: `${t.address}:${h.app}:${h.id}`,
+      ...subRow(h),
+      status: "working",
+      age: h.at > 0 ? duration(Math.max(0, now - h.at)) : "",
+      lines: [],
+    }));
   const terminals = subTree(kids, t.address).map(({ k, lines }) => ({
-    key: k.address, text: k.name || k.template || k.program?.name || k.address, badge: "", status: subStatus(k, listed), age: "", lines,
+    key: k.address,
+    text: k.name || k.template || k.program?.name || k.address,
+    badge: "",
+    status: subStatus(k, listed),
+    age: "",
+    lines,
   }));
   return [...inside, ...terminals];
 }
 
 function sessionRow(t, where, ctx) {
-  const tab = where?.tab ?? null, status = statusOf(t), labels = readLabels(t.labels);
-  const since = status === "working" ? tab?.working_since ?? tab?.changed_at : tab?.changed_at;
+  const tab = where?.tab ?? null,
+    status = statusOf(t),
+    labels = readLabels(t.labels);
+  const since = status === "working" ? (tab?.working_since ?? tab?.changed_at) : tab?.changed_at;
   const exited = status === "exited";
   return {
-    id: t.address, address: t.address, pane: where?.pane ?? null, tab: tab?.id ?? null, cwd: t.cwd ?? "",
-    status, exited, offers: exited ? ["relaunch", "delete"] : [], archived: Boolean(tab?.settled),
+    id: t.address,
+    address: t.address,
+    pane: where?.pane ?? null,
+    tab: tab?.id ?? null,
+    cwd: t.cwd ?? "",
+    status,
+    exited,
+    offers: exited ? ["relaunch", "delete"] : [],
+    archived: Boolean(tab?.settled),
     title: tab?.named && tab.name ? tab.name : NEW_SESSION,
-    program: programName(t), model: labels.launch?.model ?? "", effort: labels.launch?.effort ?? "", launch: labels.launch, prompt: labels.prompt,
+    program: programName(t),
+    model: labels.launch?.model ?? "",
+    effort: labels.launch?.effort ?? "",
+    launch: labels.launch,
+    prompt: labels.prompt,
     age: tab?.settled ? "archived" : exited ? "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
   };
@@ -65,7 +88,10 @@ function sessionRow(t, where, ctx) {
 
 // Every list is ordered by status: needs you, working, unseen, seen, then grey last (exited
 // rows and nebula rows). The sort is stable, so rows keep their order within a status.
-const rank = (s) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? STATUS_ORDER.length : i; };
+const rank = (s) => {
+  const i = STATUS_ORDER.indexOf(s);
+  return i < 0 ? STATUS_ORDER.length : i;
+};
 const greyLast = (r) => rank(r.kind === "nebula" ? null : r.status);
 export const byStatus = (rows) => [...rows].sort((a, b) => greyLast(a) - greyLast(b));
 // A band's rows: live, then archived, then nebula's, each group in status order.
@@ -78,22 +104,47 @@ const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 }
 // `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
 // shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
 // worktree, or land in Other with the stray terminals.
-export function buildBoard({ terminals = [], agents = [], panes = [], spaces = [], repos = [], wt = {}, now = Date.now(), showArchived = false, nebula = [], resumed = {} }) {
+export function buildBoard({
+  terminals = [],
+  agents = [],
+  panes = [],
+  spaces = [],
+  repos = [],
+  wt = {},
+  now = Date.now(),
+  showArchived = false,
+  nebula = [],
+  resumed = {},
+}) {
   const where = tabLookup(agents, panes, spaces);
-  const g = groupSessions(terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled), repos);
+  const g = groupSessions(
+    terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),
+    repos,
+  );
   const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
-  const mine = new Map(), strays = [];
+  const mine = new Map(),
+    strays = [];
   for (const s of visibleSessions(nebula, resumed, new Set(terminals.map((t) => t.address)))) {
     const b = bestBand(g.repos, s.worktree);
     if (!b) strays.push(nebulaRow(s));
     else mine.set(b, [...(mine.get(b) ?? []), nebulaRow(s)]);
   }
   const out = g.repos.map((r) => {
-    const bands = r.bands.filter((b) => b.sessions.length || mine.has(b)).map((b) => {
-      const git = gitOf(wt, b.path);
-      return { path: b.path, branch: b.branch ?? git.branch ?? null, label: b.branch ?? git.branch ?? baseName(b.path), ahead: git.ahead, added: git.added, deleted: git.deleted, rows: byGroup([...b.sessions.map(rowOf), ...(mine.get(b) ?? [])]) };
-    });
+    const bands = r.bands
+      .filter((b) => b.sessions.length || mine.has(b))
+      .map((b) => {
+        const git = gitOf(wt, b.path);
+        return {
+          path: b.path,
+          branch: b.branch ?? git.branch ?? null,
+          label: b.branch ?? git.branch ?? baseName(b.path),
+          ahead: git.ahead,
+          added: git.added,
+          deleted: git.deleted,
+          rows: byGroup([...b.sessions.map(rowOf), ...(mine.get(b) ?? [])]),
+        };
+      });
     const rows = bands.flatMap((b) => b.rows);
     return { root: r.root, name: r.name, bands, rows, counts: counts(rows) };
   });
@@ -109,9 +160,12 @@ export const summaryParts = (repo) =>
 
 // The git stats of a worktree band as coloured pieces: ahead (cyan), added (green), deleted (red).
 export const BAND_COLOR = { ahead: "ansi6", added: "ansi2", deleted: "ansi1" };
-export const bandStats = (b) => [
-  b.ahead > 0 && { kind: "ahead", text: `↑${b.ahead}` }, b.added > 0 && { kind: "added", text: `+${b.added}` }, b.deleted > 0 && { kind: "deleted", text: `−${b.deleted}` },
-].filter(Boolean);
+export const bandStats = (b) =>
+  [
+    b.ahead > 0 && { kind: "ahead", text: `↑${b.ahead}` },
+    b.added > 0 && { kind: "added", text: `+${b.added}` },
+    b.deleted > 0 && { kind: "deleted", text: `−${b.deleted}` },
+  ].filter(Boolean);
 export const bandParts = (b) => bandStats(b).map((p) => p.text);
 
 // Items are what a view draws, one per line: { key, type, ... }. Types: repo, band,
@@ -165,9 +219,15 @@ const columnsMemo = new WeakMap();
 
 export function columnsModel(model) {
   if (columnsMemo.has(model)) return columnsMemo.get(model);
-  const all = model.repos.flatMap((repo) => repo.bands.flatMap((b) => b.rows.map((row) => ({ ...row, where: [repo.name, b.label].filter(Boolean).join(" / ") }))));
+  const all = model.repos.flatMap((repo) =>
+    repo.bands.flatMap((b) => b.rows.map((row) => ({ ...row, where: [repo.name, b.label].filter(Boolean).join(" / ") }))),
+  );
   const order = model.sort === "name" ? (rows) => [...rows].sort(byName((r) => r.title)) : byStatus;
-  const out = COLUMNS.map((c) => ({ ...c, color: COLOR[c.status], rows: order(all.filter((r) => (c.status === "seen" ? r.status === "seen" || r.status === "exited" : r.status === c.status))) }));
+  const out = COLUMNS.map((c) => ({
+    ...c,
+    color: COLOR[c.status],
+    rows: order(all.filter((r) => (c.status === "seen" ? r.status === "seen" || r.status === "exited" : r.status === c.status))),
+  }));
   columnsMemo.set(model, out);
   return out;
 }
@@ -187,12 +247,18 @@ const byUrgency = (items, model) => (model.sort === "name" ? items : [...items].
 
 export function projectColumns(model, sel = {}, rail = null, scoped = false) {
   const repos = model.repos;
-  const repo = repos.find((r) => r.root === sel?.project) ?? repos.find((r) => r.root === rail && r.rows.length)
-    ?? repos.find((r) => r.rows.length) ?? repos[0] ?? null;
+  const repo =
+    repos.find((r) => r.root === sel?.project) ?? repos.find((r) => r.root === rail && r.rows.length) ?? repos.find((r) => r.rows.length) ?? repos[0] ?? null;
   const band = repo?.bands.find((b) => b.path === sel?.worktree) ?? repo?.bands[0] ?? null;
   return {
-    projects: byUrgency(repos.map((r) => ({ key: r.root, name: r.name, status: rollup(r.rows), count: r.rows.length })), model),
-    worktrees: byUrgency((repo?.bands ?? []).map((b) => ({ key: b.path, label: b.label || repo.name, status: rollup(b.rows), count: b.rows.length })), model),
+    projects: byUrgency(
+      repos.map((r) => ({ key: r.root, name: r.name, status: rollup(r.rows), count: r.rows.length })),
+      model,
+    ),
+    worktrees: byUrgency(
+      (repo?.bands ?? []).map((b) => ({ key: b.path, label: b.label || repo.name, status: rollup(b.rows), count: b.rows.length })),
+      model,
+    ),
     sessions: band?.rows ?? [],
     sel: { project: repo?.root ?? null, worktree: band?.path ?? null },
     scoped,
@@ -227,21 +293,34 @@ const isLive = (r) => r.kind !== "nebula";
 const live = (model) => model.repos.flatMap((r) => r.rows).filter(isLive);
 
 export const attentionTarget = (model, from, dir) =>
-  nextAttention(live(model).map((r) => ({ id: r.id, status: r.status })), from, dir);
+  nextAttention(
+    live(model).map((r) => ({ id: r.id, status: r.status })),
+    from,
+    dir,
+  );
 
 // The model is what the board shows (the selected tab). opts: { mode: "projects", sel } puts Columns' selected project first, in worktree order.
 export function agentOrder(model, view, root, opts = {}) {
   const tree = live(model).map((r) => r.id);
   let first = [];
-  if (view === "columns" && opts.mode === "projects") first = (model.repos.find((r) => r.root === projectColumns(model, opts.sel, root).sel.project)?.rows ?? []).filter(isLive).map((r) => r.id);
-  else if (view === "columns") first = columnsModel(model).flatMap((c) => c.rows).filter(isLive).map((r) => r.id);
+  if (view === "columns" && opts.mode === "projects")
+    first = (model.repos.find((r) => r.root === projectColumns(model, opts.sel, root).sel.project)?.rows ?? []).filter(isLive).map((r) => r.id);
+  else if (view === "columns")
+    first = columnsModel(model)
+      .flatMap((c) => c.rows)
+      .filter(isLive)
+      .map((r) => r.id);
   const seen = new Set(first);
   return [...first, ...tree.filter((id) => !seen.has(id))];
 }
 
 export function parseWt(text) {
   let items;
-  try { items = JSON.parse(text)?.items; } catch { return {}; }
+  try {
+    items = JSON.parse(text)?.items;
+  } catch {
+    return {};
+  }
   const out = {};
   for (const it of Array.isArray(items) ? items : []) {
     const path = it?.worktree?.path;

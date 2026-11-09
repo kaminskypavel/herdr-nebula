@@ -7,16 +7,39 @@ import { arrange } from "../mods/nebula/lib/arrange.js";
 
 const NOW = 10_000_000;
 const repos = ["alpha", "beta", "gamma"].map((n) => ({
-  root: `/r/${n}`, name: n,
-  checkouts: [{ path: `/r/${n}`, branch: "main" }, { path: `/r/${n}-worktrees/feat`, branch: "feat" }],
+  root: `/r/${n}`,
+  name: n,
+  checkouts: [
+    { path: `/r/${n}`, branch: "main" },
+    { path: `/r/${n}-worktrees/feat`, branch: "feat" },
+  ],
 }));
-const term = (address, cwd, status = "idle") => ({ address, cwd, status, state: "live", app: "claude-code", program: { key: "claude", name: "Claude Code", shell: false }, labels: {} });
+const term = (address, cwd, status = "idle") => ({
+  address,
+  cwd,
+  status,
+  state: "live",
+  app: "claude-code",
+  program: { key: "claude", name: "Claude Code", shell: false },
+  labels: {},
+});
 
 // alpha: a1 (main), a2 (feat); beta: b1; gamma: g1 (closed); a stray in Other.
-const board = () => buildBoard({
-  terminals: [term("a1", "/r/alpha", "blocked"), term("a2", "/r/alpha-worktrees/feat", "working"), term("b1", "/r/beta"), term("g1", "/r/gamma"), term("s1", "/Users/x/Desktop")],
-  agents: [], panes: [], spaces: [], repos, now: NOW,
-});
+const board = () =>
+  buildBoard({
+    terminals: [
+      term("a1", "/r/alpha", "blocked"),
+      term("a2", "/r/alpha-worktrees/feat", "working"),
+      term("b1", "/r/beta"),
+      term("g1", "/r/gamma"),
+      term("s1", "/Users/x/Desktop"),
+    ],
+    agents: [],
+    panes: [],
+    spaces: [],
+    repos,
+    now: NOW,
+  });
 const OPEN = ["/r/alpha", "/r/beta"];
 const shown = () => onlyOpen(board(), OPEN);
 const ids = (items) => items.filter((i) => i.type === "session").map((i) => i.key);
@@ -31,38 +54,78 @@ test("the tab is the selected open project, else All (also when nothing is store
 
 test("All scopes to every open project and the Other group; a project tab to that project alone", () => {
   const m = shown();
-  assert.deepEqual(scopeModel(m, ALL).repos.map((r) => r.root), ["/r/alpha", "/r/beta", OTHER]);
-  assert.deepEqual(scopeModel(m, "/r/beta").repos.map((r) => r.root), ["/r/beta"]);
+  assert.deepEqual(
+    scopeModel(m, ALL).repos.map((r) => r.root),
+    ["/r/alpha", "/r/beta", OTHER],
+  );
+  assert.deepEqual(
+    scopeModel(m, "/r/beta").repos.map((r) => r.root),
+    ["/r/beta"],
+  );
   assert.deepEqual(scopeModel(m, "/r/gamma").repos, []);
 });
 
 test("every view shows only the project tab's sessions; the Other group only on All, closed projects never", () => {
-  const m = shown(), one = scopeModel(m, "/r/alpha"), all = scopeModel(m, ALL);
+  const m = shown(),
+    one = scopeModel(m, "/r/alpha"),
+    all = scopeModel(m, ALL);
   assert.deepEqual(ids(treeItems(one, new Set())).sort(), ["a1", "a2"]);
   assert.deepEqual(ids(listItems(one)).sort(), ["a1", "a2"]);
-  assert.deepEqual(columnsModel(one).flatMap((c) => c.rows).map((r) => r.id).sort(), ["a1", "a2"]);
+  assert.deepEqual(
+    columnsModel(one)
+      .flatMap((c) => c.rows)
+      .map((r) => r.id)
+      .sort(),
+    ["a1", "a2"],
+  );
   assert.deepEqual(ids(treeItems(all, new Set())).sort(), ["a1", "a2", "b1", "s1"]);
   const grouped = listItems(all, { all: true });
-  assert.deepEqual(grouped.filter((i) => i.type === "repo").map((i) => i.repo.root), ["/r/alpha", "/r/beta", OTHER]);
+  assert.deepEqual(
+    grouped.filter((i) => i.type === "repo").map((i) => i.repo.root),
+    ["/r/alpha", "/r/beta", OTHER],
+  );
   assert.deepEqual(ids(grouped).sort(), ["a1", "a2", "b1", "s1"]);
-  assert.deepEqual(columnsModel(all).flatMap((c) => c.rows).map((r) => r.id).sort(), ["a1", "a2", "b1", "s1"]);
+  assert.deepEqual(
+    columnsModel(all)
+      .flatMap((c) => c.rows)
+      .map((r) => r.id)
+      .sort(),
+    ["a1", "a2", "b1", "s1"],
+  );
   assert.ok(!ids(listItems(all, { all: true })).includes("g1"));
 });
 
 test("the filter and the sort work inside the tab", () => {
   const m = scopeModel(shown(), "/r/alpha");
-  assert.deepEqual(arrange(m, { filter: "feat" }).repos.flatMap((r) => r.rows).map((r) => r.id), ["a2"]);
+  assert.deepEqual(
+    arrange(m, { filter: "feat" })
+      .repos.flatMap((r) => r.rows)
+      .map((r) => r.id),
+    ["a2"],
+  );
   assert.deepEqual(arrange(scopeModel(shown(), "/r/beta"), { filter: "alpha" }).repos, []);
-  assert.deepEqual(arrange(scopeModel(shown(), ALL), { filter: "alpha" }).repos.map((r) => r.root), ["/r/alpha"]);
+  assert.deepEqual(
+    arrange(scopeModel(shown(), ALL), { filter: "alpha" }).repos.map((r) => r.root),
+    ["/r/alpha"],
+  );
   assert.equal(arrange(m, { sort: "name" }).sort, "name");
 });
 
 test("Projects mode: a project tab has no PROJECTS column, All keeps all three", () => {
-  const one = scopeModel(shown(), "/r/alpha"), all = scopeModel(shown(), ALL);
+  const one = scopeModel(shown(), "/r/alpha"),
+    all = scopeModel(shown(), ALL);
   const pc = projectColumns(one, {}, "/r/alpha", true);
   assert.equal(pc.sel.project, "/r/alpha");
-  assert.deepEqual(projectItems(pc).map((i) => i.type), ["worktree", "worktree", "session"]);
-  assert.deepEqual(projectItems(projectColumns(all, {}, null)).map((i) => i.type).filter((t) => t === "project").length, 3);
+  assert.deepEqual(
+    projectItems(pc).map((i) => i.type),
+    ["worktree", "worktree", "session"],
+  );
+  assert.deepEqual(
+    projectItems(projectColumns(all, {}, null))
+      .map((i) => i.type)
+      .filter((t) => t === "project").length,
+    3,
+  );
   assert.equal(projectColumns(all, {}, null).scoped, false);
 });
 
@@ -92,7 +155,8 @@ test("showing a session: a project tab moves to its project, All stays, Other go
 });
 
 test("follow focus reacts only to a change to an agent the board knows, and not while the board has the keys", () => {
-  const model = board(), base = { terminal: "a1", last: "b1", boardKeys: false, model };
+  const model = board(),
+    base = { terminal: "a1", last: "b1", boardKeys: false, model };
   assert.deepEqual(followFocus(base), { last: "a1", id: "a1" });
   assert.deepEqual(followFocus({ ...base, last: "a1" }), { last: "a1", id: null });
   assert.deepEqual(followFocus({ ...base, terminal: null }), { last: "b1", id: null });
@@ -100,12 +164,21 @@ test("follow focus reacts only to a change to an agent the board knows, and not 
   assert.deepEqual(followFocus({ ...base, terminal: "g1" }), { last: "g1", id: "g1" }); // a closed project's agent is known
   assert.deepEqual(followFocus({ ...base, terminal: "s1" }), { last: "s1", id: "s1" });
   assert.deepEqual(followFocus({ ...base, terminal: "shell9" }), { last: "shell9", id: null });
-  const neb = buildBoard({ terminals: [], agents: [], panes: [], spaces: [], repos, now: NOW, nebula: [{ id: "n1", name: "N", worktree: "/r/alpha", status: "idle", alive: false, summary: "N", model: "", effort: "" }] });
+  const neb = buildBoard({
+    terminals: [],
+    agents: [],
+    panes: [],
+    spaces: [],
+    repos,
+    now: NOW,
+    nebula: [{ id: "n1", name: "N", worktree: "/r/alpha", status: "idle", alive: false, summary: "N", model: "", effort: "" }],
+  });
   assert.equal(followFocus({ terminal: "nebula:n1", last: null, boardKeys: false, model: neb }).id, null);
 });
 
 test("Collapse all / Expand all act on what is shown: headers on All, bands on a project tab", () => {
-  const all = scopeModel(shown(), ALL).repos, one = scopeModel(shown(), "/r/alpha").repos;
+  const all = scopeModel(shown(), ALL).repos,
+    one = scopeModel(shown(), "/r/alpha").repos;
   const start = { folded: new Set(["/r/gamma"]), bands: new Set(["/keep"]) };
   const a = foldAllState(start, all, true, ALL);
   assert.deepEqual([...a.folded].sort(), ["/r/alpha", "/r/beta", "/r/gamma", OTHER].sort());

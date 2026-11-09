@@ -13,16 +13,34 @@ function world(status = 1) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hn-win-"));
   const home = path.join(dir, "home");
   const main = path.join(home, ".config", "herdr-app");
-  const put = (f, text) => { fs.mkdirSync(path.dirname(path.join(main, f)), { recursive: true }); fs.writeFileSync(path.join(main, f), text); };
-  for (const f of ["layouts/a.json", "mods/m/index.js", "themes/t.json", "icons/i.svg", "keys.json", "settings.json", "shared.json",
-    "herdr-app.sock", "data/x", "view.json", "window.json", "windows.json", "telemetry/t"]) put(f, f);
+  const put = (f, text) => {
+    fs.mkdirSync(path.dirname(path.join(main, f)), { recursive: true });
+    fs.writeFileSync(path.join(main, f), text);
+  };
+  for (const f of [
+    "layouts/a.json",
+    "mods/m/index.js",
+    "themes/t.json",
+    "icons/i.svg",
+    "keys.json",
+    "settings.json",
+    "shared.json",
+    "herdr-app.sock",
+    "data/x",
+    "view.json",
+    "window.json",
+    "windows.json",
+    "telemetry/t",
+  ])
+    put(f, f);
   const app = path.join(dir, "Herdr");
   fs.writeFileSync(app, `#!/bin/sh\n[ "$1" = status ] && exit ${status}\nexit 0\n`, { mode: 0o755 });
   const home2 = path.join(dir, "home2");
-  const run = (env = {}) => spawnSync(process.execPath, [CLI, "window"], {
-    encoding: "utf8",
-    env: { PATH: process.env.PATH, HOME: home, HERDR_NEBULA_WINDOW_HOME: home2, HERDR_NEBULA_WINDOW_APP: app, HERDR_NEBULA_WINDOW_DRY: "1", ...env },
-  });
+  const run = (env = {}) =>
+    spawnSync(process.execPath, [CLI, "window"], {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, HOME: home, HERDR_NEBULA_WINDOW_HOME: home2, HERDR_NEBULA_WINDOW_APP: app, HERDR_NEBULA_WINDOW_DRY: "1", ...env },
+    });
   return { main, home2, run };
 }
 
@@ -65,4 +83,13 @@ test("window fails with a message when the app is missing", () => {
   const r = world().run({ HERDR_NEBULA_WINDOW_APP: "/nonexistent/Herdr" });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /Herdr app not found/);
+});
+
+test("window finds herdr-app on PATH when no app is named", () => {
+  const w = world();
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "hn-win-bin-"));
+  fs.symlinkSync(path.join(path.dirname(w.main), "..", "..", "Herdr"), path.join(bin, "herdr-app"));
+  const r = w.run({ HERDR_NEBULA_WINDOW_APP: "", PATH: `${bin}:${process.env.PATH}` });
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /^env -i /);
 });

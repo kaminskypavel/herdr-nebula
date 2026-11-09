@@ -18,12 +18,17 @@ export const norm = (path) => {
 
 // Whether path is root or lies below it.
 export const inside = (path, root) => {
-  const p = norm(path), r = norm(root);
+  const p = norm(path),
+    r = norm(root);
   if (!p || !r) return false;
   return p === r || p.startsWith(r === "/" ? "/" : `${r}/`);
 };
 
-export const baseName = (path) => String(path ?? "").replace(/\/+$/, "").split("/").pop() || String(path ?? "");
+export const baseName = (path) =>
+  String(path ?? "")
+    .replace(/\/+$/, "")
+    .split("/")
+    .pop() || String(path ?? "");
 
 // The repo folder behind a git common dir: <repo>/.git -> <repo>. Anything else (a bare
 // repo) stands for itself.
@@ -31,11 +36,15 @@ export const repoRoot = (commonDir) => norm(commonDir).replace(/\/\.git$/, "");
 
 // The band whose folder holds cwd, the longest folder winning, or null.
 export function bestBand(repos, cwd) {
-  let best = null, depth = -1;
+  let best = null,
+    depth = -1;
   for (const repo of repos) {
     for (const b of repo.bands) {
       const len = norm(b.path).length;
-      if (inside(cwd, b.path) && len > depth) { best = b; depth = len; }
+      if (inside(cwd, b.path) && len > depth) {
+        best = b;
+        depth = len;
+      }
     }
   }
   return best;
@@ -45,7 +54,9 @@ const band = (path, branch = null) => ({ path, branch, label: branch ?? baseName
 
 export function groupSessions(terminals, projects) {
   const repos = projects.map((p) => ({
-    root: p.root, name: p.name ?? baseName(p.root), bands: (p.checkouts ?? []).map((c) => band(c.path, c.branch ?? null)),
+    root: p.root,
+    name: p.name ?? baseName(p.root),
+    bands: (p.checkouts ?? []).map((c) => band(c.path, c.branch ?? null)),
   }));
   const other = [];
   const extra = new Map();

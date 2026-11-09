@@ -16,8 +16,8 @@ export default class Nebula extends View {
     this.part.init(cx);
   }
 
-  render(cx) {
-    if (this.part) return this.part.render(cx);
+  render() {
+    if (this.part) return this.part.render();
     return div().size_full().bg(theme().chrome);
   }
 }

@@ -1,11 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { step, FOLDED, TERMINAL, BOARD } from "../mods/nebula/lib/focus.js";
-import { groupSessions } from "../mods/nebula/lib/projects.js";
-import {
-  digitTile, parseWorktrees, resolveAdd, jumpTarget,
-  projectList, addProject, removeProject, taken,
-} from "../mods/nebula/lib/repos.js";
+import { step, findNode, FOLDED, TERMINAL, BOARD } from "../mods/nebula/lib/focus.js";
+import { digitTile, parseWorktrees, resolveAdd, jumpTarget, projectList, addProject, removeProject, taken } from "../mods/nebula/lib/repos.js";
 
 const chord = { type: "chord" };
 
@@ -24,7 +20,10 @@ test("shown with the terminal focused, then the focus key: the board takes the k
 test("pressing the focus key three times walks folded, board, folded", () => {
   let s = FOLDED;
   const seen = [];
-  for (let i = 0; i < 3; i++) { s = step(s, chord).state; seen.push(s); }
+  for (let i = 0; i < 3; i++) {
+    s = step(s, chord).state;
+    seen.push(s);
+  }
   assert.deepEqual(seen, [BOARD, FOLDED, BOARD]);
 });
 
@@ -84,9 +83,18 @@ test("the 10th open tab has no digit shortcut", () => {
 
 test("a worktree list becomes checkouts with the main one first", () => {
   const text = [
-    "worktree /Users/dev/devl/acme-web", "HEAD abc", "branch refs/heads/main", "",
-    "worktree /Users/dev/devl/acme-web-worktrees/checkout-flow", "HEAD def", "branch refs/heads/checkout-flow", "",
-    "worktree /tmp/detached", "HEAD 123", "detached", "",
+    "worktree /Users/dev/devl/acme-web",
+    "HEAD abc",
+    "branch refs/heads/main",
+    "",
+    "worktree /Users/dev/devl/acme-web-worktrees/checkout-flow",
+    "HEAD def",
+    "branch refs/heads/checkout-flow",
+    "",
+    "worktree /tmp/detached",
+    "HEAD 123",
+    "detached",
+    "",
   ].join("\n");
   assert.deepEqual(parseWorktrees(text), [
     { path: "/Users/dev/devl/acme-web", branch: "main" },
@@ -96,7 +104,7 @@ test("a worktree list becomes checkouts with the main one first", () => {
 });
 
 test("adding a worktree folder of an existing repo resolves to that repo instead of a second tile", () => {
-  let store = addProject({}, "/Users/dev/devl/acme-web", { name: "acme-web" });
+  const store = addProject({}, "/Users/dev/devl/acme-web", { name: "acme-web" });
   const r = resolveAdd(store, "/Users/dev/devl/acme-web/.git");
   assert.equal(r.root, "/Users/dev/devl/acme-web");
   assert.equal(r.existing?.name, "acme-web");
@@ -117,12 +125,18 @@ test("the store is { list, removed }: add by root, remove by root, and a removed
   const [one] = projectList(store);
   assert.deepEqual(one, { root: "/a/one", name: "one" });
   store = removeProject(store, "/a/one/");
-  assert.deepEqual(projectList(store).map((p) => p.root), ["/a/two"]);
+  assert.deepEqual(
+    projectList(store).map((p) => p.root),
+    ["/a/two"],
+  );
   assert.deepEqual(store.removed, ["/a/one"]);
   assert.equal(removeProject(store, "/a/one"), store);
   store = addProject(store, "/a/one");
   assert.deepEqual(store.removed, []);
-  assert.deepEqual(projectList(store).map((p) => p.root), ["/a/two", "/a/one"]);
+  assert.deepEqual(
+    projectList(store).map((p) => p.root),
+    ["/a/two", "/a/one"],
+  );
 });
 
 test("from the terminal of a working agent, the jump key finds the agent that needs you, in board order", () => {
@@ -131,4 +145,16 @@ test("from the terminal of a working agent, the jump key finds the agent that ne
   assert.equal(jumpTarget(terminals, [acme, dns], "w", 1), "b");
   assert.equal(jumpTarget(terminals, [acme, dns], "b", 1), "d");
   assert.equal(jumpTarget([term("w", cwd, "working")], [acme], "w", 1), null);
+});
+
+test("findNode finds a layout node by id at any depth, else null", () => {
+  const tree = { id: "root", children: [{ id: "a", children: [{ id: "deep" }] }, { id: "b" }] };
+  assert.equal(findNode(tree, "root"), tree);
+  assert.equal(findNode(tree, "deep").id, "deep");
+  assert.equal(findNode(tree, "zzz"), null);
+  assert.equal(findNode(null, "a"), null);
+});
+
+test("an unknown event leaves the state alone", () => {
+  assert.deepEqual(step(BOARD, { type: "nonsense" }), { state: BOARD, act: null });
 });

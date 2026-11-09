@@ -21,7 +21,10 @@ test("labels that are not sub-agents or not JSON are skipped, oldest first", () 
     "nebula.sub.b": label({ type: "B", at: 2000 }),
     "nebula.sub.a": label({ type: "A", at: 1000 }),
   });
-  assert.deepEqual(subs.map((s) => s.type), ["A", "B"]);
+  assert.deepEqual(
+    subs.map((s) => s.type),
+    ["A", "B"],
+  );
 });
 
 test("a sub-agent older than 12 hours is dropped when the clock is given", () => {
@@ -41,5 +44,12 @@ test("terminal sub-agents nest under their parent, depth first", () => {
     { address: "c", parent: "b", state: "live" },
     { address: "d", parent: "a", state: "live" },
   ];
-  assert.deepEqual(tree(byParent(all), "a").map((r) => [r.k.address, r.lines.join("")]), [["b", "├"], ["c", "│└"], ["d", "└"]]);
+  assert.deepEqual(
+    tree(byParent(all), "a").map((r) => [r.k.address, r.lines.join("")]),
+    [
+      ["b", "├"],
+      ["c", "│└"],
+      ["d", "└"],
+    ],
+  );
 });

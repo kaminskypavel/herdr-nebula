@@ -16,11 +16,17 @@ const read = (store) => ({ list: store?.list ?? [], removed: store?.removed ?? [
 
 export const projectList = (store) => read(store).list;
 
-export const reposWith = (store, checkouts) => projectList(store).map((p) => ({
-  root: p.root, name: p.name, checkouts: checkouts[p.root] ?? [{ path: p.root, branch: null }],
-}));
+export const reposWith = (store, checkouts) =>
+  projectList(store).map((p) => ({
+    root: p.root,
+    name: p.name,
+    checkouts: checkouts[p.root] ?? [{ path: p.root, branch: null }],
+  }));
 
-export const rootsKey = (store) => projectList(store).map((p) => p.root).join("\n");
+export const rootsKey = (store) =>
+  projectList(store)
+    .map((p) => p.root)
+    .join("\n");
 
 export const taken = (store, root) => projectList(store).some((p) => norm(p.root) === norm(root));
 
@@ -28,6 +34,11 @@ const sameRoot = (a) => (b) => norm(a) === norm(b);
 
 // Puts a folder on the list (named by its base name unless given one). Returns the same
 // store when it is already there.
+/**
+ * @param {any} store
+ * @param {string} root
+ * @param {{ name?: string }} [opts]
+ */
 export function addProject(store, root, { name } = {}) {
   if (taken(store, root)) return store;
   const { list, removed } = read(store);
@@ -47,14 +58,16 @@ export function resolveAdd(store, commonDir) {
   return { root, existing: projectList(store).find((p) => sameRoot(root)(p.root)) ?? null };
 }
 
-
 // `git worktree list --porcelain` -> [{ path, branch }], the main checkout first
 // (git's own order); a detached checkout has branch null.
 export function parseWorktrees(text) {
-  return String(text ?? "").split(/\n\s*\n/).map((block) => {
-    const path = /^worktree (.+)$/m.exec(block)?.[1];
-    return path ? { path, branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1] ?? null } : null;
-  }).filter(Boolean);
+  return String(text ?? "")
+    .split(/\n\s*\n/)
+    .map((block) => {
+      const path = /^worktree (.+)$/m.exec(block)?.[1];
+      return path ? { path, branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1] ?? null } : null;
+    })
+    .filter(Boolean);
 }
 
 export async function listCheckouts(exec, root) {
@@ -62,8 +75,7 @@ export async function listCheckouts(exec, root) {
   return r?.code === 0 ? parseWorktrees(r.stdout) : null;
 }
 
-export const commonDirOf = (exec, root) =>
-  exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root }).catch(() => null);
+export const commonDirOf = (exec, root) => exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root }).catch(() => null);
 
 // The folder a typed path adds as a project. Inside a git repo or worktree it is the main
 // repo; any other existing folder is its own project (no worktrees). A path git cannot
@@ -75,12 +87,13 @@ export async function resolveFolder(exec, path) {
 }
 
 export function tilde(path, home) {
-  const p = norm(path), h = norm(home);
+  const p = norm(path),
+    h = norm(home);
   if (!h) return p;
-  return p === h ? "~" : p.startsWith(h + "/") ? "~" + p.slice(h.length) : p;
+  return p === h ? "~" : p.startsWith(`${h}/`) ? `~${p.slice(h.length)}` : p;
 }
 
-export const digitTile = (tiles, key) => (/^[1-9]$/.test(key) ? tiles[Number(key) - 1] ?? null : null);
+export const digitTile = (tiles, key) => (/^[1-9]$/.test(key) ? (tiles[Number(key) - 1] ?? null) : null);
 
 export function jumpTarget(terminals, repos, from, dir) {
   const rows = flatten(groupSessions(terminals, repos)).map((t) => ({ id: t.address, status: statusOf(t) }));

@@ -11,7 +11,7 @@ const SHELLS = new Set(["sh", "bash", "zsh", "fish", "nu", "pwsh"]);
 const atPrompt = (t) => Boolean(t.program?.shell) || SHELLS.has(String(t.program?.name ?? t.agent ?? "").toLowerCase());
 
 export function statusOf(t) {
-  if (isBoardLaunched(t?.labels)) return atPrompt(t) ? "exited" : FROM_HERDR[t.status] ?? "exited";
+  if (isBoardLaunched(t?.labels)) return atPrompt(t) ? "exited" : (FROM_HERDR[t.status] ?? "exited");
   return FROM_HERDR[t?.status] ?? null;
 }
 

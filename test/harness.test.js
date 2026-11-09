@@ -3,15 +3,34 @@ import assert from "node:assert/strict";
 import { buildArgv, HARNESSES } from "../mods/nebula/lib/harness.js";
 
 test("Claude with model opus and effort high builds claude --model opus --effort high <task>", () => {
-  assert.deepEqual(buildArgv({ harness: "claude", model: "opus", effort: "high", task: "fix it" }), ["claude", "--model", "opus", "--effort", "high", "fix it"]);
+  assert.deepEqual(buildArgv({ harness: "claude", model: "opus", effort: "high", task: "fix it" }), [
+    "claude",
+    "--model",
+    "opus",
+    "--effort",
+    "high",
+    "fix it",
+  ]);
 });
 
 test("Codex with effort medium builds codex --no-daemon -c model_reasoning_effort=medium <task>", () => {
-  assert.deepEqual(buildArgv({ harness: "codex", effort: "medium", task: "fix it" }), ["codex", "--no-daemon", "-c", "model_reasoning_effort=medium", "fix it"]);
+  assert.deepEqual(buildArgv({ harness: "codex", effort: "medium", task: "fix it" }), [
+    "codex",
+    "--no-daemon",
+    "-c",
+    "model_reasoning_effort=medium",
+    "fix it",
+  ]);
 });
 
 test("OpenCode puts the task after --prompt", () => {
-  assert.deepEqual(buildArgv({ harness: "opencode", model: "openai/gpt-5.5", task: "fix it" }), ["opencode", "--model", "openai/gpt-5.5", "--prompt", "fix it"]);
+  assert.deepEqual(buildArgv({ harness: "opencode", model: "openai/gpt-5.5", task: "fix it" }), [
+    "opencode",
+    "--model",
+    "openai/gpt-5.5",
+    "--prompt",
+    "fix it",
+  ]);
 });
 
 test("an empty task leaves the trailing argument off", () => {

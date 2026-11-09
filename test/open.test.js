@@ -2,7 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildBoard } from "../mods/nebula/lib/viewmodel.js";
 import {
-  summarize, cleanOpen, initialOpen, syncOpen, currentOpen, openProject, closeProject, onlyOpen, pickerRows, closedNeeding, pickerHeight,
+  summarize,
+  cleanOpen,
+  initialOpen,
+  syncOpen,
+  currentOpen,
+  openProject,
+  closeProject,
+  onlyOpen,
+  pickerRows,
+  closedNeeding,
+  pickerHeight,
+  sessionsLabel,
 } from "../mods/nebula/lib/open.js";
 
 const proj = (name) => ({ root: `/r/${name}`, name });
@@ -49,7 +60,7 @@ test("a session that needs you in an open project changes nothing", () => {
   assert.equal(closedNeeding(board([term("a", "t1", "blocked")]), ["/r/a"]), false);
 });
 
-test("opening appends once; closing the selected tab selects a neighbor", () => {
+test("opening puts the project first, once; closing the selected tab selects a neighbor", () => {
   assert.deepEqual(openProject(["/r/a"], "/r/b"), ["/r/b", "/r/a"]);
   const open = ["/r/a", "/r/b"];
   assert.equal(openProject(open, "/r/a"), open);
@@ -63,20 +74,65 @@ test("opening appends once; closing the selected tab selects a neighbor", () => 
 test("the board shows open projects in tab order plus Other, never a closed project's sessions", () => {
   const m = board([term("a", "t1", "working"), term("b", "t2", "working"), { address: "t3", cwd: "/elsewhere", status: "working", state: "live" }]);
   const shown = onlyOpen(m, ["/r/b", "/r/a"]);
-  assert.deepEqual(shown.repos.map((r) => r.name), ["b", "a", "Other"]);
-  assert.deepEqual(onlyOpen(m, ["/r/c"]).repos.map((r) => r.name), ["c", "Other"]);
-  assert.deepEqual(onlyOpen(m, []).repos.map((r) => r.name), ["Other"]);
+  assert.deepEqual(
+    shown.repos.map((r) => r.name),
+    ["b", "a", "Other"],
+  );
+  assert.deepEqual(
+    onlyOpen(m, ["/r/c"]).repos.map((r) => r.name),
+    ["c", "Other"],
+  );
+  assert.deepEqual(
+    onlyOpen(m, []).repos.map((r) => r.name),
+    ["Other"],
+  );
 });
 
 test("the picker lists every project with count, status and open mark; typing filters", () => {
   const m = board([term("a", "t1", "done"), term("a", "t2", "blocked"), term("b", "t3", "working")]);
   const rows = pickerRows(summarize(m), currentOpen(["/r/a"], m, store), "");
-  assert.deepEqual(rows.map((r) => [r.name, r.count, r.status, r.open]), [["a", 2, "needs", true], ["b", 1, "working", false], ["c", 0, "exited", false]]);
-  assert.deepEqual(pickerRows(summarize(m), ["/r/a"], " B ").map((r) => r.name), ["b"]);
+  assert.deepEqual(
+    rows.map((r) => [r.name, r.count, r.status, r.open]),
+    [
+      ["a", 2, "needs", true],
+      ["b", 1, "working", false],
+      ["c", 0, "exited", false],
+    ],
+  );
+  assert.deepEqual(
+    pickerRows(summarize(m), ["/r/a"], " B ").map((r) => r.name),
+    ["b"],
+  );
   assert.deepEqual(pickerRows(summarize(m), [], "zzz"), []);
 });
 
 test("the picker grows with the list up to nine rows", () => {
   assert.ok(pickerHeight(2) < pickerHeight(5));
   assert.equal(pickerHeight(12), pickerHeight(9));
+});
+
+test("the picker says '1 session' or 'N sessions', and nothing for none", () => {
+  assert.equal(sessionsLabel(0), "");
+  assert.equal(sessionsLabel(undefined), "");
+  assert.equal(sessionsLabel(1), "1 session");
+  assert.equal(sessionsLabel(2), "2 sessions");
+  assert.equal(sessionsLabel(12), "12 sessions");
+});
+
+test("projects that newly need you open first, the latest found in front, and a second sync adds nothing", () => {
+  const seen = new Set();
+  const m = board([term("b", "t1", "blocked"), term("c", "t2", "blocked")]);
+  const r = syncOpen(["/r/a"], m, store, seen);
+  assert.deepEqual(r.open, ["/r/c", "/r/b", "/r/a"]);
+  assert.equal(r.changed, true);
+  const again = syncOpen(r.open, m, store, r.seen);
+  assert.deepEqual(again.open, r.open);
+  assert.equal(again.changed, false);
+});
+
+test("a project opened from the picker goes in front of the open ones and the sync keeps that order", () => {
+  const open = openProject(["/r/a", "/r/b"], "/r/c");
+  assert.deepEqual(open, ["/r/c", "/r/a", "/r/b"]);
+  assert.deepEqual(syncOpen(open, board([]), store).open, open);
+  assert.deepEqual(currentOpen(open, board([]), store), open);
 });

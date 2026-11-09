@@ -12,6 +12,7 @@ const FAKE = path.join(root, "test", "fixtures", "cli", "fake-cli.txt");
 
 // A temp world: fake hc and herdr-app first on PATH, a HOME with Herdr's shared.json, and
 // the fake's state file. Nothing here touches the live core, Herdr or ~/.claude.
+/** @param {{ labels?: object, tabs?: { id: string, name: string }[], settings?: any, term?: string | null }} [o] */
 function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term = "t1" } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hn-cli-"));
   const bin = path.join(dir, "bin");
@@ -30,7 +31,9 @@ function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term 
   const env = { PATH: `${bin}:${process.env.PATH}`, HOME: home, FAKE_STATE: stateFile };
   if (term) env.HC_TERMINAL_ID = term;
   return {
-    dir, home, env,
+    dir,
+    home,
+    env,
     state: () => JSON.parse(fs.readFileSync(stateFile, "utf8")),
     run: (args, input = "", extraEnv = {}) => spawnSync(process.execPath, [CLI, ...args], { input, env: { ...env, ...extraEnv }, encoding: "utf8" }),
   };
@@ -38,7 +41,10 @@ function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term 
 
 const payload = (extra = {}) => JSON.stringify({ hook_event_name: "UserPromptSubmit", prompt: "fix the login redirect", ...extra });
 const reply = (r) => (r.stdout.trim() ? JSON.parse(r.stdout).hookSpecificOutput : null);
-const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); };
+const writeJson = (f, v) => {
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, JSON.stringify(v, null, 2));
+};
 
 // A Claude transcript with a custom-title.json beside it, as /rename leaves it.
 function claudeSession(w, customTitle) {
@@ -113,11 +119,26 @@ test("the codex hook with auto-title off in shared.json prints nothing", () => {
 
 test("the hook in a second tab: position-named counts as unnamed, a repeated number counts as named", () => {
   const second = { labels: { "herdr.tab": "tb2" } };
-  const unnamed = world({ ...second, tabs: [{ id: "tb1", name: "1" }, { id: "tb2", name: "2" }] });
+  const unnamed = world({
+    ...second,
+    tabs: [
+      { id: "tb1", name: "1" },
+      { id: "tb2", name: "2" },
+    ],
+  });
   assert.ok(reply(unnamed.run(["hook", "prompt", "claude"], payload())).additionalContext);
   unnamed.run(["title", "Fix", "Login", "Redirect"]);
-  assert.deepEqual(unnamed.state().tabs.map((t) => t.name), ["1", "Fix Login Redirect"]);
-  const named = world({ ...second, tabs: [{ id: "tb1", name: "1" }, { id: "tb2", name: "1" }] });
+  assert.deepEqual(
+    unnamed.state().tabs.map((t) => t.name),
+    ["1", "Fix Login Redirect"],
+  );
+  const named = world({
+    ...second,
+    tabs: [
+      { id: "tb1", name: "1" },
+      { id: "tb2", name: "1" },
+    ],
+  });
   assert.equal(named.run(["hook", "prompt", "codex"], payload()).stdout, "");
   assert.match(named.run(["title", "Some", "Words"]).stdout, /already titled/i);
   assert.equal(named.state().tabs[1].name, "1");
@@ -125,7 +146,7 @@ test("the hook in a second tab: position-named counts as unnamed, a repeated num
 
 test("a long prompt with newlines is stored as one line of 200 characters ending in an ellipsis", () => {
   const w = world();
-  const prompt = ("word ".repeat(30) + "\n\nmore   text\there ").repeat(3);
+  const prompt = `${"word ".repeat(30)}\n\nmore   text\there `.repeat(3);
   assert.ok(prompt.length > 300);
   w.run(["hook", "prompt", "claude"], payload({ prompt }));
   const stored = w.state().labels["nebula.prompt"];
@@ -171,7 +192,10 @@ test("title on a session the user renamed changes nothing and says so", () => {
   const s = w.state();
   assert.equal(s.tabs[0].name, "Shopify sync");
   assert.equal(s.labels["nebula.autotitle"], "Fix Login Redirect");
-  assert.equal(s.calls.some((c) => c[1] === "do"), false);
+  assert.equal(
+    s.calls.some((c) => c[1] === "do"),
+    false,
+  );
 });
 
 test("title on a user-named tab with no auto title yet changes nothing", () => {
@@ -210,7 +234,10 @@ test("a named tab never adopted from Claude keeps its name and pushes it to Clau
 });
 
 test("after an F2 rename, a stale custom-title.json keeps the F2 name and pushes it", () => {
-  const w = world({ tabs: [{ id: "tb1", name: "Shopify sync" }], labels: { "nebula.autotitle": "Fix Login Redirect", "nebula.claudetitle": "Fix Login Redirect" } });
+  const w = world({
+    tabs: [{ id: "tb1", name: "Shopify sync" }],
+    labels: { "nebula.autotitle": "Fix Login Redirect", "nebula.claudetitle": "Fix Login Redirect" },
+  });
   const s = claudeSession(w, "Fix Login Redirect");
   const out = reply(w.run(["hook", "prompt", "claude"], payload(s)));
   assert.equal(w.state().tabs[0].name, "Shopify sync");
@@ -220,7 +247,10 @@ test("after an F2 rename, a stale custom-title.json keeps the F2 name and pushes
 });
 
 test("a tab name Claude already holds is not pushed again", () => {
-  const w = world({ tabs: [{ id: "tb1", name: "Fix Login Redirect" }], labels: { "nebula.autotitle": "Fix Login Redirect", "nebula.claudetitle": "Fix Login Redirect" } });
+  const w = world({
+    tabs: [{ id: "tb1", name: "Fix Login Redirect" }],
+    labels: { "nebula.autotitle": "Fix Login Redirect", "nebula.claudetitle": "Fix Login Redirect" },
+  });
   const s = claudeSession(w, "Fix Login Redirect");
   assert.equal(w.run(["hook", "prompt", "claude"], payload(s)).stdout, "");
 });
@@ -246,7 +276,10 @@ function subMeta(w, meta) {
 
 test("subagent start labels the terminal with type, description and model from the meta file", () => {
   const w = world();
-  const r = w.run(["hook", "subagent", "claude", "start"], subEvent(subMeta(w, { agentType: "Explore", description: "Find the login handlers", model: "claude-haiku-4-5" })));
+  const r = w.run(
+    ["hook", "subagent", "claude", "start"],
+    subEvent(subMeta(w, { agentType: "Explore", description: "Find the login handlers", model: "claude-haiku-4-5" })),
+  );
   assert.equal(r.status, 0);
   assert.equal(r.stdout, "");
   const v = JSON.parse(w.state().labels[subKey]);
@@ -300,7 +333,10 @@ test("install-hooks twice leaves one managed group per event", () => {
   }
   assert.deepEqual(JSON.parse(fs.readFileSync(claudeFile(w), "utf8")).permissions.allow, ["Bash(herdr-nebula title:*)"]);
   const claude = JSON.parse(fs.readFileSync(claudeFile(w), "utf8")).hooks;
-  for (const [event, phase] of [["SubagentStart", "start"], ["SubagentStop", "stop"]]) {
+  for (const [event, phase] of [
+    ["SubagentStart", "start"],
+    ["SubagentStop", "stop"],
+  ]) {
     assert.equal(claude[event].filter(mine).length, 1);
     assert.match(claude[event].find(mine).hooks[0].command, new RegExp(`herdr-nebula hook subagent claude ${phase}`));
   }
@@ -418,3 +454,35 @@ for (const [name, content] of [
     assert.deepEqual(fs.readdirSync(path.dirname(claudeFile(w))), ["settings.json"]);
   });
 }
+
+test("an unknown command prints the usage and exits 2", () => {
+  const r = world().run(["bogus"]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /usage: herdr-nebula/);
+});
+
+test("title says so when the terminal's tab cannot be found", () => {
+  const w = world({ tabs: [] });
+  const r = w.run(["title", "Fix", "Login"]);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /Could not find this session's tab/);
+  assert.equal(
+    w.state().calls.some((c) => c[1] === "do"),
+    false,
+  );
+});
+
+test("a shared.json that is not valid JSON leaves auto-title on", () => {
+  const w = world();
+  fs.writeFileSync(path.join(w.home, ".config", "herdr-app", "shared.json"), "{ not json");
+  assert.ok(reply(w.run(["hook", "prompt", "claude"], payload())).additionalContext);
+});
+
+test("a custom-title.json that is not valid JSON counts as no Claude title", () => {
+  const w = world();
+  const s = claudeSession(w, null);
+  fs.writeFileSync(path.join(w.dir, "proj", "sess", "custom-title.json"), "{ not json");
+  const r = w.run(["hook", "prompt", "claude"], payload(s));
+  assert.equal(r.status, 0);
+  assert.equal(w.state().tabs[0].name, "1");
+});

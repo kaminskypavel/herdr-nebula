@@ -17,36 +17,71 @@ export class Rename {
     this.input = InputState.new({ value: name, placeholder: "Session name" });
     if (name) this.input.set_selected_range({ start: 0, end: name.length });
     this.input.on("submit", (_e, cx) => this.submit(cx));
-    this.input.on("change", (_e, cx) => { this.error = null; cx.notify(); });
-    this.input.on("focus", (_e, cx) => { this.focused = true; cx.notify(); });
-    this.input.on("blur", (_e, cx) => { this.focused = false; cx.notify(); });
+    this.input.on("change", (_e, cx) => {
+      this.error = null;
+      cx.notify();
+    });
+    this.input.on("focus", (_e, cx) => {
+      this.focused = true;
+      cx.notify();
+    });
+    this.input.on("blur", (_e, cx) => {
+      this.focused = false;
+      cx.notify();
+    });
     this.input.focus();
     cx.timer.after(600, () => this.input.focus());
   }
 
   submit(cx) {
-    const p = props() ?? {}, name = this.input.value().trim();
+    const p = props() ?? {},
+      name = this.input.value().trim();
     if (this.busy || !p.tab) return;
     this.busy = true;
     cx.spawn(async (cx) => {
       const r = await doCmd("tab.rename", { id: p.tab, name });
       this.busy = false;
       if (r.code === 0) closeOverlay(p.overlay);
-      else { this.error = (r.stderr || r.stdout || "Rename failed.").trim(); cx.notify(); }
+      else {
+        this.error = (r.stderr || r.stdout || "Rename failed.").trim();
+        cx.notify();
+      }
     });
   }
 
   render() {
-    const t = theme(), overlay = props()?.overlay;
-    return v_flex().id("rename").track_focus(this.handle)
+    const t = theme(),
+      overlay = props()?.overlay;
+    return v_flex()
+      .id("rename")
+      .track_focus(this.handle)
       .on_key_down((e, cx) => escapeKey(e, cx, overlay))
-      .w_full().min_h(0).p(20).gap(14).bg(t.popover).text_color(t.foreground)
+      .w_full()
+      .min_h(0)
+      .p(20)
+      .gap(14)
+      .bg(t.popover)
+      .text_color(t.foreground)
       .child(dialogTitle(t, "Rename session"))
-      .child(Input.new(this.input).h(36).px(10).rounded(9).border_1()
-        .border_color(this.error ? t.blocked : this.focused ? t.accent : t.input).bg(t.background).text_size(13).text_color(t.foreground))
+      .child(
+        Input.new(this.input)
+          .h(36)
+          .px(10)
+          .rounded(9)
+          .border_1()
+          .border_color(this.error ? t.blocked : this.focused ? t.accent : t.input)
+          .bg(t.background)
+          .text_size(13)
+          .text_color(t.foreground),
+      )
       .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
-      .child(h_flex().pt(4).gap(8).justify_end()
-        .child(button(t, "rn-cancel", "Cancel", "plain", () => closeOverlay(overlay)))
-        .child(button(t, "rn-save", this.busy ? "Saving…" : "Save", "primary", (_e, cx) => this.submit(cx))));
+      .child(
+        h_flex()
+          .pt(4)
+          .gap(8)
+          .justify_end()
+          .child(button(t, "rn-cancel", "Cancel", "plain", () => closeOverlay(overlay)))
+          .child(button(t, "rn-save", this.busy ? "Saving…" : "Save", "primary", (_e, cx) => this.submit(cx))),
+      );
   }
 }

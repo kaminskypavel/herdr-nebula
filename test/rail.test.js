@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { railTabs } from "../mods/nebula/lib/rail.js";
+import { railTabs, tabHint } from "../mods/nebula/lib/rail.js";
 import { ALL } from "../mods/nebula/lib/shared.js";
 
 const summary = [
@@ -11,8 +11,14 @@ const summary = [
 
 test("the rail follows the open list's order, not the store's, and never moves the picked project", () => {
   const open = ["/r/c", "/r/a", "/r/b"];
-  assert.deepEqual(railTabs({ summary, open, selected: "/r/b" }).items.map((i) => i.root), open);
-  assert.deepEqual(railTabs({ summary, open, selected: "/r/c" }).items.map((i) => i.root), open);
+  assert.deepEqual(
+    railTabs({ summary, open, selected: "/r/b" }).items.map((i) => i.root),
+    open,
+  );
+  assert.deepEqual(
+    railTabs({ summary, open, selected: "/r/c" }).items.map((i) => i.root),
+    open,
+  );
 });
 
 test("each item carries its name and status; only the selected one is on", () => {
@@ -33,6 +39,19 @@ test("All is selected for All, for nothing stored and for a project that is not 
 });
 
 test("a root missing from the summary is left out; nothing open gives no items", () => {
-  assert.deepEqual(railTabs({ summary, open: ["/r/gone", "/r/a"], selected: ALL }).items.map((i) => i.root), ["/r/a"]);
+  assert.deepEqual(
+    railTabs({ summary, open: ["/r/gone", "/r/a"], selected: ALL }).items.map((i) => i.root),
+    ["/r/a"],
+  );
   assert.deepEqual(railTabs({ summary, open: [], selected: ALL }), { all: true, items: [] });
+});
+
+test("the first nine tabs carry their cmd number in the tooltip and the gutter", () => {
+  assert.deepEqual(tabHint("alpha", 1), { tip: "alpha  \u23181", num: 1 });
+  assert.deepEqual(tabHint("alpha", 9), { tip: "alpha  \u23189", num: 9 });
+});
+
+test("from the tenth tab on there is no number and the tooltip is the name", () => {
+  assert.deepEqual(tabHint("alpha", 10), { tip: "alpha", num: null });
+  assert.deepEqual(tabHint("alpha", 25), { tip: "alpha", num: null });
 });

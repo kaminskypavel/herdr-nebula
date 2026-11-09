@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": [],
+    "allowJs": true,
+    "checkJs": true,
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "rootDirs": ["mods/nebula", "mods/nebula-box"]
+  },
+  "include": ["mods/**/*.js", "bin/**/*.mjs", "test/**/*.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "mods/nebula-box/lib", "**/gpui-kit.d.ts"]
+}

@@ -26,7 +26,10 @@ test("the same checkout open in two spaces yields one band", () => {
   const g = groupSessions([claude("t1", cwd, "working", { space: "s1" }), claude("t2", cwd, "idle", { space: "s2" })], [acme]);
   const bands = g.repos[0].bands.filter((b) => b.sessions.length);
   assert.equal(bands.length, 1);
-  assert.deepEqual(bands[0].sessions.map((s) => s.address), ["t1", "t2"]);
+  assert.deepEqual(
+    bands[0].sessions.map((s) => s.address),
+    ["t1", "t2"],
+  );
 });
 
 test("the deepest checkout wins when one sits inside another", () => {
@@ -37,8 +40,14 @@ test("the deepest checkout wins when one sits inside another", () => {
 
 test("a space in ~/Desktop (no git) lands in Other", () => {
   const g = groupSessions([claude("t1", "/Users/dev/Desktop")], [acme]);
-  assert.deepEqual(g.other.map((s) => s.address), ["t1"]);
-  assert.equal(g.repos[0].bands.every((b) => b.sessions.length === 0), true);
+  assert.deepEqual(
+    g.other.map((s) => s.address),
+    ["t1"],
+  );
+  assert.equal(
+    g.repos[0].bands.every((b) => b.sessions.length === 0),
+    true,
+  );
 });
 
 test("a checkout the repo list does not know yet groups by its git common dir", () => {

@@ -8,8 +8,12 @@ import { ALL, tabOf } from "./tabs.js";
 // -> { all (the All tab is selected), items: [{ root, name, status, on }] }. A root missing from the
 // summary is left out. The order is the open list's: picking a project never moves it.
 export function railTabs({ summary, open, selected }) {
-  const tab = tabOf(open, selected), by = new Map(summary.map((p) => [p.root, p]));
+  const tab = tabOf(open, selected),
+    by = new Map(summary.map((p) => [p.root, p]));
   const items = open.filter((r) => by.has(r)).map((root) => ({ root, name: by.get(root).name, status: by.get(root).status, on: root === tab }));
   return { all: tab === ALL, items };
 }
 
+// The ⌘ number rule: only the first 9 project tabs have a key (⌘1 to ⌘9). n is the tab's place from 1.
+// -> { tip (the tooltip: "name  ⌘n", or just the name), num (the digit drawn in the gutter, or null) }.
+export const tabHint = (name, n) => (n <= 9 ? { tip: `${name}  \u2318${n}`, num: n } : { tip: name, num: null });

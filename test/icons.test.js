@@ -10,12 +10,25 @@ import { pickIcon } from "../mods/nebula/lib/icon-scan.js";
 test("preferred names rank in the stated order, then other matches", () => {
   const order = ["a/apple-touch-icon.png", "logo.svg", "logo.png", "favicon.svg", "favicon.png", "icon.svg", "icon.png", "favicon.ico"];
   assert.deepEqual(rankIcons([...order].reverse()), order);
-  assert.deepEqual(rankIcons(["logo-dark.svg", "icon.webp", "favicon-32x32.png", "logo.jpg", "readme.md", "iconv.js"]), ["logo-dark.svg", "logo.jpg", "favicon-32x32.png", "icon.webp"]);
+  assert.deepEqual(rankIcons(["logo-dark.svg", "icon.webp", "favicon-32x32.png", "logo.jpg", "readme.md", "iconv.js"]), [
+    "logo-dark.svg",
+    "logo.jpg",
+    "favicon-32x32.png",
+    "icon.webp",
+  ]);
 });
 
 test("a shorter path wins a tie; fixtures, tests, mockups, storybook and node_modules are skipped", () => {
   assert.deepEqual(rankIcons(["docs/site/logo.svg", "public/logo.svg", "logo.svg"]), ["logo.svg", "public/logo.svg", "docs/site/logo.svg"]);
-  for (const p of ["node_modules/x/logo.svg", "test/logo.svg", "src/__tests__/icon.png", "tests/fixtures/favicon.ico", "mockups/logo.svg", ".storybook/logo.svg", "web/Storybook/logo.png"]) {
+  for (const p of [
+    "node_modules/x/logo.svg",
+    "test/logo.svg",
+    "src/__tests__/icon.png",
+    "tests/fixtures/favicon.ico",
+    "mockups/logo.svg",
+    ".storybook/logo.svg",
+    "web/Storybook/logo.png",
+  ]) {
     assert.equal(iconRank(p), null, p);
   }
   assert.equal(iconRank("src/contest/logo.svg"), 1); // "contest" is not "test"
@@ -27,7 +40,8 @@ test("ico candidates can be switched off", () => {
 });
 
 test("a hash picked by two or more projects is a default and is dropped for all of them", () => {
-  const a = { hash: "h1", ext: "png" }, b = { hash: "h2", ext: "svg" };
+  const a = { hash: "h1", ext: "png" },
+    b = { hash: "h2", ext: "svg" };
   assert.deepEqual(dropShared({ "/a": a, "/b": a, "/c": b, "/d": null }), { "/a": null, "/b": null, "/c": b, "/d": null });
 });
 
@@ -48,8 +62,14 @@ test("the color is deterministic and from the palette", () => {
 });
 
 test("buildIcons: own icon, initials after the default filter, initials without a file", () => {
-  const projects = [{ root: "/a", name: "alpha" }, { root: "/b", name: "beta-app" }, { root: "/c", name: "gamma" }, { root: "/d", name: "delta" }];
-  const own = { hash: "own", ext: "svg" }, dflt = { hash: "next", ext: "ico" };
+  const projects = [
+    { root: "/a", name: "alpha" },
+    { root: "/b", name: "beta-app" },
+    { root: "/c", name: "gamma" },
+    { root: "/d", name: "delta" },
+  ];
+  const own = { hash: "own", ext: "svg" },
+    dflt = { hash: "next", ext: "ico" };
   const icons = buildIcons(projects, { "/a": own, "/b": dflt, "/c": dflt });
   assert.equal(icons["/a"].path, `${CACHE_DIR}/own.svg`);
   assert.equal(cachedPath(own), icons["/a"].path);
@@ -65,10 +85,14 @@ test("buildIcons: own icon, initials after the default filter, initials without 
 // The scan against real folders, with a real exec.
 const exec = (cmd, args) => new Promise((res) => execFile(cmd, args, (err, stdout, stderr) => res({ code: err ? (err.code ?? 1) : 0, stdout, stderr })));
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "hn-icons-"));
-const put = (root, rel, bytes = "x") => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), bytes); };
+const put = (root, rel, bytes = "x") => {
+  fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+  fs.writeFileSync(path.join(root, rel), bytes);
+};
 
 test("a git repo: the best tracked candidate is copied into the cache under its hash", async () => {
-  const root = tmp(), home = tmp();
+  const root = tmp(),
+    home = tmp();
   put(root, "docs/logo.svg", "<svg>doc</svg>");
   put(root, "public/favicon.ico", "ico");
   put(root, "public/apple-touch-icon.png", "touch");
@@ -82,7 +106,8 @@ test("a git repo: the best tracked candidate is copied into the cache under its 
 });
 
 test("a plain folder: shallow find, skipping node_modules, dist and build; files over 512 KB are passed over", async () => {
-  const root = tmp(), home = tmp();
+  const root = tmp(),
+    home = tmp();
   put(root, "node_modules/p/logo.svg", "nm");
   put(root, "dist/logo.svg", "dist");
   put(root, "a/b/c/d/logo.svg", "deep");
@@ -94,8 +119,21 @@ test("a plain folder: shallow find, skipping node_modules, dist and build; files
 });
 
 test("no candidate, or a folder that is gone, gives null", async () => {
-  const root = tmp(), home = tmp();
+  const root = tmp(),
+    home = tmp();
   put(root, "README.md", "hi");
   assert.equal(await pickIcon(exec, root, home), null);
   assert.equal(await pickIcon(exec, path.join(root, "nope"), home), null);
+});
+
+test("a scan that throws or whose copy step fails gives null", async () => {
+  const home = tmp();
+  assert.equal(await pickIcon(() => Promise.reject(new Error("boom")), "/x", home), null);
+  const calls = [];
+  const seq = [
+    { code: 0, stdout: "logo.svg\n" },
+    { code: 3, stdout: "" },
+  ];
+  assert.equal(await pickIcon(() => Promise.resolve(seq[calls.push(1) - 1]), "/x", home), null);
+  assert.equal(await pickIcon(() => Promise.resolve({ code: 0, stdout: "\n" }), "/x", home), null);
 });

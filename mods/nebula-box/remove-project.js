@@ -15,28 +15,57 @@ export class RemoveProject {
   }
 
   submit() {
-    const p = props() ?? {}, store = shared(STORE) ?? {};
+    const p = props() ?? {},
+      store = shared(STORE) ?? {};
     setShared(STORE, removeProject(store, p.root));
     const open = shared(OPEN);
-    if (Array.isArray(open)) setShared(OPEN, open.filter((r) => r !== p.root));
+    if (Array.isArray(open))
+      setShared(
+        OPEN,
+        open.filter((r) => r !== p.root),
+      );
     closeOverlay(p.overlay);
   }
 
   render() {
-    const t = theme(), p = props() ?? {};
-    return v_flex().id("remove-project").track_focus(this.handle)
+    const t = theme(),
+      p = props() ?? {};
+    return v_flex()
+      .id("remove-project")
+      .track_focus(this.handle)
       .on_key_down((e, cx) => {
         if (escapeKey(e, cx, p.overlay)) return;
-        if (e.key === "enter") { this.submit(); cx.stop_propagation(); }
+        if (e.key === "enter") {
+          this.submit();
+          cx.stop_propagation();
+        }
       })
-      .size_full().p(20).gap(14).bg(t.popover).text_color(t.foreground)
+      .size_full()
+      .p(20)
+      .gap(14)
+      .bg(t.popover)
+      .text_color(t.foreground)
       .child(dialogTitle(t, "Remove this project?"))
-      .child(v_flex().gap(3)
-        .child(div().min_w(0).truncate().text_size(13).font_medium().child(p.name ?? ""))
-        .child(div().text_size(12).text_color(t.dim).child("The folder and its worktrees stay on disk. Add it back from the + button.")))
+      .child(
+        v_flex()
+          .gap(3)
+          .child(
+            div()
+              .min_w(0)
+              .truncate()
+              .text_size(13)
+              .font_medium()
+              .child(p.name ?? ""),
+          )
+          .child(div().text_size(12).text_color(t.dim).child("The folder and its worktrees stay on disk. Add it back from the + button.")),
+      )
       .child(div().flex_1())
-      .child(h_flex().gap(8).justify_end()
-        .child(button(t, "rp-cancel", "Cancel", "plain", () => closeOverlay(p.overlay)))
-        .child(button(t, "rp-remove", "Remove", "danger", () => this.submit())));
+      .child(
+        h_flex()
+          .gap(8)
+          .justify_end()
+          .child(button(t, "rp-cancel", "Cancel", "plain", () => closeOverlay(p.overlay)))
+          .child(button(t, "rp-remove", "Remove", "danger", () => this.submit())),
+      );
   }
 }

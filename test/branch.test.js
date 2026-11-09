@@ -17,7 +17,10 @@ test("a Hebrew task gets a random two-word name", () => {
   assert.equal(slug("תקן את הלוגין"), "");
   const name = branchName("תקן את הלוגין", () => 0);
   assert.match(name, /^[a-z]+-[a-z]+$/);
-  assert.notEqual(branchName("תקן את הלוגין", () => 0.99), name);
+  assert.notEqual(
+    branchName("תקן את הלוגין", () => 0.99),
+    name,
+  );
 });
 
 test("an empty task gets a random two-word name", () => {

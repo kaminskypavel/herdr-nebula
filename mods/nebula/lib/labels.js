@@ -18,7 +18,9 @@ function launchOf(v) {
   try {
     const d = JSON.parse(v);
     return d && typeof d === "object" && !Array.isArray(d) ? d : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function readLabels(labels) {

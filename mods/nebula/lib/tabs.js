@@ -16,7 +16,7 @@ export const tabOf = (open, selected) => (open.includes(selected) ? selected : A
 export const scopeModel = (model, tab) => (tab === ALL ? model : { ...model, repos: model.repos.filter((r) => r.root === tab) });
 
 // The tab a digit key picks: 0 is All, 1 to 9 the open projects in order, anything else null.
-export const tabKey = (open, key) => (key === "0" ? ALL : /^[1-9]$/.test(key) ? open[Number(key) - 1] ?? null : null);
+export const tabKey = (open, key) => (key === "0" ? ALL : /^[1-9]$/.test(key) ? (open[Number(key) - 1] ?? null) : null);
 
 // Where showing a session of project `root` (OTHER for a stray one) takes the board, from
 // tab `tab`: { tab, open }. A project tab moves to the session's project, an Other session
@@ -41,8 +41,13 @@ export function followFocus({ terminal, last, boardKeys, model }) {
 // Collapse all / Expand all for what is shown. All folds the project headers; a project tab folds
 // its bands. Expanding also opens every band. -> { folded, bands } (new Sets).
 export function foldAllState({ folded, bands }, repos, fold, tab) {
-  const roots = repos.map((r) => r.root), paths = repos.flatMap(bandPaths);
-  const set = (from, items, on) => { const out = new Set(from); for (const i of items) on ? out.add(i) : out.delete(i); return out; };
+  const roots = repos.map((r) => r.root),
+    paths = repos.flatMap(bandPaths);
+  const set = (from, items, on) => {
+    const out = new Set(from);
+    for (const i of items) on ? out.add(i) : out.delete(i);
+    return out;
+  };
   if (tab === ALL) return { folded: set(folded, roots, fold), bands: fold ? new Set(bands) : set(bands, paths, false) };
   return { folded: fold ? new Set(folded) : set(folded, roots, false), bands: set(bands, paths, fold) };
 }

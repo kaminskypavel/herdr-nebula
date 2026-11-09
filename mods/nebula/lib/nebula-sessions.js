@@ -17,7 +17,11 @@ export const AGENTS_SQL = "select id, claude_session_id, model, effort, archived
 const text = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
 function json(out) {
-  try { return JSON.parse(String(out ?? "").trim() || "null"); } catch { return null; }
+  try {
+    return JSON.parse(String(out ?? "").trim() || "null");
+  } catch {
+    return null;
+  }
 }
 
 // The CLI prints { sessions: [...] }; a bare list is accepted too. Anything else: [].
@@ -29,9 +33,11 @@ export function parseSessions(out) {
 
 // sqlite3 -json prints nothing for an empty table. -> Map id -> { claude, model, effort }
 export function parseAgents(out) {
-  const d = json(out), map = new Map();
+  const d = json(out),
+    map = new Map();
   for (const a of Array.isArray(d) ? d : []) {
-    const id = text(a?.id), claude = text(a?.claude_session_id);
+    const id = text(a?.id),
+      claude = text(a?.claude_session_id);
     if (id && claude && !a.archived) map.set(id, { claude, model: text(a.model), effort: text(a.effort) });
   }
   return map;
@@ -41,11 +47,20 @@ export function parseAgents(out) {
 export function joinSessions(sessions, agents) {
   const out = [];
   for (const s of sessions) {
-    const a = agents.get(s.id), worktree = text(s.worktree), name = text(s.name);
+    const a = agents.get(s.id),
+      worktree = text(s.worktree),
+      name = text(s.name);
     if (s.harness !== "claude" || !a || !worktree || !name) continue;
     out.push({
-      id: s.id, name, worktree: norm(worktree), project: text(s.project) ?? "", branch: text(s.branch),
-      status: text(s.status) ?? "idle", alive: s.alive === true, summary: text(s.summary) ?? "", ...a,
+      id: s.id,
+      name,
+      worktree: norm(worktree),
+      project: text(s.project) ?? "",
+      branch: text(s.branch),
+      status: text(s.status) ?? "idle",
+      alive: s.alive === true,
+      summary: text(s.summary) ?? "",
+      ...a,
     });
   }
   return out.sort((x, y) => Number(y.alive) - Number(x.alive));
@@ -75,10 +90,26 @@ export function visibleSessions(list, resumed, live) {
 export function nebulaRow(s) {
   const state = s.alive ? "running in nebula" : s.status;
   return {
-    id: `nebula:${s.id}`, kind: "nebula", nebula: s, address: null, pane: null, tab: null, cwd: s.worktree,
-    status: "exited", exited: true, offers: [], archived: false, title: s.name, badge: "nebula",
-    program: "claude", model: s.model ?? "", effort: s.effort ?? "", launch: null, prompt: s.summary === s.name ? "" : s.summary,
-    age: s.forked ? `${state} (forked)` : state, subs: [],
+    id: `nebula:${s.id}`,
+    kind: "nebula",
+    nebula: s,
+    address: null,
+    pane: null,
+    tab: null,
+    cwd: s.worktree,
+    status: "exited",
+    exited: true,
+    offers: [],
+    archived: false,
+    title: s.name,
+    badge: "nebula",
+    program: "claude",
+    model: s.model ?? "",
+    effort: s.effort ?? "",
+    launch: null,
+    prompt: s.summary === s.name ? "" : s.summary,
+    age: s.forked ? `${state} (forked)` : state,
+    subs: [],
   };
 }
 
@@ -95,3 +126,9 @@ export function recordResumed(resumed, id, terminal, live) {
   next[id] = terminal;
   return next;
 }
+
+// The nebula sessions the board lists: not the ones the user hid (shared "nebula.hidden", a list of ids).
+export const shownSessions = (list, hidden) => list.filter((s) => !(hidden ?? []).includes(s.id));
+
+// The hidden list after hiding session `id`, without repeats.
+export const withHidden = (hidden, id) => [...new Set([...(hidden ?? []), id])];

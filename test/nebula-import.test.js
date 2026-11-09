@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  nebulaFiles, parseNebulaProjects, settingsFromNebula, applySettings, describeSettings, planImport,
-} from "../mods/nebula/lib/nebula-import.js";
+import { nebulaFiles, parseNebulaProjects, settingsFromNebula, applySettings, describeSettings, planImport } from "../mods/nebula/lib/nebula-import.js";
 import { mergeSettings } from "../mods/nebula/lib/settings.js";
 import { projectList } from "../mods/nebula/lib/repos.js";
 
@@ -38,9 +36,19 @@ test("an empty table (sqlite prints nothing) is no projects, junk throws", () =>
 
 test("defaults: 'default' is no override, open_code maps to opencode, odd models stay", () => {
   const patch = settingsFromNebula({
-    claude_model: "opus", claude_effort: "high", codex_model: "default", codex_effort: "Default",
-    cursor_model: "composer-2", pi_model: "default", pi_effort: "low", opencode_model: "x/y",
-    muse_model: "  ", nope_model: "z", editor: " nano ", claude_enabled: true, ask_before_archive: true,
+    claude_model: "opus",
+    claude_effort: "high",
+    codex_model: "default",
+    codex_effort: "Default",
+    cursor_model: "composer-2",
+    pi_model: "default",
+    pi_effort: "low",
+    opencode_model: "x/y",
+    muse_model: "  ",
+    nope_model: "z",
+    editor: " nano ",
+    claude_enabled: true,
+    ask_before_archive: true,
   });
   assert.deepEqual(patch, {
     harnesses: {
@@ -72,7 +80,10 @@ test("applying a patch changes only what it carries", () => {
 });
 
 test("the defaults line reads like the dialog shows it", () => {
-  assert.equal(describeSettings(settingsFromNebula({ claude_model: "opus", claude_effort: "high", editor: "nano" })), "claude: opus, high effort; editor: nano");
+  assert.equal(
+    describeSettings(settingsFromNebula({ claude_model: "opus", claude_effort: "high", editor: "nano" })),
+    "claude: opus, high effort; editor: nano",
+  );
   assert.equal(describeSettings({ harnesses: { pi: { model: null, effort: "low" } }, confirmArchive: false }), "pi: low effort; confirm archive: off");
   assert.equal(describeSettings({}), "");
 });

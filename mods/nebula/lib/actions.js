@@ -12,11 +12,13 @@ const ALL = [
 // A nebula row (kind "nebula") belongs to nebula: a click or Enter resumes it, and the one
 // action hides it from the board (a or d), since nothing here can delete nebula's session.
 const HIDE = [{ id: "hide", label: "Hide from board", key: "d" }];
-export const actionsFor = (row, hasLaunch) => row.kind === "nebula" ? HIDE : ALL.filter((a) =>
-  (!a.tab || row.tab)
-  && (!a.launch || hasLaunch)
-  && (a.id !== "archive" || !row.archived)
-  && (a.id !== "unarchive" || row.archived));
+// What a key or menu pick does to this row: on a nebula row, delete and archive both mean Hide.
+export const rowAction = (row, action) => (row.kind === "nebula" && (action === "delete" || action === "archive") ? "hide" : action);
+
+export const actionsFor = (row, hasLaunch) =>
+  row.kind === "nebula"
+    ? HIDE
+    : ALL.filter((a) => (!a.tab || row.tab) && (!a.launch || hasLaunch) && (a.id !== "archive" || !row.archived) && (a.id !== "unarchive" || row.archived));
 
 export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
 
@@ -34,7 +36,11 @@ export function worktreeOffer(model, id) {
   return { root: at.repo.root, path: at.band.path, branch: at.band.branch };
 }
 
-export const parseLines = (text) => String(text ?? "").split("\n").map((l) => l.trimEnd()).filter(Boolean);
+export const parseLines = (text) =>
+  String(text ?? "")
+    .split("\n")
+    .map((l) => l.trimEnd())
+    .filter(Boolean);
 
 export const removeLabel = (dirty) => (dirty > 0 ? `Remove and discard ${dirty} file${dirty === 1 ? "" : "s"}` : "Remove worktree");
 
@@ -42,7 +48,8 @@ export const removeLabel = (dirty) => (dirty > 0 ? `Remove and discard ${dirty} 
 // rejected: the lists are then empty but mean "unknown", never "clean". `filesOk` says the
 // uncommitted list itself is real, so a count taken from it may be shown and trusted.
 export const summarizeCheck = (st, lg) => {
-  const filesOk = st?.code === 0, logOk = lg?.code === 0;
+  const filesOk = st?.code === 0,
+    logOk = lg?.code === 0;
   return { files: filesOk ? parseLines(st.stdout) : [], unpushed: logOk ? parseLines(lg.stdout) : [], known: filesOk && logOk, filesOk };
 };
 
@@ -64,7 +71,8 @@ export function recheckRemove(check, st) {
 }
 
 export const planRemove = (offer, dirty) => ({
-  cmd: "wt", args: ["-C", offer.root, "remove", offer.branch, "-y", "--foreground", ...(dirty > 0 ? ["-f"] : [])],
+  cmd: "wt",
+  args: ["-C", offer.root, "remove", offer.branch, "-y", "--foreground", ...(dirty > 0 ? ["-f"] : [])],
 });
 
 export const aloneInTab = (panes, tab, terminal) => Boolean(tab) && !panes.some((p) => p.tab === tab && p.terminal !== terminal);
@@ -78,6 +86,9 @@ export const planDelete = ({ terminal, tab, alone }) => [
 export const tabCommand = (action, tab) => ({ name: action === "archive" ? "tab.settle" : "tab.unsettle", args: { id: tab } });
 
 export function editorCommand(editor, path) {
-  const [cmd, ...args] = String(editor ?? "").trim().split(/\s+/).filter(Boolean);
+  const [cmd, ...args] = String(editor ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   return { cmd: cmd ?? "open", args: [...args, path] };
 }

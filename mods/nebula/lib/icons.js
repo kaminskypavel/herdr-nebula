@@ -19,7 +19,8 @@ const SKIP = /^(node_modules|tests?|__tests__|fixtures?|mockups?|\.?storybook)$/
 // Lower is better; null when the path is no icon candidate. Exact preferred names come first
 // (the order above), then any other match by stem and extension.
 export function iconRank(path, { ico = true } = {}) {
-  const parts = String(path).split("/"), base = parts.pop().toLowerCase();
+  const parts = String(path).split("/"),
+    base = parts.pop().toLowerCase();
   const m = NAME.exec(base);
   if (!m || parts.some((p) => SKIP.test(p)) || (!ico && m[2] === "ico")) return null;
   const exact = PREFERRED.indexOf(base);
@@ -28,8 +29,11 @@ export function iconRank(path, { ico = true } = {}) {
 
 // The candidates among `paths` (relative to the project), best first; a shorter path wins a tie.
 export function rankIcons(paths, opts) {
-  return paths.map((p) => ({ p, r: iconRank(p, opts) })).filter((x) => x.r !== null)
-    .sort((a, b) => a.r - b.r || a.p.length - b.p.length || (a.p < b.p ? -1 : a.p > b.p ? 1 : 0)).map((x) => x.p);
+  return paths
+    .map((p) => ({ p, r: iconRank(p, opts) }))
+    .filter((x) => x.r !== null)
+    .sort((a, b) => a.r - b.r || a.p.length - b.p.length || (a.p < b.p ? -1 : a.p > b.p ? 1 : 0))
+    .map((x) => x.p);
 }
 
 // picks: { [root]: { hash, ext } | null }. A hash picked by 2 or more projects becomes null for all of them.
@@ -41,7 +45,10 @@ export function dropShared(picks) {
 
 // Two letters: the first letters of the first two words (split on - _ and space), else the first two characters.
 export function initialsOf(name) {
-  const words = String(name ?? "").split(/[-_\s]+/).filter(Boolean).map((w) => [...w]);
+  const words = String(name ?? "")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => [...w]);
   const chars = words.length >= 2 ? [words[0][0], words[1][0]] : (words[0] ?? ["?"]).slice(0, 2);
   return chars.join("").toUpperCase();
 }
@@ -61,9 +68,16 @@ export const cachedPath = (pick) => `${CACHE_DIR}/${pick.hash}.${pick.ext}`;
 // project has no icon of its own. projects: [{ root, name }].
 export function buildIcons(projects, picks) {
   const kept = dropShared(Object.fromEntries(projects.map((p) => [p.root, picks[p.root] ?? null])));
-  return Object.fromEntries(projects.map((p) => [p.root, {
-    path: kept[p.root] ? cachedPath(kept[p.root]) : null, initials: initialsOf(p.name), color: colorOf(p.name),
-  }]));
+  return Object.fromEntries(
+    projects.map((p) => [
+      p.root,
+      {
+        path: kept[p.root] ? cachedPath(kept[p.root]) : null,
+        initials: initialsOf(p.name),
+        color: colorOf(p.name),
+      },
+    ]),
+  );
 }
 
 // The entry to draw for a project: the published one, else initials worked out on the spot (before the scan is done).

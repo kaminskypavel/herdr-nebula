@@ -16,7 +16,8 @@ export const summarize = (model) => real(model).map((r) => ({ root: r.root, name
 
 // The open list cut to roots still in the store (spelled as the store spells them), no repeats.
 export function cleanOpen(open, store) {
-  const roots = projectList(store).map((p) => p.root), out = [];
+  const roots = projectList(store).map((p) => p.root),
+    out = [];
   for (const o of Array.isArray(open) ? open : []) {
     const hit = roots.find((r) => norm(r) === norm(o));
     if (hit && !out.includes(hit)) out.push(hit);
@@ -26,12 +27,19 @@ export function cleanOpen(open, store) {
 
 // First run: the projects with a live Herdr session (not grey, not a nebula row), else the first project.
 export function initialOpen(model, store) {
-  const live = real(model).filter((r) => r.rows.some((x) => x.kind !== "nebula" && STATUS_ORDER.includes(x.status))).map((r) => r.root);
+  const live = real(model)
+    .filter((r) => r.rows.some((x) => x.kind !== "nebula" && STATUS_ORDER.includes(x.status)))
+    .map((r) => r.root);
   const listed = cleanOpen(live, store);
-  return listed.length ? listed : projectList(store).slice(0, 1).map((p) => p.root);
+  return listed.length
+    ? listed
+    : projectList(store)
+        .slice(0, 1)
+        .map((p) => p.root);
 }
 
-const needing = (model) => real(model).flatMap((r) => r.rows.filter((x) => x.kind !== "nebula" && x.status === "needs").map((x) => ({ root: r.root, id: x.id })));
+const needing = (model) =>
+  real(model).flatMap((r) => r.rows.filter((x) => x.kind !== "nebula" && x.status === "needs").map((x) => ({ root: r.root, id: x.id })));
 
 export const closedNeeding = (model, open) => needing(model).some((n) => !open.includes(n.root));
 
@@ -64,7 +72,7 @@ export function closeProject(open, root, selected) {
   const i = open.indexOf(root);
   if (i < 0) return { open, select: null };
   const next = open.filter((r) => r !== root);
-  return { open: next, select: selected === root ? next[i] ?? next[i - 1] ?? null : null };
+  return { open: next, select: selected === root ? (next[i] ?? next[i - 1] ?? null) : null };
 }
 
 // The board's model cut to the open projects, in tab order, plus the Other group of stray sessions.
@@ -78,6 +86,9 @@ export function pickerRows(summary, open, query = "") {
   const q = String(query).trim().toLowerCase();
   return summary.filter((p) => !q || p.name.toLowerCase().includes(q) || p.root.toLowerCase().includes(q)).map((p) => ({ ...p, open: open.includes(p.root) }));
 }
+
+// The picker's count column: "1 session", "5 sessions", nothing for none.
+export const sessionsLabel = (n) => (n ? `${n} session${n === 1 ? "" : "s"}` : "");
 
 const PICKER_ROW = 30;
 export const PICKER_ROWS_MAX = 9;

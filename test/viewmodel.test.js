@@ -1,9 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  OTHER, buildBoard, treeItems, listItems, columnsModel, stopsOf, stepCursor, placeCursor, attentionTarget,
-  agentOrder, projectColumns, projectItems, rollup, summaryParts, bandParts, parseWt, objectsOnly,
-  bandSummary, bandPaths, foldBands,
+  OTHER,
+  buildBoard,
+  treeItems,
+  listItems,
+  columnsModel,
+  stopsOf,
+  stepCursor,
+  placeCursor,
+  attentionTarget,
+  agentOrder,
+  projectColumns,
+  projectItems,
+  rollup,
+  summaryParts,
+  bandParts,
+  parseWt,
+  objectsOnly,
+  bandSummary,
+  bandPaths,
+  foldBands,
 } from "../mods/nebula/lib/viewmodel.js";
 import { arrange, rowGroup } from "../mods/nebula/lib/arrange.js";
 
@@ -11,25 +28,42 @@ const NOW = 10_000_000;
 // What a project tab shows: the model cut to that one project (lib/tabs.js scopeModel).
 const alphaOnly = (m) => ({ ...m, repos: m.repos.filter((r) => r.root === "/r/alpha") });
 const repos = ["alpha", "beta", "gamma", "delta"].map((n) => ({
-  root: `/r/${n}`, name: n,
-  checkouts: [{ path: `/r/${n}`, branch: "main" }, { path: `/r/${n}-worktrees/feat`, branch: "feat" }],
+  root: `/r/${n}`,
+  name: n,
+  checkouts: [
+    { path: `/r/${n}`, branch: "main" },
+    { path: `/r/${n}-worktrees/feat`, branch: "feat" },
+  ],
 }));
 
 // 15 sessions: statuses by index, repos round-robin over 4, alternating checkouts.
-const STATUSES = [
-  "blocked", "blocked",
-  "working", "working", "working", "working",
-  "done", "done",
-  "idle", "idle", "idle", "idle", "idle", "idle", "idle",
-];
+const STATUSES = ["blocked", "blocked", "working", "working", "working", "working", "done", "done", "idle", "idle", "idle", "idle", "idle", "idle", "idle"];
 function fleet(extra = {}) {
-  const terminals = [], agents = [], tabs = [];
+  const terminals = [],
+    agents = [],
+    tabs = [];
   STATUSES.forEach((status, i) => {
-    const repo = repos[i % 4], wtree = i % 8 < 4 ? repo.root : `${repo.root}-worktrees/feat`;
+    const repo = repos[i % 4],
+      wtree = i % 8 < 4 ? repo.root : `${repo.root}-worktrees/feat`;
     const address = `t${i + 1}`;
-    terminals.push({ address, cwd: wtree, status, state: "live", app: "claude-code", program: { key: "claude", name: "Claude Code", shell: false }, labels: {} });
+    terminals.push({
+      address,
+      cwd: wtree,
+      status,
+      state: "live",
+      app: "claude-code",
+      program: { key: "claude", name: "Claude Code", shell: false },
+      labels: {},
+    });
     agents.push({ address, pane: `p${i + 1}`, tab: `tab${i + 1}`, status });
-    tabs.push({ id: `tab${i + 1}`, name: i % 2 ? `Session ${i + 1}` : "1", named: i % 2 === 1, settled: false, changed_at: NOW - 60_000 * (i + 1), working_since: status === "working" ? NOW - 120_000 : null });
+    tabs.push({
+      id: `tab${i + 1}`,
+      name: i % 2 ? `Session ${i + 1}` : "1",
+      named: i % 2 === 1,
+      settled: false,
+      changed_at: NOW - 60_000 * (i + 1),
+      working_since: status === "working" ? NOW - 120_000 : null,
+    });
   });
   return { terminals, agents, panes: [], spaces: [{ id: "sp", tabs }], repos, now: NOW, ...extra };
 }
@@ -40,9 +74,17 @@ test("15 sessions across 4 repos: Tree and List on All have every repo, List on 
   assert.equal(tree.filter((i) => i.type === "repo").length, 4);
   assert.equal(tree.filter((i) => i.type === "session").length, 15);
   const all = listItems(m, { all: true });
-  assert.deepEqual(all.filter((i) => i.type === "repo").map((i) => i.repo.name), ["alpha", "beta", "gamma", "delta"]);
+  assert.deepEqual(
+    all.filter((i) => i.type === "repo").map((i) => i.repo.name),
+    ["alpha", "beta", "gamma", "delta"],
+  );
   assert.equal(all.filter((i) => i.type === "session").length, 15);
-  assert.deepEqual(listItems(m, { all: true, folded: new Set(["/r/beta"]) }).filter((i) => i.type === "repo").map((i) => i.folded), [false, true, false, false]);
+  assert.deepEqual(
+    listItems(m, { all: true, folded: new Set(["/r/beta"]) })
+      .filter((i) => i.type === "repo")
+      .map((i) => i.folded),
+    [false, true, false, false],
+  );
   const list = listItems({ repos: [m.repos[0]] });
   assert.ok(!list.some((i) => ["summary", "divider", "repo"].includes(i.type)));
   const mine = list.filter((i) => i.type === "session");
@@ -67,7 +109,15 @@ test("a repo with no sessions still shows in Tree", () => {
 
 test("Columns groups the same 15 sessions as 2 needs you, 4 working, 2 unseen, 7 seen", () => {
   const cols = columnsModel(buildBoard(fleet()));
-  assert.deepEqual(cols.map((c) => [c.status, c.rows.length]), [["needs", 2], ["working", 4], ["unseen", 2], ["seen", 7]]);
+  assert.deepEqual(
+    cols.map((c) => [c.status, c.rows.length]),
+    [
+      ["needs", 2],
+      ["working", 4],
+      ["unseen", 2],
+      ["seen", 7],
+    ],
+  );
 });
 
 test("a row's title is its tab's name when named, else New session; the terminal title is never used", () => {
@@ -81,8 +131,14 @@ test("a row's title is its tab's name when named, else New session; the terminal
 
 test("a row carries program, age, model and the last prompt", () => {
   const f = fleet();
-  f.terminals[2].labels = { "nebula.board": "1", "nebula.launch": JSON.stringify({ harness: "claude", model: "opus" }), "nebula.prompt": "fix the login redirect" };
-  const row = buildBoard(f).repos.flatMap((r) => r.bands.flatMap((b) => b.rows)).find((r) => r.id === "t3");
+  f.terminals[2].labels = {
+    "nebula.board": "1",
+    "nebula.launch": JSON.stringify({ harness: "claude", model: "opus" }),
+    "nebula.prompt": "fix the login redirect",
+  };
+  const row = buildBoard(f)
+    .repos.flatMap((r) => r.bands.flatMap((b) => b.rows))
+    .find((r) => r.id === "t3");
   assert.equal(row.program, "claude");
   assert.equal(row.model, "opus");
   assert.equal(row.prompt, "fix the login redirect");
@@ -104,12 +160,26 @@ test("an archived session is hidden until show archived is on", () => {
 
 test("an exited board-launched session yields a grey row offering relaunch and delete", () => {
   const f = fleet();
-  f.terminals.push({ address: "t99", cwd: "/r/alpha", status: undefined, state: "live", program: { key: "shell", name: "zsh", shell: true }, labels: { "nebula.board": "1" } });
-  const row = buildBoard(f).repos[0].bands.flatMap((b) => b.rows).find((r) => r.id === "t99");
+  f.terminals.push({
+    address: "t99",
+    cwd: "/r/alpha",
+    status: undefined,
+    state: "live",
+    program: { key: "shell", name: "zsh", shell: true },
+    labels: { "nebula.board": "1" },
+  });
+  const row = buildBoard(f)
+    .repos[0].bands.flatMap((b) => b.rows)
+    .find((r) => r.id === "t99");
   assert.equal(row.status, "exited");
   assert.equal(row.age, "exited");
   assert.deepEqual(row.offers, ["relaunch", "delete"]);
-  assert.deepEqual(buildBoard(f).repos[0].bands.flatMap((b) => b.rows).find((r) => r.id === "t1").offers, []);
+  assert.deepEqual(
+    buildBoard(f)
+      .repos[0].bands.flatMap((b) => b.rows)
+      .find((r) => r.id === "t1").offers,
+    [],
+  );
   const cols = columnsModel(buildBoard(f));
   assert.ok(cols[3].rows.some((r) => r.id === "t99"));
 });
@@ -137,7 +207,11 @@ test("the cursor stays on a session when its status change moves the row", () =>
   const after = stopsOf(treeItems(buildBoard(f), new Set()));
   assert.ok(after.indexOf("t9") < after.indexOf("t1"));
   assert.equal(placeCursor(after, "t9", i).id, "t9");
-  const cols = stopsOf(columnsModel(buildBoard(f)).flatMap((c) => c.rows).map((r) => ({ type: "session", key: r.id })));
+  const cols = stopsOf(
+    columnsModel(buildBoard(f))
+      .flatMap((c) => c.rows)
+      .map((r) => ({ type: "session", key: r.id })),
+  );
   assert.equal(placeCursor(cols, "t9", i).id, "t9");
 });
 
@@ -188,7 +262,9 @@ test("period from the top lands on the first blocked session, then the next, the
 
 test("period does nothing when no session needs you or is unseen", () => {
   const f = fleet();
-  f.terminals.forEach((t) => { t.status = "working"; });
+  f.terminals.forEach((t) => {
+    t.status = "working";
+  });
   assert.equal(attentionTarget(buildBoard(f), "t1", 1), null);
 });
 
@@ -196,19 +272,35 @@ test("a session with two running sub-agents shows both nested under it with thei
   const f = fleet();
   const sub = (id, d, m) => ({ [`nebula.sub.${id}`]: JSON.stringify({ type: "Explore", at: NOW - 90_000, desc: d, model: m }) });
   f.terminals[2].labels = { ...sub("a1", "Find the login handlers", "haiku"), ...sub("a2", "Read the auth tests", "") };
-  const row = buildBoard(f).repos.flatMap((r) => r.bands.flatMap((b) => b.rows)).find((r) => r.id === "t3");
-  assert.deepEqual(row.subs.map((s) => [s.text, s.badge]), [["Find the login handlers", "haiku"], ["Read the auth tests", ""]]);
+  const row = buildBoard(f)
+    .repos.flatMap((r) => r.bands.flatMap((b) => b.rows))
+    .find((r) => r.id === "t3");
+  assert.deepEqual(
+    row.subs.map((s) => [s.text, s.badge]),
+    [
+      ["Find the login handlers", "haiku"],
+      ["Read the auth tests", ""],
+    ],
+  );
   const items = treeItems(buildBoard(f), new Set());
   const at = items.findIndex((i) => i.key === "t3");
-  assert.deepEqual(items.slice(at + 1, at + 3).map((i) => i.type), ["sub", "sub"]);
+  assert.deepEqual(
+    items.slice(at + 1, at + 3).map((i) => i.type),
+    ["sub", "sub"],
+  );
   assert.ok(!stopsOf(items).some((k) => k.startsWith("sub:")));
 });
 
 test("a terminal sub-agent nests under its parent with its own name", () => {
   const f = fleet();
   f.terminals.push({ address: "t50", parent: "t3", cwd: "/r/alpha", status: "working", state: "live", name: "lint pass", labels: {} });
-  const row = buildBoard(f).repos.flatMap((r) => r.bands.flatMap((b) => b.rows)).find((r) => r.id === "t3");
-  assert.deepEqual(row.subs.map((s) => [s.text, s.status]), [["lint pass", "working"]]);
+  const row = buildBoard(f)
+    .repos.flatMap((r) => r.bands.flatMap((b) => b.rows))
+    .find((r) => r.id === "t3");
+  assert.deepEqual(
+    row.subs.map((s) => [s.text, s.status]),
+    [["lint pass", "working"]],
+  );
 });
 
 test("Tree, List and Cards agent order follows the model; Columns go by status", () => {
@@ -219,23 +311,34 @@ test("Tree, List and Cards agent order follows the model; Columns go by status",
   assert.equal(new Set(agentOrder(m, "cards", "/r/beta")).size, 15);
   assert.deepEqual(agentOrder({ repos: [m.repos[1]] }, "list", "/r/beta"), ids(m.repos[1]));
   const cols = agentOrder(m, "columns", "/r/beta");
-  assert.deepEqual(cols.slice(0, 2).map((id) => m.repos.flatMap((r) => r.rows).find((r) => r.id === id).status), ["needs", "needs"]);
+  assert.deepEqual(
+    cols.slice(0, 2).map((id) => m.repos.flatMap((r) => r.rows).find((r) => r.id === id).status),
+    ["needs", "needs"],
+  );
 });
 
 test("a repo's summary lists non-zero counts in status order", () => {
   const m = buildBoard(fleet());
   const parts = summaryParts(m.repos[0]);
   assert.ok(parts.every((p) => p.n > 0));
-  assert.deepEqual(parts.map((p) => p.status), ["needs", "working", "unseen", "seen"].filter((s) => parts.some((p) => p.status === s)));
-  assert.equal(parts.reduce((n, p) => n + p.n, 0), m.repos[0].rows.length);
+  assert.deepEqual(
+    parts.map((p) => p.status),
+    ["needs", "working", "unseen", "seen"].filter((s) => parts.some((p) => p.status === s)),
+  );
+  assert.equal(
+    parts.reduce((n, p) => n + p.n, 0),
+    m.repos[0].rows.length,
+  );
 });
 
 test("wt list json gives each checkout's ahead count and line changes", () => {
-  const text = JSON.stringify({ items: [
-    { branch: "main", worktree: { path: "/r/alpha", changes: { diff: { added: 5, deleted: 1 } } } },
-    { branch: "feat", worktree: { path: "/r/alpha-worktrees/feat", changes: { diff: { added: 48, deleted: 6 } } }, upstream: { ahead: 2 } },
-    { branch: "no-worktree" },
-  ] });
+  const text = JSON.stringify({
+    items: [
+      { branch: "main", worktree: { path: "/r/alpha", changes: { diff: { added: 5, deleted: 1 } } } },
+      { branch: "feat", worktree: { path: "/r/alpha-worktrees/feat", changes: { diff: { added: 48, deleted: 6 } } }, upstream: { ahead: 2 } },
+      { branch: "no-worktree" },
+    ],
+  });
   const wt = parseWt(text);
   assert.deepEqual(wt["/r/alpha-worktrees/feat"], { branch: "feat", ahead: 2, added: 48, deleted: 6 });
   assert.deepEqual(wt["/r/alpha"], { branch: "main", ahead: 0, added: 5, deleted: 1 });
@@ -273,11 +376,17 @@ test("projectColumns rolls each project and worktree up to its most urgent statu
   const f = fleet();
   const pc = projectColumns(buildBoard(f), {}, "/r/alpha");
   // alpha holds t1 (blocked), t5, t9, t13 (working, idle, idle) in main; the rest in feat
-  assert.deepEqual(pc.projects.map((p) => p.name), ["alpha", "beta", "gamma", "delta"]);
+  assert.deepEqual(
+    pc.projects.map((p) => p.name),
+    ["alpha", "beta", "gamma", "delta"],
+  );
   assert.equal(pc.projects[0].status, "needs");
   assert.equal(pc.projects[1].status, "needs");
   assert.equal(pc.projects[3].status, "working");
-  assert.equal(pc.projects.reduce((n, p) => n + p.count, 0), 15);
+  assert.equal(
+    pc.projects.reduce((n, p) => n + p.count, 0),
+    15,
+  );
   assert.ok(pc.worktrees.every((w) => w.status === rollup(pc.sessions.length ? buildBoard(f).repos[0].bands.find((b) => b.path === w.key).rows : [])));
   assert.equal(rollup([{ status: "exited" }, { status: "seen" }]), "seen");
   assert.equal(rollup([{ status: "exited" }]), "exited");
@@ -319,17 +428,26 @@ test("Other is the last project and holds its sessions as one worktree", () => {
   assert.equal(pc.projects.at(-1).key, OTHER);
   assert.equal(pc.projects.at(-1).name, "Other");
   assert.equal(pc.projects.at(-1).status, "working");
-  assert.deepEqual(pc.sessions.map((r) => r.id), ["t98"]);
+  assert.deepEqual(
+    pc.sessions.map((r) => r.id),
+    ["t98"],
+  );
   assert.equal(pc.worktrees.length, 1);
   assert.equal(pc.worktrees[0].label, "Other");
-  assert.equal(projectColumns(buildBoard(fleet())).projects.some((p) => p.key === OTHER), false);
+  assert.equal(
+    projectColumns(buildBoard(fleet())).projects.some((p) => p.key === OTHER),
+    false,
+  );
 });
 
 test("projectItems keys the three columns and stopsOf reaches every one", () => {
   const m = buildBoard(fleet());
   const pc = projectColumns(m, {}, "/r/alpha");
   const items = projectItems(pc);
-  assert.deepEqual(items.map((i) => i.type).filter((t, i, a) => a.indexOf(t) === i), ["project", "worktree", "session"]);
+  assert.deepEqual(
+    items.map((i) => i.type).filter((t, i, a) => a.indexOf(t) === i),
+    ["project", "worktree", "session"],
+  );
   assert.ok(items.some((i) => i.key === "proj:/r/alpha") && items.some((i) => i.key === `wt:${pc.sel.worktree}`));
   assert.equal(stopsOf(items).length, items.length);
 });
@@ -338,15 +456,36 @@ test("Projects mode puts the selected project's sessions first, in worktree orde
   const m = buildBoard(fleet());
   const beta = m.repos[1];
   const order = agentOrder(m, "columns", "/r/alpha", { mode: "projects", sel: { project: beta.root } });
-  assert.deepEqual(order.slice(0, beta.rows.length), beta.rows.map((r) => r.id));
+  assert.deepEqual(
+    order.slice(0, beta.rows.length),
+    beta.rows.map((r) => r.id),
+  );
   assert.equal(new Set(order).size, 15);
   assert.equal(agentOrder(m, "columns", "/r/alpha", { mode: "projects" }).slice(0, m.repos[0].rows.length).join(), m.repos[0].rows.map((r) => r.id).join());
 });
 
 // Sorting by status: needs you, working, unseen, seen, then grey (exited and nebula rows) last.
+/** @returns {any} */
 function mixed() {
-  const mk = (address, status, shell) => ({ address, cwd: "/r/alpha", status, state: "live", app: "claude-code", program: { key: shell ? "shell" : "claude", name: shell ? "zsh" : "Claude Code", shell: Boolean(shell) }, labels: shell ? { "nebula.board": "1" } : {} });
-  const terminals = [mk("e1", undefined, true), mk("s1", "idle"), mk("w1", "working"), mk("s2", "idle"), mk("u1", "done"), mk("n1", "blocked"), mk("w2", "working"), mk("e2", undefined, true)];
+  const mk = (address, status, shell) => ({
+    address,
+    cwd: "/r/alpha",
+    status,
+    state: "live",
+    app: "claude-code",
+    program: { key: shell ? "shell" : "claude", name: shell ? "zsh" : "Claude Code", shell: Boolean(shell) },
+    labels: shell ? { "nebula.board": "1" } : {},
+  });
+  const terminals = [
+    mk("e1", undefined, true),
+    mk("s1", "idle"),
+    mk("w1", "working"),
+    mk("s2", "idle"),
+    mk("u1", "done"),
+    mk("n1", "blocked"),
+    mk("w2", "working"),
+    mk("e2", undefined, true),
+  ];
   return { terminals, agents: [], panes: [], spaces: [], repos, now: NOW };
 }
 const ids = (rows) => rows.map((r) => r.id);
@@ -355,14 +494,30 @@ test("every band lists needs you, working, unseen, seen, then grey rows, in toda
   const m = buildBoard(mixed());
   assert.deepEqual(ids(m.repos[0].bands[0].rows), ["n1", "w1", "w2", "u1", "s1", "s2", "e1", "e2"]);
   assert.deepEqual(ids(m.repos[0].rows), ids(m.repos[0].bands[0].rows));
-  assert.deepEqual(ids(treeItems(m, new Set()).filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
-  assert.deepEqual(ids(listItems(alphaOnly(m)).filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
+  assert.deepEqual(
+    ids(
+      treeItems(m, new Set())
+        .filter((i) => i.type === "session")
+        .map((i) => i.row),
+    ),
+    ids(m.repos[0].rows),
+  );
+  assert.deepEqual(
+    ids(
+      listItems(alphaOnly(m))
+        .filter((i) => i.type === "session")
+        .map((i) => i.row),
+    ),
+    ids(m.repos[0].rows),
+  );
 });
 
 test("nebula rows and the Other group sort grey last too", () => {
   const f = { ...mixed(), nebula: [{ id: "x", name: "old", summary: "old", worktree: "/r/alpha", status: "idle", alive: false }] };
-  f.terminals.push({ address: "o1", cwd: "/Users/x", status: "idle", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} },
-    { address: "o2", cwd: "/Users/x", status: "blocked", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} });
+  f.terminals.push(
+    { address: "o1", cwd: "/Users/x", status: "idle", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} },
+    { address: "o2", cwd: "/Users/x", status: "blocked", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} },
+  );
   const m = buildBoard(f);
   assert.deepEqual(ids(m.repos[0].rows).slice(-3), ["e1", "e2", "nebula:x"]);
   assert.deepEqual(ids(m.repos.find((r) => r.root === OTHER).rows), ["o2", "o1"]);
@@ -376,18 +531,37 @@ test("Columns Status keeps grey rows last inside the Seen column", () => {
 test("Columns Projects orders projects and worktrees by urgency, all-grey last, and the sessions by status", () => {
   const f = mixed();
   // beta: one idle session; gamma: only an exited one; delta: a working one, in feat
-  const add = (address, root, status, shell) => f.terminals.push({ address, cwd: root, status, state: "live", program: { key: shell ? "shell" : "claude", name: "x", shell: Boolean(shell) }, labels: shell ? { "nebula.board": "1" } : {} });
+  const add = (address, root, status, shell) =>
+    f.terminals.push({
+      address,
+      cwd: root,
+      status,
+      state: "live",
+      program: { key: shell ? "shell" : "claude", name: "x", shell: Boolean(shell) },
+      labels: shell ? { "nebula.board": "1" } : {},
+    });
   add("b1", "/r/beta", "idle");
   add("g1", "/r/gamma", undefined, true);
   add("d1", "/r/delta-worktrees/feat", "working");
   add("a-feat", "/r/alpha-worktrees/feat", undefined, true);
   const m = buildBoard(f);
   const pc = projectColumns(m, { project: "/r/alpha" });
-  assert.deepEqual(pc.projects.map((p) => p.key), ["/r/alpha", "/r/delta", "/r/beta", "/r/gamma"]);
-  assert.deepEqual(pc.worktrees.map((w) => w.key), ["/r/alpha", "/r/alpha-worktrees/feat"]);
+  assert.deepEqual(
+    pc.projects.map((p) => p.key),
+    ["/r/alpha", "/r/delta", "/r/beta", "/r/gamma"],
+  );
+  assert.deepEqual(
+    pc.worktrees.map((w) => w.key),
+    ["/r/alpha", "/r/alpha-worktrees/feat"],
+  );
   assert.deepEqual(ids(pc.sessions), ["n1", "w1", "w2", "u1", "s1", "s2", "e1", "e2"]);
   // no project in the column is reordered when nothing changes: equal rank keeps the tree order
-  assert.deepEqual(projectColumns(buildBoard({ ...f, terminals: f.terminals.filter((t) => ["b1", "g1"].includes(t.address) === false) }), {}).projects.map((p) => p.key).slice(0, 2), ["/r/alpha", "/r/delta"]);
+  assert.deepEqual(
+    projectColumns(buildBoard({ ...f, terminals: f.terminals.filter((t) => ["b1", "g1"].includes(t.address) === false) }), {})
+      .projects.map((p) => p.key)
+      .slice(0, 2),
+    ["/r/alpha", "/r/delta"],
+  );
 });
 
 test("the attention walk still goes needs you first, then unseen, after the sort", () => {
@@ -417,14 +591,23 @@ test("a folded band header still counts its sessions by status", () => {
   const m = buildBoard(fleet());
   const band = m.repos[0].bands[0];
   const parts = bandSummary(band);
-  assert.equal(parts.reduce((n, p) => n + p.n, 0), band.rows.length);
+  assert.equal(
+    parts.reduce((n, p) => n + p.n, 0),
+    band.rows.length,
+  );
   assert.ok(parts.every((p) => p.n > 0 && p.label));
 });
 
 test("with no folded bands every session shows, folded bands only fold (Other has no header to fold)", () => {
   const m = buildBoard(fleet());
   assert.equal(treeItems(m, new Set(), undefined, new Set()).filter((i) => i.type === "session").length, 15);
-  const none = buildBoard({ ...fleet(), terminals: [{ address: "x", cwd: "/elsewhere", status: "idle", state: "live", labels: {} }], agents: [], spaces: [], repos });
+  const none = buildBoard({
+    ...fleet(),
+    terminals: [{ address: "x", cwd: "/elsewhere", status: "idle", state: "live", labels: {} }],
+    agents: [],
+    spaces: [],
+    repos,
+  });
   const other = none.repos.find((r) => r.root === OTHER);
   assert.deepEqual(bandPaths(other), []);
   assert.ok(treeItems(none, new Set(), undefined, new Set([""])).some((i) => i.key === "x"));
@@ -463,11 +646,17 @@ test("archived rows sort after live rows in their band, keep status order, and r
   const m = buildBoard(archivedFleet());
   const band = m.repos.find((r) => r.name === "alpha").bands.find((b) => b.rows.some((r) => r.archived));
   const flags = band.rows.map((r) => r.archived);
-  assert.deepEqual(flags, [...flags].sort((a, b) => Number(a) - Number(b)));
+  assert.deepEqual(
+    flags,
+    [...flags].sort((a, b) => Number(a) - Number(b)),
+  );
   assert.ok(flags.includes(true) && flags.includes(false));
   assert.ok(band.rows.filter((r) => r.archived).every((r) => r.age === "archived"));
   const arch = band.rows.filter((r) => r.archived).map((r) => r.status);
-  assert.deepEqual(arch, [...arch].sort((a, b) => ["needs", "working", "unseen", "seen"].indexOf(a) - ["needs", "working", "unseen", "seen"].indexOf(b)));
+  assert.deepEqual(
+    arch,
+    [...arch].sort((a, b) => ["needs", "working", "unseen", "seen"].indexOf(a) - ["needs", "working", "unseen", "seen"].indexOf(b)),
+  );
 });
 
 test("a shelf line sits above the first archived row of a band, and only there", () => {
@@ -505,7 +694,10 @@ test("Name sort keeps alphabetical order inside each group: live, archived, nebu
   const m = arrange(buildBoard(f), { sort: "name" });
   for (const b of m.repos.flatMap((r) => r.bands)) {
     const g = b.rows.map(rowGroup);
-    assert.deepEqual(g, [...g].sort((x, y) => x - y));
+    assert.deepEqual(
+      g,
+      [...g].sort((x, y) => x - y),
+    );
     for (const n of [0, 1, 2]) {
       const titles = b.rows.filter((r) => rowGroup(r) === n).map((r) => r.title.toLowerCase());
       assert.deepEqual(titles, [...titles].sort());

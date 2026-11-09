@@ -13,7 +13,7 @@ import { COLOR } from "./lib/status.js";
 import { OPEN, REPO, SUMMARY, ICONS } from "./lib/shared.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
-import { summarize, currentOpen, openProject, closeProject, pickerRows, PICKER_ROWS_MAX } from "./lib/open.js";
+import { summarize, currentOpen, openProject, closeProject, pickerRows, sessionsLabel, PICKER_ROWS_MAX } from "./lib/open.js";
 import { escapeKey } from "./ui.js";
 
 const ROW_H = 30;
@@ -27,10 +27,20 @@ export class Projects {
     this.top = 0;
     this.focusIn = true;
     this.field = InputState.new({ value: "", placeholder: "Search projects" });
-    this.field.on("change", (_e, cx) => { this.at = 0; this.top = 0; cx.notify(); });
+    this.field.on("change", (_e, cx) => {
+      this.at = 0;
+      this.top = 0;
+      cx.notify();
+    });
     this.field.on("submit", (_e, cx) => this.choose(this.at, cx));
-    this.field.on("focus", (_e, cx) => { this.focusIn = true; cx.notify(); });
-    this.field.on("blur", (_e, cx) => { this.focusIn = false; cx.notify(); });
+    this.field.on("focus", (_e, cx) => {
+      this.focusIn = true;
+      cx.notify();
+    });
+    this.field.on("blur", (_e, cx) => {
+      this.focusIn = false;
+      cx.notify();
+    });
     this.field.focus();
     cx.timer.after(300, () => this.field.focus());
   }
@@ -47,7 +57,10 @@ export class Projects {
   choose(i, cx) {
     const { open, rows } = this.data();
     const row = rows[i];
-    if (!row) { this.add(); return; }
+    if (!row) {
+      this.add();
+      return;
+    }
     if (row.open) {
       const shown = open.includes(shared(REPO)) ? shared(REPO) : null; // All (or nothing) is shown when no project tab is selected
       const r = closeProject(open, row.root, shown);
@@ -85,39 +98,98 @@ export class Projects {
 
   line(t, id, i, children, action) {
     const on = i === this.at;
-    return h_flex().id(id).h(ROW_H).flex_none().px(8).gap(8).items_center().rounded(6).cursor_pointer().text_size(13)
+    return h_flex()
+      .id(id)
+      .h(ROW_H)
+      .flex_none()
+      .px(8)
+      .gap(8)
+      .items_center()
+      .rounded(6)
+      .cursor_pointer()
+      .text_size(13)
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
-      .on_click((_e, cx) => { this.at = i; action(cx); })
+      .on_click((_e, cx) => {
+        this.at = i;
+        action(cx);
+      })
       .children(children);
   }
 
   render() {
-    const t = theme(), { rows } = this.data(), icons = shared(ICONS) ?? {};
+    const t = theme(),
+      { rows } = this.data(),
+      icons = shared(ICONS) ?? {};
     this.at = Math.min(this.at, rows.length - 1);
-    const add = this.line(t, "pk-add", -1, [
-      svg("mods/nebula/icons/plus.svg").size(13).flex_none().text_color(t.muted),
-      div().flex_1().min_w(0).truncate().text_color(t.muted).child("Add a project..."),
-    ], () => this.add());
+    const add = this.line(
+      t,
+      "pk-add",
+      -1,
+      [
+        svg("mods/nebula/icons/plus.svg").size(13).flex_none().text_color(t.muted),
+        div().flex_1().min_w(0).truncate().text_color(t.muted).child("Add a project..."),
+      ],
+      () => this.add(),
+    );
     const all = [
-      ...rows.map((p, i) => this.line(t, `pk-${p.root}`, i, [
-        projectIcon({
-          icon: iconFor(icons, p.root, p.name), ring: i === this.at ? t.selected : t.popover,
-          badge: div().size(7).rounded_full().bg(t[COLOR[p.status]] ?? t.unknown),
-        }),
-        div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
-        div().flex_none().text_size(11).text_color(t.dim).child(p.count ? `${p.count} session${p.count === 1 ? "" : "s"}` : ""),
-        p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
-      ], (cx) => this.choose(i, cx))),
+      ...rows.map((p, i) =>
+        this.line(
+          t,
+          `pk-${p.root}`,
+          i,
+          [
+            projectIcon({
+              icon: iconFor(icons, p.root, p.name),
+              ring: i === this.at ? t.selected : t.popover,
+              badge: div()
+                .size(7)
+                .rounded_full()
+                .bg(t[COLOR[p.status]] ?? t.unknown),
+            }),
+            div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
+            div().flex_none().text_size(11).text_color(t.dim).child(sessionsLabel(p.count)),
+            p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
+          ],
+          (cx) => this.choose(i, cx),
+        ),
+      ),
     ];
-    return v_flex().id("projects").track_focus(this.handle).on_key_down((e, cx) => this.key(e, cx))
-      .size_full().p(8).gap(6).bg(t.popover).text_color(t.foreground)
-      .child(h_flex().h(32).flex_none().px(10).gap(8).items_center().rounded(6).border_1()
-        .border_color(this.focusIn ? t.accent : t.input).bg(t.background)
-        .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
-        .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(12.5).text_color(t.foreground)))
-      .child(add)
-      // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).
-      .child(v_flex().id("pk-list").flex_none().h(Math.min(all.length, PICKER_ROWS_MAX) * (ROW_H + 1)).gap(1).overflow_y_scrollbar().children(all));
+    return (
+      v_flex()
+        .id("projects")
+        .track_focus(this.handle)
+        .on_key_down((e, cx) => this.key(e, cx))
+        .size_full()
+        .p(8)
+        .gap(6)
+        .bg(t.popover)
+        .text_color(t.foreground)
+        .child(
+          h_flex()
+            .h(32)
+            .flex_none()
+            .px(10)
+            .gap(8)
+            .items_center()
+            .rounded(6)
+            .border_1()
+            .border_color(this.focusIn ? t.accent : t.input)
+            .bg(t.background)
+            .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
+            .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(12.5).text_color(t.foreground)),
+        )
+        .child(add)
+        // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).
+        .child(
+          v_flex()
+            .id("pk-list")
+            .flex_none()
+            .h(Math.min(all.length, PICKER_ROWS_MAX) * (ROW_H + 1))
+            .gap(1)
+            .overflow_y_scrollbar()
+            .children(all),
+        )
+    );
   }
 }

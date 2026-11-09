@@ -10,7 +10,7 @@ const KINDS = new Set(["claude", "codex", "cursor", "pi", "muse", "grok", "open_
 const FROM_KIND = { open_code: "opencode" };
 const TO_KIND = { opencode: "open_code" };
 
-export const harnessOf = (p) => (p.kind === "custom" ? p.custom_harness : FROM_KIND[p.kind] ?? p.kind);
+export const harnessOf = (p) => (p.kind === "custom" ? p.custom_harness : (FROM_KIND[p.kind] ?? p.kind));
 export const kindOf = (harness) => TO_KIND[harness] ?? harness;
 
 const optText = (v) => v === undefined || v === null || typeof v === "string";
@@ -20,18 +20,33 @@ function readEntry(e) {
   const kind = e.kind ?? "claude";
   if (!KINDS.has(kind) || !optText(e.custom_harness) || !optText(e.model) || !optText(e.effort) || !optText(e.prefix) || !optText(e.postfix)) return null;
   if (e.skip_task !== undefined && typeof e.skip_task !== "boolean") return null;
-  return { ...e, name: e.name, kind, custom_harness: e.custom_harness ?? null, model: e.model ?? null, effort: e.effort ?? null, prefix: e.prefix ?? "", postfix: e.postfix ?? "", skip_task: e.skip_task ?? false };
+  return {
+    ...e,
+    name: e.name,
+    kind,
+    custom_harness: e.custom_harness ?? null,
+    model: e.model ?? null,
+    effort: e.effort ?? null,
+    prefix: e.prefix ?? "",
+    postfix: e.postfix ?? "",
+    skip_task: e.skip_task ?? false,
+  };
 }
 
 const entries = (text) => {
   try {
     const d = JSON.parse(text);
     return Array.isArray(d) ? d : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 // text may be null (no file yet): that reads as no presets.
-export const readPresets = (text) => entries(text ?? "").map(readEntry).filter(Boolean);
+export const readPresets = (text) =>
+  entries(text ?? "")
+    .map(readEntry)
+    .filter(Boolean);
 
 export const same = (a, b) => String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
 
@@ -41,7 +56,11 @@ export function writePresets(presets, storedText) {
   for (const e of stored) {
     if (!readEntry(e) && !presets.some((p) => typeof e?.name === "string" && same(e.name, p.name))) out.push(e);
   }
-  return JSON.stringify(out, null, 2) + "\n";
+  return `${JSON.stringify(out, null, 2)}\n`;
 }
 
-export const composePrompt = (p, task) => [p.prefix, task, p.postfix].map((s) => String(s ?? "").trim()).filter(Boolean).join("\n\n");
+export const composePrompt = (p, task) =>
+  [p.prefix, task, p.postfix]
+    .map((s) => String(s ?? "").trim())
+    .filter(Boolean)
+    .join("\n\n");

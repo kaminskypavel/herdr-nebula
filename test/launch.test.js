@@ -1,31 +1,69 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  WT, branchOf, withoutEnter, planLaunch, runSteps, bind, worktreePath, installedHarnesses, usablePresets, applyPreset, cyclePreset, prefillOf, checkoutIndex,
+  WT,
+  branchOf,
+  withoutEnter,
+  planLaunch,
+  runSteps,
+  bind,
+  worktreePath,
+  installedHarnesses,
+  usablePresets,
+  applyPreset,
+  cyclePreset,
+  prefillOf,
+  checkoutIndex,
 } from "../mods/nebula/lib/launch.js";
 import { launchLabels } from "../mods/nebula/lib/labels.js";
 
 const repo = { root: "/w/app", name: "app" };
-const checkouts = [{ path: "/w/app", branch: "main" }, { path: "/w/app-worktrees/fix-x", branch: "fix-x" }];
-const base = { repo, checkouts, checkout: "/w/app", newWorktree: false, branch: "", branchExists: false, spaces: [], harness: "claude", model: null, effort: null, preset: null, task: "Fix X", from: "board" };
+const checkouts = [
+  { path: "/w/app", branch: "main" },
+  { path: "/w/app-worktrees/fix-x", branch: "fix-x" },
+];
+const base = {
+  repo,
+  checkouts,
+  checkout: "/w/app",
+  newWorktree: false,
+  branch: "",
+  branchExists: false,
+  spaces: [],
+  harness: "claude",
+  model: null,
+  effort: null,
+  preset: null,
+  task: "Fix X",
+  from: "board",
+};
 const plan = (o) => planLaunch({ ...base, ...o });
 const launchStep = (p) => p.steps.find((s) => s.launch);
 
 test("a checkout already shown in a space plans tab.new in that space", () => {
   const p = plan({ spaces: [{ id: "s1", path: "/w/app/src" }] });
-  assert.deepEqual(p.steps.map((s) => s.type === "do" ? s.name : s.type), ["space.select", "tab.new", "labels", "keys"]);
+  assert.deepEqual(
+    p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
+    ["space.select", "tab.new", "labels", "keys"],
+  );
   assert.deepEqual(launchStep(p).args, { space: "s1", folder: "/w/app", argv: ["claude", "Fix X"] });
 });
 
 test("a space inside a deeper checkout does not count for the outer one", () => {
-  const nested = [{ path: "/w/app", branch: "main" }, { path: "/w/app/.wt/a", branch: "a" }];
+  const nested = [
+    { path: "/w/app", branch: "main" },
+    { path: "/w/app/.wt/a", branch: "a" },
+  ];
   const p = plan({ checkouts: nested, spaces: [{ id: "s9", path: "/w/app/.wt/a" }] });
   assert.equal(launchStep(p).name, "space.new");
 });
 
 test("a checkout with no space plans space.new at its path", () => {
   const p = plan({ checkout: "/w/app-worktrees/fix-x", spaces: [{ id: "s1", path: "/w/app" }] });
-  assert.deepEqual(p.steps.map((s) => s.type === "do" ? s.name : s.type), ["space.new", "labels", "keys"]);
+  assert.deepEqual(
+    p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
+    ["space.new", "labels", "keys"],
+  );
   assert.deepEqual(launchStep(p).args, { folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"] });
 });
 
@@ -99,7 +137,10 @@ test("presets of a harness that is not installed are not offered, and applying o
     { name: "C", kind: "custom", custom_harness: "mine" },
     { name: "D", kind: "open_code", model: "x", effort: null },
   ];
-  assert.deepEqual(usablePresets(presets, ["claude", "opencode"]).map((p) => p.name), ["A", "D"]);
+  assert.deepEqual(
+    usablePresets(presets, ["claude", "opencode"]).map((p) => p.name),
+    ["A", "D"],
+  );
   assert.deepEqual(applyPreset(presets[0]), { harness: "claude", model: "opus", effort: "high" });
   assert.deepEqual(applyPreset(presets[3]), { harness: "opencode", model: "x", effort: null });
 });
@@ -160,7 +201,7 @@ const stub = (replies) => {
     calls.push([prog, ...args]);
     const r = replies[prog === "herdr-app" ? args[1] : prog];
     if (r instanceof Error) throw r;
-    return typeof r === "function" ? r(args) : r ?? { code: 0, stdout: "{}", stderr: "" };
+    return typeof r === "function" ? r(args) : (r ?? { code: 0, stdout: "{}", stderr: "" });
   };
   return { calls, exec };
 };
@@ -217,6 +258,8 @@ test("a failing label does not fail the launch; a reply with no terminal skips t
 test("onStep sees each step before it runs", async () => {
   const { exec } = stub({ wt: ok({ path: "/p" }), "space.new": ok({ terminal: "t1" }) });
   const seen = [];
-  await runSteps(wtPlan(), exec, (s) => seen.push(s.type));
+  await runSteps(wtPlan(), exec, (s) => {
+    seen.push(s.type);
+  });
   assert.deepEqual(seen, ["wt", "do", "labels", "keys"]);
 });

@@ -21,14 +21,23 @@ export class Menu {
   }
 
   choose(i) {
-    const it = this.items()[i], p = props() ?? {};
+    const it = this.items()[i],
+      p = props() ?? {};
     closeOverlay(p.overlay);
     if (it && p.id) setShared(ROW_ACTION, { id: p.id, action: it.id, n: Date.now() });
   }
 
   render() {
-    const t = theme(), list = this.items();
-    return v_flex().id("row-menu").track_focus(this.handle).w_full().min_h(0).p(5).bg(t.popover).text_size(12.8)
+    const t = theme(),
+      list = this.items();
+    return v_flex()
+      .id("row-menu")
+      .track_focus(this.handle)
+      .w_full()
+      .min_h(0)
+      .p(5)
+      .bg(t.popover)
+      .text_size(12.8)
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;
@@ -37,14 +46,27 @@ export class Menu {
         else return;
         cx.notify();
       })
-      .children(list.map((a, i) => v_flex()
-        .when(Boolean(a.sep), (el) => el.child(div().mx(7).my(4).h(1).bg(t.border)))
-        .child(h_flex().id(`row-menu-${a.id}`).h(31).px(8).gap(9).rounded(7).items_center().cursor_pointer()
-          .text_color(a.danger ? t.blocked : t.foreground)
-          .when(i === this.at, (el) => el.bg(t.selected))
-          .hover((s) => s.bg(t.hover))
-          .on_click(() => this.choose(i))
-          .child(div().flex_1().child(a.label))
-          .child(div().flex_none().text_size(11).text_color(t.dim).child(a.key)))));
+      .children(
+        list.map((a, i) =>
+          v_flex()
+            .when(Boolean(a.sep), (el) => el.child(div().mx(7).my(4).h(1).bg(t.border)))
+            .child(
+              h_flex()
+                .id(`row-menu-${a.id}`)
+                .h(31)
+                .px(8)
+                .gap(9)
+                .rounded(7)
+                .items_center()
+                .cursor_pointer()
+                .text_color(a.danger ? t.blocked : t.foreground)
+                .when(i === this.at, (el) => el.bg(t.selected))
+                .hover((s) => s.bg(t.hover))
+                .on_click(() => this.choose(i))
+                .child(div().flex_1().child(a.label))
+                .child(div().flex_none().text_size(11).text_color(t.dim).child(a.key)),
+            ),
+        ),
+      );
   }
 }

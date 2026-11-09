@@ -47,10 +47,20 @@ export function hookSubs(labels, now = null) {
   for (const [k, v] of Object.entries(labels ?? {})) {
     if (!k.startsWith(SUB_PREFIX) || !v) continue;
     let d;
-    try { d = JSON.parse(v); } catch { continue; }
+    try {
+      d = JSON.parse(v);
+    } catch {
+      continue;
+    }
     if (!d || typeof d !== "object") continue;
-    const h = { id: k.slice(SUB_PREFIX.length), app: typeof d.app === "string" ? d.app : "claude", type: typeof d.type === "string" ? d.type : "",
-      at: Number.isFinite(d.at) ? d.at : 0, desc: typeof d.desc === "string" ? d.desc : "", model: typeof d.model === "string" ? d.model : "" };
+    const h = {
+      id: k.slice(SUB_PREFIX.length),
+      app: typeof d.app === "string" ? d.app : "claude",
+      type: typeof d.type === "string" ? d.type : "",
+      at: Number.isFinite(d.at) ? d.at : 0,
+      desc: typeof d.desc === "string" ? d.desc : "",
+      model: typeof d.model === "string" ? d.model : "",
+    };
     if (!h.id || (now !== null && h.at && now - h.at >= HOOK_MAX_AGE)) continue;
     out.push(h);
   }
@@ -61,7 +71,8 @@ export function hookSubs(labels, now = null) {
 // ("claude-code"), "codex" under Codex. Another app's leftover label (an earlier agent
 // in the same terminal) doesn't show under this one.
 export const sameApp = (parentApp, app) => {
-  const p = String(parentApp ?? "").toLowerCase(), a = String(app ?? "").toLowerCase();
+  const p = String(parentApp ?? "").toLowerCase(),
+    a = String(app ?? "").toLowerCase();
   return Boolean(p && a) && (p === a || p.startsWith(`${a}-`) || p.startsWith(a));
 };
 

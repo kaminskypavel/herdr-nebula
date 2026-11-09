@@ -43,7 +43,8 @@ const first = (config, keys) => keys.map((k) => config[k]).find((v) => typeof v 
 // our lists stay as free text.
 export function settingsFromNebula(config) {
   const c = config && typeof config === "object" && !Array.isArray(config) ? config : {};
-  const patch = {}, harnesses = {};
+  const patch = {},
+    harnesses = {};
   for (const id of Object.keys(HARNESSES)) {
     const keys = id === "opencode" ? ["opencode", "open_code"] : [id];
     const model = keys.map((k) => pick(c[`${k}_model`])).find(Boolean) ?? null;
@@ -61,7 +62,8 @@ export function settingsFromNebula(config) {
 // The patch laid over the current settings. A harness the patch names changes only the
 // parts it carries, so an effort nebula leaves at default keeps ours.
 export function applySettings(current, patch) {
-  const s = mergeSettings(current), harnesses = { ...s.harnesses };
+  const s = mergeSettings(current),
+    harnesses = { ...s.harnesses };
   for (const [id, c] of Object.entries(patch.harnesses ?? {})) {
     harnesses[id] = { model: c.model ?? harnesses[id]?.model ?? null, effort: c.effort ?? harnesses[id]?.effort ?? null };
   }
@@ -71,8 +73,7 @@ export function applySettings(current, patch) {
 
 // "claude: opus, high effort; editor: nano"
 export function describeSettings(patch) {
-  const parts = Object.entries(patch.harnesses ?? {}).map(([id, c]) =>
-    `${id}: ${[c.model, c.effort && `${c.effort} effort`].filter(Boolean).join(", ")}`);
+  const parts = Object.entries(patch.harnesses ?? {}).map(([id, c]) => `${id}: ${[c.model, c.effort && `${c.effort} effort`].filter(Boolean).join(", ")}`);
   if (patch.editor) parts.push(`editor: ${patch.editor}`);
   if (typeof patch.confirmArchive === "boolean") parts.push(`confirm archive: ${patch.confirmArchive ? "on" : "off"}`);
   return parts.join("; ");
@@ -81,7 +82,8 @@ export function describeSettings(patch) {
 // Adds the roots that are neither listed nor removed on purpose, in nebula's order.
 export function planImport(store, projects) {
   const removed = new Set((store?.removed ?? []).map(norm));
-  let next = store ?? {}, added = 0;
+  let next = store ?? {},
+    added = 0;
   for (const p of projects) {
     if (removed.has(norm(p.root))) continue;
     const was = projectList(next).length;

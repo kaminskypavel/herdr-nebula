@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readPresets, writePresets } from "../mods/nebula/lib/presets.js";
-import { disabledReason, rowsOf, removePreset, savePreset, presetFrom, NEW_PRESET, launchPrefill, isStale, writeFailure } from "../mods/nebula/lib/preset-list.js";
+import { rowsOf, removePreset, savePreset, presetFrom, NEW_PRESET, launchPrefill, isStale, writeFailure } from "../mods/nebula/lib/preset-list.js";
 
 const file = JSON.stringify([
   { name: "reviewer", kind: "codex", model: "gpt-5.5", pinned: true },
@@ -17,10 +17,16 @@ const known = [
 
 test("deleting one preset leaves the others with their unknown fields", () => {
   const left = removePreset(readPresets(file), "Scratch");
-  assert.deepEqual(left.map((p) => p.name), ["reviewer", "poet", "ghost"]);
+  assert.deepEqual(
+    left.map((p) => p.name),
+    ["reviewer", "poet", "ghost"],
+  );
   const saved = JSON.parse(writePresets(left, file));
   assert.equal(saved.find((e) => e.name === "reviewer").pinned, true);
-  assert.equal(saved.find((e) => e.name === "scratch"), undefined);
+  assert.equal(
+    saved.find((e) => e.name === "scratch"),
+    undefined,
+  );
 });
 
 test("a muse preset is disabled with no Herdr program, an uninstalled one says so", () => {
@@ -67,15 +73,27 @@ test("presetFrom maps the editor's fields to nebula's kind and keeps other field
 test("a preset launches the box through its prefill", () => {
   const p = readPresets(file)[0];
   assert.deepEqual(launchPrefill(p, { newWorktree: true, branch: "calm-otter" }), {
-    harness: "codex", model: "gpt-5.5", effort: null, preset: "reviewer", newWorktree: true, branch: "calm-otter",
+    harness: "codex",
+    model: "gpt-5.5",
+    effort: null,
+    preset: "reviewer",
+    newWorktree: true,
+    branch: "calm-otter",
   });
 });
 
 test("choosing a preset hands the typed task, checkout and repo back to the box", () => {
   const p = readPresets(file)[0];
   assert.deepEqual(launchPrefill(p, { newWorktree: false, branch: "b", task: "fix it", checkout: "/w/app-worktrees/x", root: "/w/app" }), {
-    harness: "codex", model: "gpt-5.5", effort: null, preset: "reviewer", newWorktree: false, branch: "b",
-    task: "fix it", checkout: "/w/app-worktrees/x", root: "/w/app",
+    harness: "codex",
+    model: "gpt-5.5",
+    effort: null,
+    preset: "reviewer",
+    newWorktree: false,
+    branch: "b",
+    task: "fix it",
+    checkout: "/w/app-worktrees/x",
+    root: "/w/app",
   });
 });
 

@@ -1,14 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  actionsFor, isLinked, worktreeOffer, parseLines, removeLabel, planRemove, summarizeCheck, settleRemove, forceCount, recheckRemove, planDelete, aloneInTab, editorCommand, tabCommand,
+  actionsFor,
+  whereIs,
+  rowAction,
+  isLinked,
+  worktreeOffer,
+  parseLines,
+  removeLabel,
+  planRemove,
+  summarizeCheck,
+  settleRemove,
+  forceCount,
+  recheckRemove,
+  planDelete,
+  aloneInTab,
+  editorCommand,
+  tabCommand,
 } from "../mods/nebula/lib/actions.js";
 import { buildBoard } from "../mods/nebula/lib/viewmodel.js";
 
-const repos = [{
-  root: "/w/checkout-flow", name: "checkout-flow",
-  checkouts: [{ path: "/w/checkout-flow", branch: "main" }, { path: "/w/checkout-flow-worktrees/fix-x", branch: "fix-x" }],
-}];
+const repos = [
+  {
+    root: "/w/checkout-flow",
+    name: "checkout-flow",
+    checkouts: [
+      { path: "/w/checkout-flow", branch: "main" },
+      { path: "/w/checkout-flow-worktrees/fix-x", branch: "fix-x" },
+    ],
+  },
+];
 const claude = { key: "claude", name: "Claude Code", shell: false };
 const term = (address, cwd, status = "working") => ({ address, cwd, status, state: "live", app: "claude-code", program: claude, labels: {} });
 const tab = (id, settled = false) => ({ id, name: id, named: true, settled, changed_at: 1000, working_since: null });
@@ -29,12 +50,18 @@ test("only a checkout under <repo>-worktrees is linked", () => {
 });
 
 test("deleting one of two sessions in a worktree offers no removal", () => {
-  const m = model([["t1", WT], ["t2", WT]]);
+  const m = model([
+    ["t1", WT],
+    ["t2", WT],
+  ]);
   assert.equal(worktreeOffer(m, "t1"), null);
 });
 
 test("deleting the last session in a linked worktree offers it, with root, path and branch", () => {
-  const m = model([["t1", WT], ["t2", "/w/checkout-flow"]]);
+  const m = model([
+    ["t1", WT],
+    ["t2", "/w/checkout-flow"],
+  ]);
   assert.deepEqual(worktreeOffer(m, "t1"), { root: "/w/checkout-flow", path: WT, branch: "fix-x" });
 });
 
@@ -44,10 +71,25 @@ test("the main checkout never offers removal, even for its last session", () => 
 });
 
 test("an archived session in the worktree means the deleted one was not the last", () => {
-  const m = model([["t1", WT], ["t2", WT, true]]);
+  const m = model([
+    ["t1", WT],
+    ["t2", WT, true],
+  ]);
   assert.equal(worktreeOffer(m, "t1"), null);
   // The board hides archived rows; counting only those would wrongly offer removal.
-  assert.deepEqual(worktreeOffer(model([["t1", WT], ["t2", WT, true]], false), "t1"), { root: "/w/checkout-flow", path: WT, branch: "fix-x" });
+  assert.deepEqual(
+    worktreeOffer(
+      model(
+        [
+          ["t1", WT],
+          ["t2", WT, true],
+        ],
+        false,
+      ),
+      "t1",
+    ),
+    { root: "/w/checkout-flow", path: WT, branch: "fix-x" },
+  );
 });
 
 test("a session outside every repo offers nothing", () => {
@@ -90,7 +132,11 @@ test("delete kills the terminal; a lone agent also closes its tab, confirmed", (
 });
 
 test("an agent is alone in a tab when no other pane shares it", () => {
-  const panes = [{ pane: "p1", tab: "tab1", terminal: "t1" }, { pane: "p2", tab: "tab1", terminal: "t2" }, { pane: "p3", tab: "tab2", terminal: "t3" }];
+  const panes = [
+    { pane: "p1", tab: "tab1", terminal: "t1" },
+    { pane: "p2", tab: "tab1", terminal: "t2" },
+    { pane: "p3", tab: "tab2", terminal: "t3" },
+  ];
   assert.equal(aloneInTab(panes, "tab1", "t1"), false);
   assert.equal(aloneInTab(panes, "tab2", "t3"), true);
   assert.equal(aloneInTab([], "tab1", "t1"), true);
@@ -121,7 +167,10 @@ test("the menu lists each action with its key; archive and unarchive swap", () =
 
 test("relaunch needs a launch label; tab actions need a tab", () => {
   assert.ok(!actionsFor({ archived: false, tab: "x" }, false).some((a) => a.id === "relaunch"));
-  assert.deepEqual(actionsFor({ archived: false, tab: null }, false).map((a) => a.id), ["folder", "delete"]);
+  assert.deepEqual(
+    actionsFor({ archived: false, tab: null }, false).map((a) => a.id),
+    ["folder", "delete"],
+  );
 });
 
 test("an exited board launch offers relaunch and delete (and the rest)", () => {
@@ -178,5 +227,31 @@ test("a failed re-check or an unknown first check never allows -f", () => {
 });
 
 test("a nebula row offers only Hide from board", () => {
-  assert.deepEqual(actionsFor({ kind: "nebula" }, false).map((a) => a.id), ["hide"]);
+  assert.deepEqual(
+    actionsFor({ kind: "nebula" }, false).map((a) => a.id),
+    ["hide"],
+  );
+});
+
+test("a nebula row's Hide is on d, and delete or archive on it both mean hide", () => {
+  assert.deepEqual(actionsFor({ kind: "nebula" }, true), [{ id: "hide", label: "Hide from board", key: "d" }]);
+  const row = { kind: "nebula" };
+  assert.equal(rowAction(row, "delete"), "hide");
+  assert.equal(rowAction(row, "archive"), "hide");
+  assert.equal(rowAction(row, "hide"), "hide");
+  assert.equal(rowAction(row, "rename"), "rename");
+});
+
+test("other rows keep the action asked for", () => {
+  for (const a of ["delete", "archive", "unarchive", "rename"]) assert.equal(rowAction({ kind: "agent" }, a), a);
+  assert.equal(rowAction({}, "delete"), "delete");
+});
+
+test("whereIs finds the repo and band holding a row, else null", () => {
+  const band = { rows: [{ id: "a" }, { id: "b" }] };
+  const repo = { bands: [{ rows: [{ id: "z" }] }, band] };
+  const model = { repos: [{ bands: [] }, repo] };
+  assert.deepEqual(whereIs(model, "b"), { repo, band });
+  assert.equal(whereIs(model, "nope"), null);
+  assert.equal(whereIs({ repos: [] }, "a"), null);
 });

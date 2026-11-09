@@ -27,7 +27,8 @@ test("pinGone: only a pin missing from the terminals", () => {
 });
 
 test("withPin adds a pinned block beside main and leaves the input alone", () => {
-  const before = tree(), json = JSON.stringify(before);
+  const before = tree(),
+    json = JSON.stringify(before);
   const out = withPin(before, "t7");
   assert.equal(JSON.stringify(before), json);
   assert.deepEqual(kids(out), ["main", PIN_ID]);

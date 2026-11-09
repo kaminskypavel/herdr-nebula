@@ -22,7 +22,8 @@ export const byName = (get) => (a, b) => fold(get(a)).localeCompare(fold(get(b))
 // Index in STATUS_ORDER of the most urgent status among the rows; all grey (exited,
 // nebula) or no rows sorts last.
 const urgency = (rows) => {
-  const i = STATUS_ORDER.findIndex((s) => rows.some((r) => r.status === s));
+  const have = new Set(rows.map((r) => r.status)),
+    i = STATUS_ORDER.findIndex((s) => have.has(s));
   return i < 0 ? STATUS_ORDER.length : i;
 };
 
@@ -31,7 +32,9 @@ const urgency = (rows) => {
 // Sort "status": sessions as buildBoard ordered them (needs you ... grey last), projects by
 // their most urgent status. Sort "name": projects, worktrees and sessions alphabetical.
 export function arrange(model, { filter = "", sort = "status" } = {}) {
-  const q = fold(filter).trim(), has = (s) => fold(s).includes(q), byTitle = byName((r) => r.title);
+  const q = fold(filter).trim(),
+    has = (s) => fold(s).includes(q),
+    byTitle = byName((r) => r.title);
   const repos = [];
   for (const repo of model.repos) {
     const whole = !q || has(repo.name);

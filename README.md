@@ -71,17 +71,17 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 
 ## Keys
 
-| Where | Key | Does |
-|---|---|---|
-| Anywhere | <kbd>⌃`</kbd> | Board takes the keys; again hands them back |
-| Anywhere | <kbd>⌘]</kbd> <kbd>⌘[</kbd> | Next, previous session that needs you |
-| Anywhere | <kbd>⌘K</kbd> | New session |
-| Anywhere | <kbd>⌘1</kbd> to <kbd>⌘9</kbd> | Select a project in the icon bar |
-| Board | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click | Move, show the agent |
-| Board | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd> | New session, presets, next view |
-| Board | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete |
-| Board | <kbd>s</kbd>, or shift-click | Pin the agent beside the active one (again to unpin) |
-| Board | <kbd>0</kbd>, <kbd>1</kbd> to <kbd>9</kbd> | Select the All tab, or an open project tab |
+| Where    | Key                                                 | Does                                                 |
+| -------- | --------------------------------------------------- | ---------------------------------------------------- |
+| Anywhere | <kbd>⌃`</kbd>                                       | Board takes the keys; again hands them back          |
+| Anywhere | <kbd>⌘]</kbd> <kbd>⌘[</kbd>                         | Next, previous session that needs you                |
+| Anywhere | <kbd>⌘K</kbd>                                       | New session                                          |
+| Anywhere | <kbd>⌘1</kbd> to <kbd>⌘9</kbd>                      | Select a project in the icon bar                     |
+| Board    | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click  | Move, show the agent                                 |
+| Board    | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd>              | New session, presets, next view                      |
+| Board    | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete                   |
+| Board    | <kbd>s</kbd>, or shift-click                        | Pin the agent beside the active one (again to unpin) |
+| Board    | <kbd>0</kbd>, <kbd>1</kbd> to <kbd>9</kbd>          | Select the All tab, or an open project tab           |
 
 The <kbd>?</kbd> button on the icon bar lists them all, live.
 
@@ -91,7 +91,9 @@ Switch back with <kbd>⌘⇧L</kbd>. The hooks (prompt, and for Claude Code the 
 
 ## Develop
 
-`node --test` runs the tests; `herdr-app check mods/nebula` checks the board mod.
+`npm ci` once, then `npm run check` runs lint (Biome), the format check, the type check (`tsc`, against loose stand-ins for the Herdr modules in `types/`) and the tests (`node --test`). `npm run format` fixes formatting. CI runs the same `npm run check` on every push to main and every pull request.
+
+`herdr-app check mods/nebula` checks the board mod. After `scripts/install.sh`, `herdr-app check mods/nebula-box` checks the box mod too.
 
 ---
 

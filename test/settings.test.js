@@ -25,7 +25,15 @@ test("a stored partial setting keeps the other defaults", () => {
 });
 
 test("a value of the wrong kind falls back to its default, unknown keys stay", () => {
-  const s = mergeSettings({ view: "grid", harness: "nope", autoTitle: "yes", presetSide: 3, editor: "  ", extra: 7, harnesses: { claude: { model: 4, effort: "high" }, nope: { model: "x" } } });
+  const s = mergeSettings({
+    view: "grid",
+    harness: "nope",
+    autoTitle: "yes",
+    presetSide: 3,
+    editor: "  ",
+    extra: 7,
+    harnesses: { claude: { model: 4, effort: "high" }, nope: { model: "x" } },
+  });
   assert.equal(s.view, "tree");
   assert.equal(s.harness, "claude");
   assert.equal(s.autoTitle, true);
@@ -59,13 +67,18 @@ test("strokeLabel turns keys.json spellings into symbols", () => {
   assert.equal(strokeLabel("cmd-]", false), "Super+]");
   assert.equal(strokeLabel("n", true), "n");
   assert.equal(strokeLabel("N", true), "⇧N");
+  assert.equal(strokeLabel("cmd--", true), "⌘-");
+  assert.equal(strokeLabel("ctrl-shift-tab", false), "Ctrl+Shift+Tab");
 });
 
 const rowOf = (groups, group, text) => groups.find((g) => g.group === group).rows.find((r) => r.text === text);
 
 test("with no rebinds the groups show the built-in keys", () => {
   const groups = groupShortcuts([], true);
-  assert.deepEqual(groups.map((g) => g.group), ["Anywhere", "New-session box", "Board"]);
+  assert.deepEqual(
+    groups.map((g) => g.group),
+    ["Anywhere", "New-session box", "Board"],
+  );
   assert.equal(rowOf(groups, "Board", "new, presets, view").keys, "p e v");
   assert.equal(rowOf(groups, "Anywhere", "new session").keys, "⌘K");
 });

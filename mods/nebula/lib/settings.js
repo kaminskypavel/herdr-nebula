@@ -22,8 +22,15 @@ export const VIEW_IDS = Object.keys(VIEW_TITLE);
 export const SIDES = ["prefix", "postfix"];
 
 export const DEFAULTS = {
-  view: "tree", harness: "claude", harnesses: {}, newWorktree: false, autoTitle: true,
-  presetSide: "prefix", confirmArchive: false, editor: "open", nebulaSessions: true,
+  view: "tree",
+  harness: "claude",
+  harnesses: {},
+  newWorktree: false,
+  autoTitle: true,
+  presetSide: "prefix",
+  confirmArchive: false,
+  editor: "open",
+  nebulaSessions: true,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -54,7 +61,7 @@ export function mergeSettings(stored) {
   };
 }
 
-export const defaultHarness = (s, ids) => (ids.includes(s.harness) ? s.harness : ids[0] ?? null);
+export const defaultHarness = (s, ids) => (ids.includes(s.harness) ? s.harness : (ids[0] ?? null));
 
 export const harnessChoice = (s, id) => ({ model: s.harnesses[id]?.model ?? null, effort: s.harnesses[id]?.effort ?? null });
 
@@ -63,42 +70,64 @@ export const cycleOf = (list, current, dir) => list[(Math.max(0, list.indexOf(cu
 export function strokeLabel(keys, mac) {
   const names = mac ? { ctrl: "⌃", alt: "⌥", shift: "⇧", cmd: "⌘", fn: "fn" } : { ctrl: "Ctrl", alt: "Alt", shift: "Shift", cmd: "Super", fn: "Fn" };
   const alias = { secondary: mac ? "cmd" : "ctrl", super: "cmd", win: "cmd" };
-  return String(keys).trim().split(/\s+/).filter(Boolean).map((stroke) => {
-    const parts = stroke.split("-");
-    let key = parts.pop();
-    if (key === "") { key = "-"; parts.pop(); }
-    const held = new Set(parts.map((m) => alias[m.toLowerCase()] ?? m.toLowerCase()));
-    if (/^[A-Z]$/.test(key)) held.add("shift");
-    const mods = Object.keys(names).filter((m) => held.has(m)).map((m) => names[m]);
-    const label = key.length === 1 ? (mods.length ? key.toUpperCase() : key) : key[0].toUpperCase() + key.slice(1).toLowerCase();
-    return [...mods, label].join(mac ? "" : "+");
-  }).join(" ");
+  return String(keys)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((stroke) => {
+      const parts = stroke.split("-");
+      let key = parts.pop();
+      if (key === "") {
+        key = "-";
+        parts.pop();
+      }
+      const held = new Set(parts.map((m) => alias[m.toLowerCase()] ?? m.toLowerCase()));
+      if (/^[A-Z]$/.test(key)) held.add("shift");
+      const mods = Object.keys(names)
+        .filter((m) => held.has(m))
+        .map((m) => names[m]);
+      const label = key.length === 1 ? (mods.length ? key.toUpperCase() : key) : key[0].toUpperCase() + key.slice(1).toLowerCase();
+      return [...mods, label].join(mac ? "" : "+");
+    })
+    .join(" ");
 }
 
 const b = (action, def) => ({ action, def });
 const SHORTCUTS = [
-  { group: "Anywhere", col: 0, rows: [
-    { keys: [b("nebula.focus", "⌃`")], text: "board: take keys, fold" },
-    { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
-    { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
-    { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
-  ] },
-  { group: "New-session box", col: 0, rows: [
-    { keys: ["^P", "^T", "Tab"], text: "repo, checkout, agent" },
-    { keys: ["^N", "^B"], text: "new worktree, branch" },
-    { keys: ["^O", "⇧Tab"], text: "next preset, presets list" },
-    { keys: ["^G"], text: "pick the agent" },
-  ] },
-  { group: "Board", col: 1, rows: [
-    { keys: ["j", "k", "↑", "↓"], text: "move highlight" },
-    { keys: ["↩", "click"], text: "show agent" },
-    { keys: [".", ","], text: "next, previous needs-you" },
-    { keys: ["p", "e", "v"], text: "new, presets, view" },
-    { keys: ["s"], text: "pin beside, again to unpin" },
-    { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
-    { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
-    { keys: ["0", "1 to 9"], text: "All tab, project tab" },
-  ] },
+  {
+    group: "Anywhere",
+    col: 0,
+    rows: [
+      { keys: [b("nebula.focus", "⌃`")], text: "board: take keys, fold" },
+      { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
+      { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
+      { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
+    ],
+  },
+  {
+    group: "New-session box",
+    col: 0,
+    rows: [
+      { keys: ["^P", "^T", "Tab"], text: "repo, checkout, agent" },
+      { keys: ["^N", "^B"], text: "new worktree, branch" },
+      { keys: ["^O", "⇧Tab"], text: "next preset, presets list" },
+      { keys: ["^G"], text: "pick the agent" },
+    ],
+  },
+  {
+    group: "Board",
+    col: 1,
+    rows: [
+      { keys: ["j", "k", "↑", "↓"], text: "move highlight" },
+      { keys: ["↩", "click"], text: "show agent" },
+      { keys: [".", ","], text: "next, previous needs-you" },
+      { keys: ["p", "e", "v"], text: "new, presets, view" },
+      { keys: ["s"], text: "pin beside, again to unpin" },
+      { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
+      { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
+      { keys: ["0", "1 to 9"], text: "All tab, project tab" },
+    ],
+  },
 ];
 
 export function groupShortcuts(binds, mac) {

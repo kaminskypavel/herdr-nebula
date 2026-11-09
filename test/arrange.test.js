@@ -27,7 +27,10 @@ test("no filter, status sort: projects by most urgent status, grey and empty las
   assert.deepEqual(ids(m), ["/mike", "/zed", "/apple", "/empty"]);
   assert.equal(m.sort, "status");
   // sessions keep the order buildBoard gave them
-  assert.deepEqual(m.repos[1].rows.map((r) => r.id), ["z1", "z2"]);
+  assert.deepEqual(
+    m.repos[1].rows.map((r) => r.id),
+    ["z1", "z2"],
+  );
 });
 
 test("default sort is status, the same as asking for it", () => {
@@ -37,14 +40,29 @@ test("default sort is status, the same as asking for it", () => {
 test("name sort: projects, worktrees and sessions alphabetical and case-insensitive, nebula rows last in their band", () => {
   const m = arrange(model(), { sort: "name" });
   assert.deepEqual(ids(m), ["/apple", "/empty", "/mike", "/zed"]);
-  assert.deepEqual(m.repos[2].bands.map((b) => b.label), ["Feature-X", "main"]);
-  assert.deepEqual(m.repos[3].rows.map((r) => r.id), ["z2", "z1"]);
-  assert.deepEqual(m.repos[0].rows.map((r) => r.id), ["a1", "a2"]);
+  assert.deepEqual(
+    m.repos[2].bands.map((b) => b.label),
+    ["Feature-X", "main"],
+  );
+  assert.deepEqual(
+    m.repos[3].rows.map((r) => r.id),
+    ["z2", "z1"],
+  );
+  assert.deepEqual(
+    m.repos[0].rows.map((r) => r.id),
+    ["a1", "a2"],
+  );
 });
 
 test("name sort keeps equal names in their order (stable)", () => {
-  const m = arrange({ repos: [repo("/a", "x", [band("/a", "main", [row("1", "same", "seen"), row("2", "SAME", "needs"), row("3", "same", "working")])])] }, { sort: "name" });
-  assert.deepEqual(m.repos[0].rows.map((r) => r.id), ["1", "2", "3"]);
+  const m = arrange(
+    { repos: [repo("/a", "x", [band("/a", "main", [row("1", "same", "seen"), row("2", "SAME", "needs"), row("3", "same", "working")])])] },
+    { sort: "name" },
+  );
+  assert.deepEqual(
+    m.repos[0].rows.map((r) => r.id),
+    ["1", "2", "3"],
+  );
 });
 
 test("filter matches the session title, case-insensitively, as a substring", () => {
@@ -66,7 +84,10 @@ test("a project whose name matches stays even with no sessions", () => {
 test("filter matches the worktree label and branch: that band's sessions all show", () => {
   const m = arrange(model(), { filter: "feature" });
   assert.deepEqual(sessions(m), ["m3"]);
-  assert.deepEqual(m.repos[0].bands.map((b) => b.path), ["/mike-wt"]);
+  assert.deepEqual(
+    m.repos[0].bands.map((b) => b.path),
+    ["/mike-wt"],
+  );
   const byBranch = { repos: [repo("/r", "r", [band("/r-wt", "wt", [row("x", "t", "seen")], "fix/login")])] };
   assert.deepEqual(sessions(arrange(byBranch, { filter: "login" })), ["x"]);
 });
@@ -103,13 +124,25 @@ test("columnsModel follows the model's sort", () => {
   const seen = byStatusCols.find((c) => c.status === "seen").rows.map((r) => r.id);
   assert.deepEqual(seen, ["z1", "z2", "a1", "a2"]); // idle first, grey after
   const byNameCols = columnsModel(arrange(model(), { sort: "name" }));
-  assert.deepEqual(byNameCols.find((c) => c.status === "seen").rows.map((r) => r.id), ["z2", "z1", "a2", "a1"]);
+  assert.deepEqual(
+    byNameCols.find((c) => c.status === "seen").rows.map((r) => r.id),
+    ["z2", "z1", "a2", "a1"],
+  );
 });
 
 test("projectColumns keeps the arranged order under name sort and orders by urgency under status", () => {
-  assert.deepEqual(projectColumns(arrange(model(), { sort: "name" })).projects.map((p) => p.key), ["/apple", "/empty", "/mike", "/zed"]);
-  assert.deepEqual(projectColumns(arrange(model(), { sort: "status" })).projects.map((p) => p.key), ["/mike", "/zed", "/apple", "/empty"]);
-  assert.deepEqual(projectColumns(arrange(model(), { sort: "name" }), { project: "/mike" }).worktrees.map((w) => w.label), ["Feature-X", "main"]);
+  assert.deepEqual(
+    projectColumns(arrange(model(), { sort: "name" })).projects.map((p) => p.key),
+    ["/apple", "/empty", "/mike", "/zed"],
+  );
+  assert.deepEqual(
+    projectColumns(arrange(model(), { sort: "status" })).projects.map((p) => p.key),
+    ["/mike", "/zed", "/apple", "/empty"],
+  );
+  assert.deepEqual(
+    projectColumns(arrange(model(), { sort: "name" }), { project: "/mike" }).worktrees.map((w) => w.label),
+    ["Feature-X", "main"],
+  );
 });
 
 test("cleanSort and byName", () => {
@@ -121,7 +154,11 @@ test("cleanSort and byName", () => {
 
 test("bandStats names each part's colour kind, bandParts keeps the text", () => {
   const b = { ahead: 5, added: 14387, deleted: 3 };
-  assert.deepEqual(bandStats(b), [{ kind: "ahead", text: "↑5" }, { kind: "added", text: "+14387" }, { kind: "deleted", text: "−3" }]);
+  assert.deepEqual(bandStats(b), [
+    { kind: "ahead", text: "↑5" },
+    { kind: "added", text: "+14387" },
+    { kind: "deleted", text: "−3" },
+  ]);
   assert.deepEqual(bandParts(b), ["↑5", "+14387", "−3"]);
   assert.deepEqual(bandStats({ ahead: 0, added: 0, deleted: 2 }), [{ kind: "deleted", text: "−2" }]);
 });
