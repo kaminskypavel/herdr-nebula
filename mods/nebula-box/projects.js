@@ -106,7 +106,7 @@ export class Projects {
           badge: div().size(7).rounded_full().bg(t[COLOR[p.status]] ?? t.unknown),
         }),
         div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
-        div().flex_none().text_size(11).text_color(t.dim).child(p.count ? String(p.count) : ""),
+        div().flex_none().text_size(11).text_color(t.dim).child(p.count ? `${p.count} session${p.count === 1 ? "" : "s"}` : ""),
         p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
       ], (cx) => this.choose(i, cx))),
     ];

@@ -177,9 +177,9 @@ export class Rail {
   }
 
   // A project's tab: its icon (the shared picture or initials) with the status dot at the corner.
-  projectTab(t, p, { open, selected }) {
+  projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {};
-    return this.button(t, `proj-${p.root}`, p.name, () => setShared(REPO, p.root),
+    return this.button(t, `proj-${p.root}`, n <= 9 ? `${p.name}  \u2318${n}` : p.name, () => setShared(REPO, p.root),
       projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: ball(p.status, t, 8), ring: p.on ? t.selected : t.chrome }),
       { on: p.on, mark: true, size: 42, menu: () => this.projectMenu(p, open, selected) });
   }
@@ -194,7 +194,7 @@ export class Rail {
       .when(tabs.items.length > 0, (el) => el.child(this.button(t, "all", "All projects (0)", () => setShared(REPO, ALL), svg(icon("layout-grid")).size(16), { on: tabs.all, mark: true })))
       // The project list scrolls when it is taller than the room; the + and the bottom group stay pinned.
       .child(v_flex().id("rail-projects").w_full().min_h(0).flex_shrink_1().items_center().gap(4).overflow_y_scroll()
-        .children(tabs.items.map((p) => this.projectTab(t, p, { open: tabs.open, selected }))))
+        .children(tabs.items.map((p, i) => this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 }))))
       .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
       .child(div().flex_1())
       .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
