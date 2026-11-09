@@ -160,8 +160,9 @@ export class Rail {
   }
 
   // One button. opts: { on (lit: the board is shown, or this tab is selected), dot (a red dot: something needs you),
-  // mark (an accent bar on the bar's left edge while on), size (default 32), menu (a right-click handler) }.
-  button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null } = {}) {
+  // mark (an accent bar on the bar's left edge while on), size (default 32), menu (a right-click handler),
+  // num (the ⌘ number, drawn small in the gutter left of the button) }.
+  button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null, num = null } = {}) {
     return div().id(id).relative().size(size).flex_none().flex().items_center().justify_center().rounded(8).cursor_pointer().tooltip(tip)
       .text_color(on ? t.foreground : t.muted)
       .when(on, (el) => el.bg(t.selected))
@@ -169,6 +170,8 @@ export class Rail {
       .when(Boolean(menu), (el) => el.on_mouse_down("right", menu))
       .on_click(action).child(child)
       .when(on && mark, (el) => el.child(div().absolute().left((size - RAIL_W) / 2).top((size - 16) / 2).w(3).h(16).rounded(2).bg(t.accent)))
+      .when(num !== null, (el) => el.child(div().absolute().left(-13).top(0).h(size).w(8).flex().items_center().justify_center()
+        .text_size(10).text_color(on ? t.muted : t.dim).child(String(num))))
       .when(dot, (el) => el.child(div().absolute().top(5).right(5).size(7).rounded_full().bg(t.ansi1).border_1().border_color(t.chrome)));
   }
 
@@ -181,7 +184,7 @@ export class Rail {
     const icons = shared(ICONS) ?? {};
     return this.button(t, `proj-${p.root}`, n <= 9 ? `${p.name}  \u2318${n}` : p.name, () => setShared(REPO, p.root),
       projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: ball(p.status, t, 8), ring: p.on ? t.selected : t.chrome }),
-      { on: p.on, mark: true, size: 42, menu: () => this.projectMenu(p, open, selected) });
+      { on: p.on, mark: true, size: 42, num: n <= 9 ? n : null, menu: () => this.projectMenu(p, open, selected) });
   }
 
   render() {
