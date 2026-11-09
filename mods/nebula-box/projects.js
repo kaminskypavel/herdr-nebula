@@ -43,7 +43,7 @@ export class Projects {
     return { open, rows: pickerRows(summary, open, this.field.value()) };
   }
 
-  // Rows 0 to n-1 are projects, row n is "Add a project".
+  // Rows 0 to n-1 are projects; -1 is "Add a project", pinned above them.
   choose(i, cx) {
     const { open, rows } = this.data();
     const row = rows[i];
@@ -69,8 +69,8 @@ export class Projects {
 
   move(d, cx) {
     const n = this.data().rows.length + 1;
-    this.at = (this.at + d + n) % n;
-    if (this.at < this.top) this.top = this.at;
+    this.at = ((this.at + 1 + d + n) % n) - 1;
+    if (this.at >= 0 && this.at < this.top) this.top = this.at;
     if (this.at >= this.top + PICKER_ROWS_MAX) this.top = this.at - PICKER_ROWS_MAX + 1;
     cx.notify();
   }
@@ -94,7 +94,11 @@ export class Projects {
 
   render() {
     const t = theme(), { rows } = this.data(), icons = shared(ICONS) ?? {};
-    this.at = Math.min(this.at, rows.length);
+    this.at = Math.min(this.at, rows.length - 1);
+    const add = this.line(t, "pk-add", -1, [
+      svg("mods/nebula/icons/plus.svg").size(13).flex_none().text_color(t.muted),
+      div().flex_1().min_w(0).truncate().text_color(t.muted).child("Add a project..."),
+    ], () => this.add());
     const all = [
       ...rows.map((p, i) => this.line(t, `pk-${p.root}`, i, [
         projectIcon({
@@ -105,10 +109,6 @@ export class Projects {
         div().flex_none().text_size(11).text_color(t.dim).child(p.count ? String(p.count) : ""),
         p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
       ], (cx) => this.choose(i, cx))),
-      this.line(t, "pk-add", rows.length, [
-        svg("mods/nebula/icons/plus.svg").size(13).flex_none().text_color(t.muted),
-        div().flex_1().min_w(0).truncate().text_color(t.muted).child("Add a project..."),
-      ], () => this.add()),
     ];
     return v_flex().id("projects").track_focus(this.handle).on_key_down((e, cx) => this.key(e, cx))
       .size_full().p(8).gap(6).bg(t.popover).text_color(t.foreground)
@@ -116,7 +116,8 @@ export class Projects {
         .border_color(this.focusIn ? t.accent : t.input).bg(t.background)
         .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
         .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(12.5).text_color(t.foreground)))
+      .child(add)
       // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).
-      .child(v_flex().id("pk-list").flex_none().h(Math.min(all.length, PICKER_ROWS_MAX + 1) * (ROW_H + 1)).gap(1).overflow_y_scrollbar().children(all));
+      .child(v_flex().id("pk-list").flex_none().h(Math.min(all.length, PICKER_ROWS_MAX) * (ROW_H + 1)).gap(1).overflow_y_scrollbar().children(all));
   }
 }
