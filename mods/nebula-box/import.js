@@ -17,6 +17,7 @@ import {
   planImport,
 } from "./lib/nebula-import.js";
 import { button, dialogTitle, escapeKey, switchControl } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -110,11 +111,11 @@ export class Import {
           .gap(2)
           .child(
             div()
-              .text_size(13)
+              .text_size(fs(13))
               .text_color(usable ? t.foreground : t.dim)
               .child(title),
           )
-          .child(div().text_size(11.5).text_color(t.dim).child(desc)),
+          .child(div().text_size(fs(11.5)).text_color(t.dim).child(desc)),
       )
       .child(
         switchControl(t, `imp-${id}-sw`, on, (value, cx) => {
@@ -146,14 +147,14 @@ export class Import {
         .gap(16)
         .bg(t.popover)
         .text_color(t.foreground)
-        .text_size(13)
+        .text_size(fs(13))
         .child(dialogTitle(t, "Import from nebula"))
         .child(body)
         .child(h_flex().gap(8).justify_end().children(buttons));
     const close = button(t, "imp-close", "Close", "plain", () => closeOverlay(overlay));
 
-    if (!f) return shell(div().flex_1().text_size(12.5).text_color(t.dim).child("Looking for nebula…"), [close]);
-    if (!f.there && !f.config) return shell(div().flex_1().text_size(12.5).text_color(t.dim).child("nebula was not found on this Mac"), [close]);
+    if (!f) return shell(div().flex_1().text_size(fs(12.5)).text_color(t.dim).child("Looking for nebula…"), [close]);
+    if (!f.there && !f.config) return shell(div().flex_1().text_size(fs(12.5)).text_color(t.dim).child("nebula was not found on this Mac"), [close]);
 
     const plan = this.plan(),
       defaults = describeSettings(this.patch);
@@ -169,7 +170,7 @@ export class Import {
         .flex_1()
         .min_h(0)
         .gap(8)
-        .child(div().px(2).text_size(12).text_color(t.muted).child("Read from nebula's own files. Nothing there changes."))
+        .child(div().px(2).text_size(fs(12)).text_color(t.muted).child("Read from nebula's own files. Nothing there changes."))
         .child(
           v_flex()
             .rounded(10)

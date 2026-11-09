@@ -7,6 +7,7 @@ import { h_flex } from "gpui-base";
 import { COLOR } from "../lib/status.js";
 import { bandStats, bandSummary, summaryParts, BAND_COLOR } from "../lib/viewmodel.js";
 import { rowMeta } from "../lib/rowmeta.js";
+import { fs, rh } from "../lib/scale.js";
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
 export const HEIGHT = { repo: 28, band: 32, session: 26, sub: 22, shelf: 22, empty: 40 };
@@ -24,7 +25,7 @@ export function ball(status, t, size = 8, hollow = false) {
   return status === "working" ? b.loop("opacity", { from: 0.35, to: 1, period: 1200 }) : b;
 }
 
-const age = (text, color) => div().flex_none().text_size(12).text_color(color).child(text);
+const age = (text, color) => div().flex_none().text_size(fs(12)).text_color(color).child(text);
 
 // The agent's icon (12px, dim like the text) and its model and effort; null when there is nothing to say.
 // The text shrinks and truncates, so a long value never pushes the age off.
@@ -35,7 +36,7 @@ export function metaLine(row, t, size = 12) {
     .min_w(0)
     .items_center()
     .gap(5)
-    .text_size(size)
+    .text_size(fs(size))
     .text_color(t.dim)
     .when(Boolean(icon), (el) => el.child(svg(icon).size(12).flex_none().text_color(t.dim)))
     .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
@@ -54,19 +55,19 @@ export function title(row, t) {
     : text;
 }
 
-export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(10).text_color(t.dim).child(text);
+export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(10)).text_color(t.dim).child(text);
 
 export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false }) {
   const meta = metaLine(row, t);
   return h_flex()
-    .h(HEIGHT.session)
+    .h(rh(HEIGHT.session))
     .flex_none()
     .items_center()
     .gap(10)
     .pl(indent)
     .pr(10)
     .rounded(6)
-    .text_size(13)
+    .text_size(fs(13))
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .when(pinned, (el) => el.border_1().border_color(t.accent))
@@ -87,31 +88,31 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
 
 export function subLine(sub, t, { indent = 30 }) {
   return h_flex()
-    .h(HEIGHT.sub)
+    .h(rh(HEIGHT.sub))
     .flex_none()
     .items_center()
     .gap(6)
     .pl(indent + sub.lines.length * 10)
     .pr(10)
-    .text_size(11.5)
+    .text_size(fs(11.5))
     .tooltip(sub.badge ? `${sub.text}\nModel: ${sub.badge}` : sub.text)
     .child(ball(sub.status, t, 6))
     .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(sub.text))
     .when(Boolean(sub.badge), (el) => el.child(badge(sub.badge, t)))
-    .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.dim).text_size(11)));
+    .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.dim).text_size(fs(11))));
 }
 
 export function bandLine(band, t, { indent = 10, folded = false, click = null }) {
   const parts = bandStats(band);
   return h_flex()
-    .h(HEIGHT.band)
+    .h(rh(HEIGHT.band))
     .flex_none()
     .pt(4)
     .items_center()
     .gap(8)
     .pl(indent)
     .pr(10)
-    .text_size(11)
+    .text_size(fs(11))
     .text_color(t.muted)
     .when(Boolean(click), (el) =>
       el
@@ -123,7 +124,7 @@ export function bandLine(band, t, { indent = 10, folded = false, click = null })
       div()
         .w(10)
         .flex_none()
-        .text_size(11)
+        .text_size(fs(11))
         .text_color(t.dim)
         .child(folded ? "▸" : "▾"),
     )
@@ -152,7 +153,7 @@ export const chip = (p, t) =>
   h_flex()
     .gap(4)
     .items_center()
-    .text_size(11)
+    .text_size(fs(11))
     .text_color(tone(p.status, t))
     .child(ball(p.status, t))
     .child(div().child(String(p.n)));
@@ -166,13 +167,13 @@ const chips = (repo, t) =>
 
 export function repoLine(repo, t, { folded, selected, click = null }) {
   return h_flex()
-    .h(HEIGHT.repo)
+    .h(rh(HEIGHT.repo))
     .flex_none()
     .items_center()
     .gap(8)
     .px(10)
     .rounded(6)
-    .text_size(13)
+    .text_size(fs(13))
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .when(Boolean(click), (el) =>
@@ -185,7 +186,7 @@ export function repoLine(repo, t, { folded, selected, click = null }) {
       div()
         .w(10)
         .flex_none()
-        .text_size(11)
+        .text_size(fs(11))
         .text_color(t.dim)
         .child(folded ? "▸" : "▾"),
     )
@@ -196,19 +197,19 @@ export function repoLine(repo, t, { folded, selected, click = null }) {
 
 export const shelfLine = (text, t) =>
   h_flex()
-    .h(HEIGHT.shelf)
+    .h(rh(HEIGHT.shelf))
     .flex_none()
     .pt(6)
     .items_center()
     .gap(8)
     .pl(14)
     .pr(10)
-    .text_size(10)
+    .text_size(fs(10))
     .text_color(t.dim)
     .child(div().flex_none().child(text))
     .child(div().flex_1().h(1).bg(t.border));
 
-export const emptyLine = (text, t) => h_flex().h(HEIGHT.empty).flex_none().items_center().px(14).text_size(12).text_color(t.dim).child(text);
+export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.dim).child(text);
 
 export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null }) {
   const selected = cursor === item.key;

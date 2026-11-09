@@ -10,6 +10,7 @@ import { props, closeOverlay, theme, exec } from "herdr";
 import { planDelete, planRemove, removeLabel, summarizeCheck, settleRemove, forceCount, recheckRemove } from "./lib/actions.js";
 import { WT_TIMEOUT } from "./lib/launch.js";
 import { button, dialogTitle, escapeKey, doCmd } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const SHOWN = 6;
 // The dialog may be closed while the work runs; a redraw of a closed view throws.
@@ -113,12 +114,12 @@ export class Confirm {
   list(t, title, lines, color) {
     return v_flex()
       .gap(2)
-      .child(div().text_size(11.5).text_color(t.dim).child(title))
-      .children(lines.slice(0, SHOWN).map((l) => div().min_w(0).truncate().text_size(12).text_color(color).child(l)))
+      .child(div().text_size(fs(11.5)).text_color(t.dim).child(title))
+      .children(lines.slice(0, SHOWN).map((l) => div().min_w(0).truncate().text_size(fs(12)).text_color(color).child(l)))
       .when(lines.length > SHOWN, (el) =>
         el.child(
           div()
-            .text_size(12)
+            .text_size(fs(12))
             .text_color(t.dim)
             .child(`+${lines.length - SHOWN} more`),
         ),
@@ -153,11 +154,11 @@ export class Confirm {
       .child(
         v_flex()
           .gap(3)
-          .child(div().min_w(0).truncate().text_size(13).font_medium().child(p.title))
-          .child(div().min_w(0).truncate().text_size(12).text_color(t.muted).child([p.worktree, p.status].filter(Boolean).join(" · ")))
+          .child(div().min_w(0).truncate().text_size(fs(13)).font_medium().child(p.title))
+          .child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child([p.worktree, p.status].filter(Boolean).join(" · ")))
           .child(
             div()
-              .text_size(12)
+              .text_size(fs(12))
               .text_color(t.dim)
               .child(p.alone ? "Ends the agent and closes its tab." : "Ends the agent."),
           ),
@@ -165,17 +166,17 @@ export class Confirm {
       .when(Boolean(p.offer), (el) =>
         el
           .child(div().h(1).bg(t.border))
-          .child(div().text_size(12).text_color(t.muted).child(`This is the last session in the worktree ${p.offer.branch}.`))
-          .when(!this.loaded, (e) => e.child(div().text_size(12).text_color(t.dim).child("Checking the worktree…")))
+          .child(div().text_size(fs(12)).text_color(t.muted).child(`This is the last session in the worktree ${p.offer.branch}.`))
+          .when(!this.loaded, (e) => e.child(div().text_size(fs(12)).text_color(t.dim).child("Checking the worktree…")))
           .when(this.files.length > 0, (e) => e.child(this.list(t, `${this.files.length} uncommitted`, this.files, t.working)))
           .when(this.unpushed.length > 0, (e) =>
             e.child(this.list(t, `${this.unpushed.length} unpushed commit${this.unpushed.length === 1 ? "" : "s"}`, this.unpushed, t.working)),
           )
           .when(this.loaded && !this.check.known, (e) =>
-            e.child(div().text_size(12).text_color(t.working).child("Could not check the worktree. Removing will not discard anything.")),
+            e.child(div().text_size(fs(12)).text_color(t.working).child("Could not check the worktree. Removing will not discard anything.")),
           )
           .when(this.check.known && this.files.length === 0 && this.unpushed.length === 0, (e) =>
-            e.child(div().text_size(12).text_color(t.dim).child("Clean, nothing unpushed.")),
+            e.child(div().text_size(fs(12)).text_color(t.dim).child("Clean, nothing unpushed.")),
           )
           .child(
             h_flex()
@@ -197,13 +198,13 @@ export class Confirm {
                   .rounded(4)
                   .border_1()
                   .border_color(this.remove ? t.blocked : t.input)
-                  .text_size(11)
+                  .text_size(fs(11))
                   .text_color(t.blocked)
                   .child(this.remove ? "✓" : ""),
               )
               .child(
                 div()
-                  .text_size(12.5)
+                  .text_size(fs(12.5))
                   .text_color(this.remove ? t.blocked : t.foreground)
                   .child(removeLabel(forceCount(this.check))),
               ),
@@ -213,8 +214,8 @@ export class Confirm {
         el.child(
           v_flex()
             .gap(3)
-            .when(this.deleted, (e) => e.child(div().text_size(12).text_color(t.muted).child("The session is gone. The worktree was kept.")))
-            .child(div().text_size(12).text_color(t.blocked).child(this.error)),
+            .when(this.deleted, (e) => e.child(div().text_size(fs(12)).text_color(t.muted).child("The session is gone. The worktree was kept.")))
+            .child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)),
         ),
       )
       .child(

@@ -31,6 +31,7 @@ import {
   prefillOf,
   withoutEnter,
 } from "./lib/launch.js";
+import { fs } from "./lib/scale.js";
 
 // Two field triggers per row inside the dialog's 22px side padding (640 - 44 = 596 = 2 * 293 + 10).
 const FIELD_W = 293;
@@ -550,7 +551,7 @@ export class Launch {
         h_flex()
           .pb(6)
           .gap(8)
-          .text_size(12.5)
+          .text_size(fs(12.5))
           .child(div().font_semibold().text_color(t.foreground).child(title))
           .child(div().text_color(t.dim).child("↑↓ choose · → deeper · ← back · Esc close")),
       )
@@ -564,7 +565,7 @@ export class Launch {
             .items_center()
             .rounded(6)
             .cursor_pointer()
-            .text_size(13)
+            .text_size(fs(13))
             .text_color(n === i ? t.foreground : t.muted)
             .when(n === i, (el) => el.bg(t.selected))
             .when(n !== i, (el) => el.hover((s) => s.bg(t.hover)))
@@ -573,7 +574,7 @@ export class Launch {
             .child(div().flex_1())
             .child(
               div()
-                .text_size(11.5)
+                .text_size(fs(11.5))
                 .text_color(t.dim)
                 .child(row.hint ?? ""),
             ),
@@ -617,7 +618,7 @@ export class Launch {
       .gap(14)
       .bg(t.popover)
       .text_color(t.foreground)
-      .text_size(13)
+      .text_size(fs(13))
       .child(dialogTitle(t, "New session"))
       .when(Boolean(this.picker), (el) => el.child(this.pickerView(t)))
       .when(!this.picker, (el) =>
@@ -661,14 +662,14 @@ export class Launch {
                   div()
                     .pl(54)
                     .truncate()
-                    .text_size(11.5)
+                    .text_size(fs(11.5))
                     .text_color(t.dim)
                     .child(have ? "Existing worktree" : r ? tilde(worktreePath(r.root, branch), home()) : ""),
                 ),
               ),
           ),
       )
-      .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
+      .when(Boolean(this.error), (el) => el.child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)))
       .child(div().flex_1())
       .child(
         h_flex()
@@ -681,7 +682,7 @@ export class Launch {
               .min_w(0)
               .gap(8)
               .items_center()
-              .text_size(11.5)
+              .text_size(fs(11.5))
               .text_color(t.dim)
               .when(busy || !this.ready, (el) => el.child(div().frames(SPINNER, 90)))
               .child(

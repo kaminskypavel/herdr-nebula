@@ -4,6 +4,7 @@ import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
 import { ball, badge, drawItem, metaLine, title } from "./row.js";
+import { fs } from "../lib/scale.js";
 
 export const items = (model, b) =>
   listItems(model, {
@@ -43,14 +44,14 @@ function card(row, t, selected, click, menu, pinned) {
           h_flex()
             .gap(6)
             .items_center()
-            .child(title(row, t).text_size(13))
+            .child(title(row, t).text_size(fs(13)))
             .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
         )
         .child(
           h_flex()
             .gap(6)
             .items_center()
-            .text_size(11)
+            .text_size(fs(11))
             .text_color(t.muted)
             .child(
               div()
@@ -65,13 +66,13 @@ function card(row, t, selected, click, menu, pinned) {
                 .child(pinned ? "pinned" : row.age),
             ),
         )
-        .when(Boolean(row.prompt), (el) => el.child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(`› ${row.prompt}`)))
+        .when(Boolean(row.prompt), (el) => el.child(div().min_w(0).truncate().text_size(fs(11)).text_color(t.dim).child(`› ${row.prompt}`)))
         .children(
           row.subs.map((s) =>
             h_flex()
               .gap(6)
               .items_center()
-              .text_size(11)
+              .text_size(fs(11))
               .text_color(t.muted)
               .child(div().flex_none().text_color(t.dim).child("└"))
               .child(div().flex_1().min_w(0).truncate().child(s.text))

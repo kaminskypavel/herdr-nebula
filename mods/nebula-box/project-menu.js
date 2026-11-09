@@ -7,6 +7,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, openOverlay, setShared, theme } from "herdr";
 import { OPEN, REPO } from "./lib/shared.js";
 import { closeProject } from "./lib/open.js";
+import { fs } from "./lib/scale.js";
 
 const ITEMS = [
   { id: "close", label: "Close" },
@@ -42,7 +43,7 @@ export class ProjectMenu {
       .min_h(0)
       .p(5)
       .bg(t.popover)
-      .text_size(12.8)
+      .text_size(fs(12.8))
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % ITEMS.length;
         else if (e.key === "up") this.at = (this.at + ITEMS.length - 1) % ITEMS.length;

@@ -15,6 +15,7 @@ import { PRESETS, readPresetFile, openList } from "./presets.js";
 import { mergeSettings, cycleOf } from "./lib/settings.js";
 import { SETTINGS } from "./lib/shared.js";
 import { button, dialogTitle, dropdown, agentIcon, inputBox, textCard } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const CTRL_W = 260;
 const KEYS = { model: 1, effort: 2 }; // the editor field behind each part
@@ -214,12 +215,12 @@ export class PresetEdit {
           .flex_1()
           .min_w(0)
           .gap(2)
-          .child(div().truncate().text_size(13).text_color(t.foreground).child(label))
+          .child(div().truncate().text_size(fs(13)).text_color(t.foreground).child(label))
           .when(Boolean(desc), (el) =>
             el.child(
               div()
                 .truncate()
-                .text_size(11.5)
+                .text_size(fs(11.5))
                 .text_color(tone ?? t.dim)
                 .child(desc),
             ),
@@ -235,7 +236,12 @@ export class PresetEdit {
       .py(10)
       .gap(8)
       .flex_none()
-      .child(v_flex().gap(2).child(div().text_size(13).text_color(t.foreground).child(label)).child(div().text_size(11.5).text_color(t.dim).child(desc)))
+      .child(
+        v_flex()
+          .gap(2)
+          .child(div().text_size(fs(13)).text_color(t.foreground).child(label))
+          .child(div().text_size(fs(11.5)).text_color(t.dim).child(desc)),
+      )
       .child(body);
   }
 
@@ -290,16 +296,16 @@ export class PresetEdit {
       .gap(16)
       .bg(t.popover)
       .text_color(t.foreground)
-      .text_size(13)
+      .text_size(fs(13))
       .child(dialogTitle(t, this.was ? "Edit preset" : "New preset"))
       .child(v_flex().flex_1().min_h(0).overflow_y_scrollbar().child(v_flex().rounded(10).border_1().border_color(t.border).overflow_hidden().children(out)))
-      .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
+      .when(Boolean(this.error), (el) => el.child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)))
       .child(
         h_flex()
           .gap(8)
           .items_center()
           .flex_none()
-          .child(div().flex_1().min_w(0).truncate().text_size(11.5).text_color(t.dim).child("Enter save · ^S save from text boxes · Tab next · ^G agent"))
+          .child(div().flex_1().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child("Enter save · ^S save from text boxes · Tab next · ^G agent"))
           .child(button(t, "pe-cancel", "Cancel", "plain", () => this.leave()))
           .child(button(t, "pe-save", this.busy ? "Saving…" : "Save", "primary", (_e, cx) => this.save(cx))),
       );

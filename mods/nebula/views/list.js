@@ -3,6 +3,7 @@ import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
 import { HEIGHT, drawItem } from "./row.js";
+import { rh } from "../lib/scale.js";
 
 export const items = (model, b) =>
   listItems(model, {
@@ -20,7 +21,7 @@ export function virtualList(b, list, t, deep) {
       v_virtual_list(
         "board-list",
         list.length,
-        list.map((i) => HEIGHT[i.type]),
+        list.map((i) => rh(HEIGHT[i.type])),
         (n) => list[n].key,
         (range) => {
           b.range = range;

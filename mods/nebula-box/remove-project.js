@@ -6,6 +6,7 @@ import { props, closeOverlay, theme, shared, setShared } from "herdr";
 import { STORE, removeProject } from "./lib/repos.js";
 import { OPEN } from "./lib/shared.js";
 import { button, dialogTitle, escapeKey } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 export class RemoveProject {
   init(cx) {
@@ -53,11 +54,11 @@ export class RemoveProject {
             div()
               .min_w(0)
               .truncate()
-              .text_size(13)
+              .text_size(fs(13))
               .font_medium()
               .child(p.name ?? ""),
           )
-          .child(div().text_size(12).text_color(t.dim).child("The folder and its worktrees stay on disk. Add it back from the + button.")),
+          .child(div().text_size(fs(12)).text_color(t.dim).child("The folder and its worktrees stay on disk. Add it back from the + button.")),
       )
       .child(div().flex_1())
       .child(

@@ -14,6 +14,7 @@ import { readPresets, writePresets, harnessOf } from "./lib/presets.js";
 import { rowsOf, removePreset, launchPrefill, writeFailure } from "./lib/preset-list.js";
 import { branchName } from "./lib/branch.js";
 import { button, dialogTitle, agentIcon, inputBox, worktreeRow } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 export const PRESETS = () => `${home()}/Library/Application Support/dev.nebula.nebula/agent_presets.json`;
 // null when there is no file yet: writeTextFile takes that as "create it".
@@ -181,7 +182,7 @@ export class Presets {
   }
 
   badge(t, text) {
-    return h_flex().h(18).px(7).flex_none().items_center().rounded(9).border_1().border_color(t.border).text_size(10.5).text_color(t.dim).child(text);
+    return h_flex().h(18).px(7).flex_none().items_center().rounded(9).border_1().border_color(t.border).text_size(fs(10.5)).text_color(t.dim).child(text);
   }
 
   row(t, r, i) {
@@ -207,11 +208,11 @@ export class Presets {
         this.enter(cx);
       })
       .child(HARNESSES[id] ? svg(agentIcon(id)).size(16).flex_none().text_color(t.foreground) : div().w(16).flex_none())
-      .child(div().max_w(240).truncate().text_size(13).text_color(t.foreground).child(p.name))
-      .child(div().flex_1().min_w(0).truncate().text_size(11.5).text_color(t.dim).child(meta))
+      .child(div().max_w(240).truncate().text_size(fs(13)).text_color(t.foreground).child(p.name))
+      .child(div().flex_1().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(meta))
       .when(Boolean(p.prefix.trim()), (el) => el.child(this.badge(t, "prefix")))
       .when(Boolean(p.postfix.trim()), (el) => el.child(this.badge(t, "postfix")))
-      .when(Boolean(r.reason), (el) => el.child(div().flex_none().text_size(11).text_color(t.blocked).child(r.reason)));
+      .when(Boolean(r.reason), (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.blocked).child(r.reason)));
   }
 
   render() {
@@ -230,7 +231,7 @@ export class Presets {
       .gap(14)
       .bg(t.popover)
       .text_color(t.foreground)
-      .text_size(13)
+      .text_size(fs(13))
       .child(dialogTitle(t, "Agent presets"))
       .child(
         h_flex()
@@ -244,7 +245,7 @@ export class Presets {
           .border_color(this.filterFocus ? t.accent : t.input)
           .bg(t.background)
           .child(svg(SEARCH).size(14).flex_none().text_color(t.dim))
-          .child(Input.new(this.filter).flex_1().h_full().text_size(13).text_color(t.foreground)),
+          .child(Input.new(this.filter).flex_1().h_full().text_size(fs(13)).text_color(t.foreground)),
       )
       .child(
         v_flex()
@@ -258,13 +259,13 @@ export class Presets {
                 .py(28)
                 .flex()
                 .justify_center()
-                .text_size(12.5)
+                .text_size(fs(12.5))
                 .text_color(t.dim)
                 .child(this.presets.length ? "No preset matches." : "No presets yet. Press ^A to add one."),
             ),
           ),
       )
-      .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
+      .when(Boolean(this.error), (el) => el.child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)))
       .child(
         worktreeRow(t, {
           id: "pl-wt",
@@ -287,7 +288,7 @@ export class Presets {
               .flex_1()
               .min_w(0)
               .truncate()
-              .text_size(11.5)
+              .text_size(fs(11.5))
               .text_color(this.confirm ? t.blocked : t.dim)
               .child(this.confirm ? `Delete "${this.confirm}"? Enter yes · Esc no` : "Enter launch · ^A new · ^E edit · ^D delete"),
           )

@@ -35,6 +35,7 @@ import {
   layout,
   notify,
   focused,
+  settings,
 } from "herdr";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
@@ -80,6 +81,7 @@ import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
+import { fs, setTextScale } from "./lib/scale.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -921,7 +923,7 @@ export class Board {
                     .gap(6)
                     .items_center()
                     .rounded(4)
-                    .text_size(12)
+                    .text_size(fs(12))
                     .cursor_pointer()
                     .text_color(on ? t.foreground : t.muted)
                     .when(on, (el) => el.bg(t.selected))
@@ -971,7 +973,7 @@ export class Board {
           .cursor_text()
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
           .child(svg("mods/nebula/icons/search.svg").size(13).flex_none().text_color(t.dim))
-          .child(Input.new(this.input).flex_1().min_w(0).h_full().text_size(12).text_color(t.foreground)),
+          .child(Input.new(this.input).flex_1().min_w(0).h_full().text_size(fs(12)).text_color(t.foreground)),
       )
       .child(
         h_flex()
@@ -990,7 +992,7 @@ export class Board {
                 .px(8)
                 .items_center()
                 .rounded(4)
-                .text_size(11.5)
+                .text_size(fs(11.5))
                 .cursor_pointer()
                 .text_color(on ? t.foreground : t.muted)
                 .when(on, (el) => el.bg(t.selected))
@@ -1031,7 +1033,7 @@ export class Board {
       .border_color(t.border)
       .rounded(6)
       .bg(t.raised)
-      .text_size(12)
+      .text_size(fs(12))
       .text_color(t.foreground)
       .cursor_pointer()
       .hover((s) => s.bg(t.hover))
@@ -1039,7 +1041,7 @@ export class Board {
       .when(compact, (el) => el.tooltip(label))
       .child(svg(`mods/nebula/icons/${icon}.svg`).size(13).flex_none())
       .when(!compact, (el) => el.child(div().child(label)))
-      .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(10).text_color(t.muted).child(hint));
+      .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(10)).text_color(t.muted).child(hint));
   }
 
   // No project to show: a centered empty state when there is nothing else to list, or a
@@ -1054,7 +1056,7 @@ export class Board {
         .items_center()
         .rounded(6)
         .border_1()
-        .text_size(12)
+        .text_size(fs(12))
         .cursor_pointer()
         .border_color(kind === "primary" ? t.solid : t.border)
         .bg(kind === "primary" ? t.solid : t.raised)
@@ -1091,7 +1093,7 @@ export class Board {
             .flex_1()
             .min_w(0)
             .truncate()
-            .text_size(12.5)
+            .text_size(fs(12.5))
             .text_color(t.muted)
             .child(listed ? "No project open" : "No projects yet"),
         )
@@ -1105,7 +1107,7 @@ export class Board {
       .gap(14)
       .child(
         div()
-          .text_size(13)
+          .text_size(fs(13))
           .text_color(t.dim)
           .child(listed ? "No project open" : "No projects yet"),
       )
@@ -1113,6 +1115,7 @@ export class Board {
   }
 
   render() {
+    setTextScale(settings());
     const t = theme();
     this.sync();
     return v_flex()
@@ -1120,7 +1123,7 @@ export class Board {
       .track_focus(this.handle)
       .size_full()
       .bg(t.chrome)
-      .text_size(13)
+      .text_size(fs(13))
       .text_color(t.muted)
       .on_size_change((size, cx) => {
         const was = this.width;

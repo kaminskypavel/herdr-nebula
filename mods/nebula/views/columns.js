@@ -2,6 +2,7 @@ import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
 import { ball, badge, metaLine, title } from "./row.js";
+import { fs } from "../lib/scale.js";
 
 export const items = (model, b) =>
   b?.pc
@@ -34,14 +35,14 @@ function mini(row, t, selected, click, menu, pinned) {
       h_flex()
         .gap(6)
         .items_center()
-        .child(title(row, t).text_size(12))
+        .child(title(row, t).text_size(fs(12)))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )
     .child(
       div()
         .min_w(0)
         .truncate()
-        .text_size(11)
+        .text_size(fs(11))
         .text_color(t.dim)
         .child(pinned ? `${row.where} · pinned` : row.where),
     );
@@ -68,7 +69,7 @@ function modeSwitch(b, t) {
               .px(10)
               .items_center()
               .rounded(4)
-              .text_size(12)
+              .text_size(fs(12))
               .cursor_pointer()
               .text_color(on ? t.foreground : t.muted)
               .when(on, (el) => el.bg(t.selected))
@@ -109,7 +110,7 @@ function statusBody(b, t) {
                   .items_center()
                   .px(2)
                   .pb(4)
-                  .text_size(12)
+                  .text_size(fs(12))
                   .font_semibold()
                   .text_color(t.foreground)
                   .child(ball(c.status, t))
@@ -132,13 +133,13 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
     .px(8)
     .rounded(6)
     .cursor_pointer()
-    .text_size(13)
+    .text_size(fs(13))
     .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .on_click((_e, cx) => click(key, cx))
     .child(ball(status, t))
     .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(name))
-    .child(div().flex_none().text_size(11).text_color(t.dim).child(String(count)));
+    .child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(String(count)));
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
@@ -163,7 +164,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
         .gap(8)
         .items_center()
         .child(ball(row.status, t, 8, row.archived))
-        .child(title(row, t).flex_1().text_size(13))
+        .child(title(row, t).flex_1().text_size(fs(13)))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )
     .child(
@@ -172,7 +173,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
         .min_w(0)
         .items_center()
         .gap(5)
-        .text_size(11)
+        .text_size(fs(11))
         .text_color(t.dim)
         .when(Boolean(meta), (el) => el.child(meta))
         .child(
@@ -196,7 +197,7 @@ function column(i, title, rows, empty, focused, t) {
         .flex_none()
         .px(8)
         .pb(4)
-        .text_size(11)
+        .text_size(fs(11))
         .font_semibold()
         .text_color(focused ? t.foreground : t.dim)
         .child(title),
@@ -208,7 +209,7 @@ function column(i, title, rows, empty, focused, t) {
         .min_h(0)
         .gap(2)
         .overflow_y_scrollbar()
-        .children(rows.length ? rows : [div().px(8).text_size(12).text_color(t.dim).child(empty)]),
+        .children(rows.length ? rows : [div().px(8).text_size(fs(12)).text_color(t.dim).child(empty)]),
     );
 }
 

@@ -6,6 +6,7 @@ import { props, theme, shared } from "herdr";
 import { ICONS } from "./lib/shared.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
+import { fs } from "./lib/scale.js";
 
 export class Hud {
   init() {}
@@ -31,14 +32,14 @@ export class Hud {
           .flex_1()
           .min_w(0)
           .truncate()
-          .text_size(15)
+          .text_size(fs(15))
           .font_semibold()
           .child(p.name ?? ""),
       )
       .child(
         div()
           .flex_none()
-          .text_size(12)
+          .text_size(fs(12))
           .text_color(t.dim)
           .child(`⌘${p.n ?? ""}`),
       );

@@ -6,6 +6,7 @@ import { installedHarnesses } from "./lib/launch.js";
 import { VIEW_IDS, VIEW_TITLE, SIDES, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
 import { SETTINGS } from "./lib/shared.js";
 import { button, dialogTitle, switchControl, segmented, dropdown, agentIcon } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const VIEW_OPTIONS = VIEW_IDS.map((v) => ({ value: v, label: VIEW_TITLE[v], icon: `mods/nebula/icons/${v}.svg` }));
 const SIDE_OPTIONS = [
@@ -212,8 +213,8 @@ export class Settings {
               cx.notify();
             }),
           )
-          .child(typeof label === "string" ? div().truncate().text_size(13).text_color(t.foreground).child(label) : label)
-          .when(Boolean(desc), (el) => el.child(div().truncate().text_size(11.5).text_color(t.dim).child(desc))),
+          .child(typeof label === "string" ? div().truncate().text_size(fs(13)).text_color(t.foreground).child(label) : label)
+          .when(Boolean(desc), (el) => el.child(div().truncate().text_size(fs(11.5)).text_color(t.dim).child(desc))),
       )
       .child(h_flex().flex_none().items_center().child(control));
   }
@@ -227,7 +228,7 @@ export class Settings {
     return v_flex()
       .gap(8)
       .flex_none()
-      .child(div().px(2).text_size(12).font_semibold().text_color(t.muted).child(title))
+      .child(div().px(2).text_size(fs(12)).font_semibold().text_color(t.muted).child(title))
       .child(v_flex().rounded(10).border_1().border_color(t.border).overflow_hidden().children(out));
   }
 
@@ -287,7 +288,7 @@ export class Settings {
           .gap(9)
           .items_center()
           .child(svg(agentIcon(id)).size(16).flex_none().text_color(t.foreground))
-          .child(div().truncate().text_size(13).text_color(t.foreground).child(h.label)),
+          .child(div().truncate().text_size(fs(13)).text_color(t.foreground).child(h.label)),
         null,
         h_flex().gap(6).items_center().child(col("model")).child(col("effort")),
       );
@@ -303,7 +304,7 @@ export class Settings {
       .gap(18)
       .bg(t.popover)
       .text_color(t.foreground)
-      .text_size(13)
+      .text_size(fs(13))
       .child(dialogTitle(t, "Settings"))
       .child(
         v_flex()
@@ -349,7 +350,7 @@ export class Settings {
                   .border_1()
                   .border_color(this.editing() ? t.accent : t.input)
                   .bg(t.background)
-                  .text_size(12.5),
+                  .text_size(fs(12.5)),
               ),
             ]),
           )
@@ -363,7 +364,7 @@ export class Settings {
                 this.ids.length
                   ? this.pick(t, "harness", { width: 170 })
                   : div()
-                      .text_size(12.5)
+                      .text_size(fs(12.5))
                       .text_color(t.dim)
                       .child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026"),
               ),
@@ -386,7 +387,7 @@ export class Settings {
       .child(
         h_flex()
           .items_center()
-          .text_size(11.5)
+          .text_size(fs(11.5))
           .text_color(t.dim)
           .child(div().flex_1().child("Changes save as you go"))
           .child(div().child("\u2191\u2193 move   \u2190\u2192 change   Enter open")),

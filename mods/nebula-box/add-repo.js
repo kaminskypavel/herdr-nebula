@@ -9,6 +9,7 @@ import { STORE, addProject, resolveAdd, resolveFolder } from "./lib/repos.js";
 import { REPO, OPEN } from "./lib/shared.js";
 import { openProject } from "./lib/open.js";
 import { button, dialogTitle, escapeKey, inputBox, keyHint } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const HINT = "A folder, a git repo, or one of its worktrees. A worktree adds its main repo.";
 
@@ -92,7 +93,7 @@ export class AddRepo {
       .child(
         v_flex()
           .gap(8)
-          .child(div().text_size(12).text_color(t.dim).child(HINT))
+          .child(div().text_size(fs(12)).text_color(t.dim).child(HINT))
           .child(
             h_flex()
               .gap(8)
@@ -110,7 +111,7 @@ export class AddRepo {
           .child(
             div()
               .min_h(16)
-              .text_size(12)
+              .text_size(fs(12))
               .text_color(note?.bad ? t.blocked : t.working)
               .child(note?.text ?? ""),
           ),
@@ -119,7 +120,7 @@ export class AddRepo {
         h_flex()
           .gap(8)
           .items_center()
-          .child(h_flex().flex_1().gap(5).items_center().text_size(11.5).text_color(t.dim).child(keyHint(t, "Enter")).child("adds"))
+          .child(h_flex().flex_1().gap(5).items_center().text_size(fs(11.5)).text_color(t.dim).child(keyHint(t, "Enter")).child("adds"))
           .child(button(t, "ar-cancel", "Cancel", "plain", () => closeOverlay(overlay)))
           .child(button(t, "ar-add", this.busy ? "Checking…" : "Add", "primary", (_e, cx) => this.add(cx))),
       );

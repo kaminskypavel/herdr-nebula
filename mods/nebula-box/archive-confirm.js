@@ -5,6 +5,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, theme, run } from "herdr";
 import { tabCommand } from "./lib/actions.js";
 import { button, dialogTitle, escapeKey } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 export class ArchiveConfirm {
   init(cx) {
@@ -46,11 +47,11 @@ export class ArchiveConfirm {
             div()
               .min_w(0)
               .truncate()
-              .text_size(13)
+              .text_size(fs(13))
               .font_medium()
               .child(p.title ?? ""),
           )
-          .child(div().text_size(12).text_color(t.dim).child("Hides the tab. The agent keeps running and the tab returns when it needs you.")),
+          .child(div().text_size(fs(12)).text_color(t.dim).child("Hides the tab. The agent keeps running and the tab returns when it needs you.")),
       )
       .child(div().flex_1())
       .child(

@@ -2,7 +2,8 @@
 // apart from the rail and board so a letter bound to the board never reaches a text
 // field here.
 import { View, div } from "gpui-kit";
-import { props, theme } from "herdr";
+import { props, theme, settings } from "herdr";
+import { setTextScale } from "./lib/scale.js";
 import { AddRepo } from "./add-repo.js";
 import { Launch } from "./launch.js";
 import { Presets } from "./presets.js";
@@ -46,6 +47,7 @@ export default class NebulaBox extends View {
   }
 
   render(cx) {
+    setTextScale(settings());
     if (this.part) return this.part.render(cx);
     return div().size_full().bg(theme().chrome);
   }

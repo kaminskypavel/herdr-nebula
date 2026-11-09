@@ -3,6 +3,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { props, theme, keys, window, exec } from "herdr";
 import { groupShortcuts } from "./lib/settings.js";
 import { escapeKey } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const REPO_URL = "https://github.com/kaminskypavel/herdr-nebula";
 
@@ -28,7 +29,7 @@ export class Help {
               v_flex()
                 .gap(1)
                 .pb(6)
-                .child(div().px(8).pt(6).pb(2).text_size(11.5).font_semibold().text_color(t.accent).child(g.group))
+                .child(div().px(8).pt(6).pb(2).text_size(fs(11.5)).font_semibold().text_color(t.accent).child(g.group))
                 .children(
                   g.rows.map((r) =>
                     h_flex()
@@ -36,9 +37,9 @@ export class Help {
                       .h(24)
                       .gap(10)
                       .items_center()
-                      .child(div().flex_none().font_semibold().text_size(12.5).text_color(t.foreground).child(r.keys))
+                      .child(div().flex_none().font_semibold().text_size(fs(12.5)).text_color(t.foreground).child(r.keys))
                       .child(div().flex_1())
-                      .child(div().min_w(0).truncate().text_size(12).text_color(t.muted).child(r.text)),
+                      .child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(r.text)),
                   ),
                 ),
             ),
@@ -52,8 +53,8 @@ export class Help {
       .gap(8)
       .bg(t.popover)
       .text_color(t.foreground)
-      .text_size(13)
-      .child(div().font_semibold().text_size(15).child("Shortcuts"))
+      .text_size(fs(13))
+      .child(div().font_semibold().text_size(fs(15)).child("Shortcuts"))
       .child(h_flex().flex_1().min_h(0).gap(16).items_start().child(column(0)).child(column(1)))
       .child(
         h_flex()
@@ -62,7 +63,7 @@ export class Help {
           .pt(8)
           .border_t(1)
           .border_color(t.border)
-          .child(div().flex_1().text_size(11.5).text_color(t.dim).child("Esc close"))
+          .child(div().flex_1().text_size(fs(11.5)).text_color(t.dim).child("Esc close"))
           .child(
             h_flex()
               .id("repo-link")
@@ -74,7 +75,7 @@ export class Help {
               .border_1()
               .border_color(t.input)
               .cursor_pointer()
-              .text_size(12)
+              .text_size(fs(12))
               .text_color(t.muted)
               .hover((st) => st.bg(t.hover).text_color(t.foreground))
               .tooltip(REPO_URL)

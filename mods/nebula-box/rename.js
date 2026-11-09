@@ -6,6 +6,7 @@ import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { props, closeOverlay, theme } from "herdr";
 import { button, dialogTitle, escapeKey, doCmd } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 export class Rename {
   init(cx) {
@@ -71,10 +72,10 @@ export class Rename {
           .border_1()
           .border_color(this.error ? t.blocked : this.focused ? t.accent : t.input)
           .bg(t.background)
-          .text_size(13)
+          .text_size(fs(13))
           .text_color(t.foreground),
       )
-      .when(Boolean(this.error), (el) => el.child(div().text_size(12).text_color(t.blocked).child(this.error)))
+      .when(Boolean(this.error), (el) => el.child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)))
       .child(
         h_flex()
           .pt(4)

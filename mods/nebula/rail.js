@@ -13,7 +13,24 @@
 // out each project's status itself, so the dots stay live while the board is folded.
 import { svg, div } from "gpui-kit";
 import { v_flex } from "gpui-base";
-import { theme, run, shared, setShared, exec, terminals, agents, focused, panes, spaces, layout, openOverlay, closeOverlay, nextCommand, notify } from "herdr";
+import {
+  theme,
+  run,
+  shared,
+  setShared,
+  exec,
+  terminals,
+  agents,
+  focused,
+  panes,
+  spaces,
+  layout,
+  openOverlay,
+  closeOverlay,
+  nextCommand,
+  notify,
+  settings,
+} from "herdr";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
 import { statusOf } from "./lib/status.js";
@@ -26,6 +43,7 @@ import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
 import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL } from "./lib/shared.js";
+import { fs, setTextScale } from "./lib/scale.js";
 
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
 const RAIL_W = 76;
@@ -249,7 +267,7 @@ export class Rail {
             .flex()
             .items_center()
             .justify_center()
-            .text_size(10)
+            .text_size(fs(10))
             .text_color(on ? t.muted : t.dim)
             .child(String(num)),
         ),
@@ -283,6 +301,7 @@ export class Rail {
   }
 
   render() {
+    setTextScale(settings());
     const t = theme();
     const needs = flatten(groupSessions(terminals(), this.repos())).some((x) => statusOf(x) === "needs");
     const tabs = this.tabs,

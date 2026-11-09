@@ -15,6 +15,7 @@ import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { summarize, currentOpen, openProject, closeProject, pickerRows, sessionsLabel, PICKER_ROWS_MAX } from "./lib/open.js";
 import { escapeKey } from "./ui.js";
+import { fs } from "./lib/scale.js";
 
 const ROW_H = 30;
 const SEARCH = "mods/nebula/icons/search.svg";
@@ -107,7 +108,7 @@ export class Projects {
       .items_center()
       .rounded(6)
       .cursor_pointer()
-      .text_size(13)
+      .text_size(fs(13))
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => {
@@ -148,7 +149,7 @@ export class Projects {
                 .bg(t[COLOR[p.status]] ?? t.unknown),
             }),
             div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
-            div().flex_none().text_size(11).text_color(t.dim).child(sessionsLabel(p.count)),
+            div().flex_none().text_size(fs(11)).text_color(t.dim).child(sessionsLabel(p.count)),
             p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
           ],
           (cx) => this.choose(i, cx),
@@ -177,7 +178,7 @@ export class Projects {
             .border_color(this.focusIn ? t.accent : t.input)
             .bg(t.background)
             .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
-            .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(12.5).text_color(t.foreground)),
+            .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(fs(12.5)).text_color(t.foreground)),
         )
         .child(add)
         // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).

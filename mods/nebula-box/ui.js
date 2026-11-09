@@ -1,6 +1,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, Switch, Select, Popup } from "gpui-base";
 import { closeOverlay, exec } from "herdr";
+import { fs } from "./lib/scale.js";
 
 const BUTTON = {
   plain: (t) => [t.input, t.raised, t.foreground],
@@ -21,7 +22,7 @@ export function button(t, id, text, kind, action) {
     .border_color(line)
     .bg(bg)
     .text_color(color)
-    .text_size(12.5)
+    .text_size(fs(12.5))
     .font_medium()
     .cursor_pointer()
     .hover((s) => s.opacity(0.88))
@@ -30,7 +31,10 @@ export function button(t, id, text, kind, action) {
 }
 
 export const dialogTitle = (t, text) =>
-  h_flex().items_center().child(div().flex_1().text_size(15).font_semibold().child(text)).child(div().text_size(11).text_color(t.dim).child("Esc"));
+  h_flex()
+    .items_center()
+    .child(div().flex_1().text_size(fs(15)).font_semibold().child(text))
+    .child(div().text_size(fs(11)).text_color(t.dim).child("Esc"));
 
 export function escapeKey(e, cx, overlay) {
   if (e.key !== "escape") return false;
@@ -39,7 +43,7 @@ export function escapeKey(e, cx, overlay) {
   return true;
 }
 
-export const keyHint = (t, key) => div().px(4).border_1().border_color(t.selected).rounded(3).text_size(10).text_color(t.dim).child(key);
+export const keyHint = (t, key) => div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(10)).text_color(t.dim).child(key);
 
 export const chip = (t, id, value, key, color, action, stop = false) =>
   h_flex()
@@ -47,7 +51,7 @@ export const chip = (t, id, value, key, color, action, stop = false) =>
     .gap(6)
     .items_center()
     .cursor_pointer()
-    .text_size(12.5)
+    .text_size(fs(12.5))
     .when(stop, (el) => el.on_mouse_down("left", (_e, cx) => cx.stop_propagation()))
     .on_click((_e, cx) => {
       action(cx);
@@ -69,7 +73,7 @@ export const worktreeToggle = (t, id, on, key, action, center = true) =>
         .text_color(on ? t.working : t.muted)
         .child(on ? "[x] new worktree" : "[ ] new worktree"),
     )
-    .child(div().text_size(10).text_color(t.dim).child(key));
+    .child(div().text_size(fs(10)).text_color(t.dim).child(key));
 
 export const doCmd = (name, args) => exec("herdr-app", ["do", name, JSON.stringify(args)]).catch((e) => ({ code: 1, stderr: String(e) }));
 
@@ -130,7 +134,7 @@ export const segmented = (t, id, options, current, pick) =>
           .rounded(6)
           .border_1()
           .cursor_pointer()
-          .text_size(12)
+          .text_size(fs(12))
           .text_color(on ? t.foreground : t.muted)
           .border_color(on ? t.input : t.background)
           .bg(on ? t.selected : t.background)
@@ -170,7 +174,7 @@ export function dropdown(t, o) {
     .border_1()
     .border_color(o.open ? t.accent : t.input)
     .bg(t.background)
-    .text_size(12.5)
+    .text_size(fs(12.5))
     .when(o.disabled, (el) => el.opacity(0.5).cursor_default())
     .when(!o.disabled, (el) =>
       el
@@ -184,7 +188,7 @@ export function dropdown(t, o) {
     .when(Boolean(o.prefix), (el) =>
       el.child(
         div()
-          .text_size(11)
+          .text_size(fs(11))
           .text_color(t.dim)
           .flex_none()
           .when(Boolean(o.prefixW), (e) => e.w(o.prefixW))
@@ -226,7 +230,7 @@ export function dropdown(t, o) {
           .flex_none()
           .rounded(5)
           .cursor_pointer()
-          .text_size(12.5)
+          .text_size(fs(12.5))
           .role("list_box_option")
           .aria_selected(on)
           .when(i === o.hi, (el) => el.bg(t.selected).aria_active_descendant())
@@ -272,7 +276,7 @@ export const inputBox = (t, el, focused) =>
     .border_1()
     .border_color(focused ? t.accent : t.input)
     .bg(t.background)
-    .text_size(12.5);
+    .text_size(fs(12.5));
 
 export const textCard = (t, el, focused) =>
   el
@@ -284,7 +288,7 @@ export const textCard = (t, el, focused) =>
     .border_color(focused ? t.accent : t.input)
     .bg(t.background)
     .text_color(t.foreground)
-    .text_size(13);
+    .text_size(fs(13));
 
 // The "New worktree" row: a switch, its label and key hint, then either a dim note (when
 // the switch is disabled) or, when on, the branch input element passed as o.branch.
@@ -305,7 +309,7 @@ export const worktreeRow = (t, o) =>
       div()
         .id(`${o.id}-lb`)
         .flex_none()
-        .text_size(13)
+        .text_size(fs(13))
         .text_color(o.disabled ? t.dim : t.foreground)
         .when(!o.disabled, (el) =>
           el.cursor_pointer().on_click((_e, cx) => {
@@ -316,5 +320,5 @@ export const worktreeRow = (t, o) =>
         .child("New worktree"),
     )
     .when(Boolean(o.hint) && !o.disabled, (el) => el.child(keyHint(t, o.hint)))
-    .when(Boolean(o.disabled && o.note), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(o.note)))
+    .when(Boolean(o.disabled && o.note), (el) => el.child(div().text_size(fs(11.5)).text_color(t.dim).child(o.note)))
     .when(Boolean(o.on && o.branch), (el) => el.child(div().flex_1().min_w(0).child(o.branch)));
