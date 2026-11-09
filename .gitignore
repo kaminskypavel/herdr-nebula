@@ -7,3 +7,5 @@ mods/nebula-box/lib/
 docs/
 .impeccable/
 .DS_Store
+# the /impeccable design brief, read by the design agent
+PRODUCT.md
