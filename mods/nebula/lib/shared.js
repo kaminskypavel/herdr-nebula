@@ -1,4 +1,6 @@
 export const REPO = "nebula.repo";
+// The value of REPO (the selected tab) for the All tab. Nothing stored also means All.
+export const ALL = "all:";
 export const SETTINGS = "nebula.settings";
 export const FOCUS_BOARD = "nebula.focusBoard";
 export const LAUNCHED = "nebula.launched";

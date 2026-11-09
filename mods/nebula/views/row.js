@@ -1,5 +1,5 @@
-// The lines every view draws: a session, a sub-agent under it, a worktree band, a repo
-// header and a repo's summary row. They only draw; lib/viewmodel.js decides what is
+// The lines every view draws: a session, a sub-agent under it, a worktree band and a repo
+// header. They only draw; lib/viewmodel.js decides what is
 // there. A virtual list's renderer takes no handlers, so `click` is optional: the plain
 // views (Cards, Columns) pass it, the lists answer on_item_click in the board instead.
 import { div, svg } from "gpui-kit";
@@ -9,7 +9,7 @@ import { bandStats, bandSummary, summaryParts, BAND_COLOR } from "../lib/viewmod
 import { rowMeta } from "../lib/rowmeta.js";
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
-export const HEIGHT = { repo: 28, band: 32, session: 26, sub: 22, divider: 34, shelf: 22, summary: 24, empty: 40 };
+export const HEIGHT = { repo: 28, band: 32, session: 26, sub: 22, shelf: 22, empty: 40 };
 
 const tone = (status, t) => t[COLOR[status]] ?? t.unknown;
 
@@ -94,21 +94,6 @@ export function repoLine(repo, t, { folded, selected, click = null }) {
     .child(chips(repo, t));
 }
 
-export function summaryLine(repo, t, { selected, click = null }) {
-  const parts = summaryParts(repo);
-  return h_flex().h(HEIGHT.summary).flex_none().items_center().gap(10).pl(14).pr(10).rounded(6).text_size(12)
-    .when(selected, (el) => el.bg(t.selected))
-    .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
-    .when(Boolean(click), (el) => el.id(`summary-${repo.root}`).cursor_pointer().on_click((_e, cx) => click(`repo:${repo.root}`, cx)))
-    .child(div().w(118).flex_none().truncate().text_color(t.muted).child(repo.name))
-    .children(parts.map((p) => h_flex().gap(4).items_center().flex_none().text_size(11).text_color(tone(p.status, t))
-      .child(ball(p.status, t, 6)).child(div().child(`${p.n} ${p.label}`))))
-    .when(parts.length === 0, (el) => el.child(div().text_size(11).text_color(t.dim).child("no sessions")));
-}
-
-export const dividerLine = (text, t) => h_flex().h(HEIGHT.divider).flex_none().pt(10).items_center().gap(8).pl(10).pr(10).text_size(11).text_color(t.dim)
-  .child(div().flex_none().child(text)).child(div().flex_1().h(1).bg(t.border));
-
 export const shelfLine = (text, t) => h_flex().h(HEIGHT.shelf).flex_none().pt(6).items_center().gap(8).pl(14).pr(10).text_size(10).text_color(t.dim)
   .child(div().flex_none().child(text)).child(div().flex_1().h(1).bg(t.border));
 
@@ -121,8 +106,6 @@ export function drawItem(item, t, { cursor, deep = false, click = null, pinned =
     case "band": return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click });
     case "session": return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned });
     case "sub": return subLine(item.sub, t, { indent: deep ? 48 : 30 });
-    case "summary": return summaryLine(item.repo, t, { selected, click });
-    case "divider": return dividerLine(item.text, t);
     case "shelf": return shelfLine(item.text, t);
     default: return emptyLine(item.text ?? "", t);
   }

@@ -4,7 +4,7 @@
 //   nebula.boardKeys    true while the board has the keyboard (written here)
 //   nebula.focusBoard   a token the rail changes to ask the board for the keyboard
 //   nebula.launched     a token the dialogs change after a launch from the board
-//   nebula.repo         the selected repo's folder (the selected tab)
+//   nebula.repo         the selected tab: a project's folder, or "all:" (the All tab; nothing stored is All too)
 //   nebula.open         the open projects, in tab order (lib/open.js; started and pruned here, edited by the picker)
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
 //   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
@@ -15,22 +15,23 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
 import {
-  theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify,
+  theme, shared, setShared, run, exec, watchFolder, home, terminals, agents, panes, spaces, setAgentOrder, openOverlay, layout, notify, focused,
 } from "herdr";
-import { STORE, projectList, digitTile, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
+import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import { nebulaBin, SESSIONS_ARGS, AGENTS_SQL, parseSessions, parseAgents, joinSessions, resumeArgv, recordResumed } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN } from "./lib/shared.js";
-import { syncOpen, closeProject, onlyOpen, closedNeeding, pickerHeight, summarize } from "./lib/open.js";
+import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN } from "./lib/shared.js";
+import { syncOpen, closeProject, openProject, onlyOpen, closedNeeding, pickerHeight, summarize } from "./lib/open.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import {
-  OTHER, NEW_SESSION, LABEL, rollup, buildBoard, selectedRepo, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly, bandPaths, foldBands,
+  OTHER, NEW_SESSION, LABEL, rollup, buildBoard, stopsOf, stepCursor, placeCursor, attentionTarget, agentOrder, projectColumns, parseWt, objectsOnly,
 } from "./lib/viewmodel.js";
 import { arrange, cleanSort, SORTS, SORT_TITLE } from "./lib/arrange.js";
+import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState } from "./lib/tabs.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
@@ -100,6 +101,10 @@ export class Board {
     this.last = { key: null, at: 0 };
     this.range = null;
     this.repo = shared(REPO);
+    this.tab = ALL; // the shown tab: a project root or ALL (sync derives it from the shared value)
+    this.tabRoots = []; // the project tabs, in order
+    const f = focused();
+    this.lastTerm = f?.terminal ?? f?.agent ?? null; // the last focused terminal seen, for follow focus
     this.open = []; // the open project roots, in tab order (sync keeps it)
     this.seen = null; // the ids that needed you at the last sync (lib/open.js)
     this.checkouts = {};
@@ -243,12 +248,18 @@ export class Board {
       setShared(BOARD_KEYS, has);
       cx.notify();
     }
+    const f = focused(), term = f?.terminal ?? f?.agent ?? null;
+    if (term !== this.lastTerm && this.all) {
+      const r = followFocus({ terminal: term, last: this.lastTerm, boardKeys: has, model: this.all });
+      this.lastTerm = r.last;
+      if (r.id) { this.goTo(r.id, cx); cx.notify(); }
+    }
     const repo = shared(REPO);
     if (repo !== this.repo) {
       this.repo = repo;
       this.place(null);
       this.cols = {};
-      if (this.view === "tree" && repo) { this.unfold(repo); this.cursor = `repo:${repo}`; this.reveal(cx, this.cursor, "top"); }
+      if (this.view === "tree" && repo && repo !== ALL) { this.unfold(repo); this.cursor = `repo:${repo}`; this.reveal(cx, this.cursor, "top"); }
       cx.notify();
     }
     if (rootsKey(store()) !== this.rootsKey) this.loadAll(cx);
@@ -322,14 +333,12 @@ export class Board {
     } else if (k === "enter") this.leaveFilter(cx, true);
   }
 
-  // Collapse all / Expand all. Tree: Collapse folds every project, Expand unfolds every project
-  // and band. Cards and List: the shown project's bands.
+  // Collapse all / Expand all, on what is shown (lib/tabs.js): All folds the project headers, a project tab its worktree bands.
   foldAll(fold) {
-    if (this.view === "tree") {
-      this.folded = new Set(fold ? this.base.repos.map((r) => r.root) : []);
-      if (!fold) this.bandsFolded = foldBands(this.bandsFolded, this.base.repos, false);
-      this.persistFolds();
-    } else this.bandsFolded = foldBands(this.bandsFolded, [selectedRepo(this.base, this.root)].filter(Boolean), fold);
+    const r = foldAllState({ folded: this.folded, bands: this.bandsFolded }, this.scoped.repos, fold, this.tab);
+    this.folded = r.folded;
+    this.bandsFolded = r.bands;
+    this.persistFolds();
     this.persistBands();
   }
 
@@ -401,18 +410,17 @@ export class Board {
     this.index = Math.max(0, this.stops.indexOf(key));
   }
 
-  pick(root) {
-    this.place(null);
-    this.repo = root;
-    setShared(REPO, root);
-  }
-
+  // Shows a session's row: selects its project's tab (opening the project when it is closed; a stray
+  // session goes to All; All stays), unfolds what hides it and puts the cursor on it.
   goTo(id, cx) {
-    const at = whereIs(this.model, id), repo = at?.repo;
-    if (this.pc && at) { this.cols = { project: repo.root, worktree: at.band.path }; this.col = 2; }
-    if (at) this.unfoldBand(at.band.path);
-    if (repo && this.view === "tree") this.unfold(repo.root);
-    else if (repo && this.view !== "columns" && repo.root !== this.root) this.pick(repo.root);
+    const at = whereIs(this.all, id);
+    if (!at) return;
+    const land = landOn(this.tab, this.tabRoots, at.repo.root);
+    if (land.open) setShared(OPEN, openProject(this.open, at.repo.root));
+    if (land.tab !== this.tab) { this.repo = land.tab; setShared(REPO, land.tab); this.cols = {}; } // this.repo first, so watch() keeps the cursor
+    if (this.pc) { this.cols = { project: at.repo.root, worktree: at.band.path }; this.col = 2; }
+    this.unfoldBand(at.band.path);
+    this.unfold(at.repo.root);
     this.cursor = id;
     this.reveal(cx, id);
   }
@@ -435,13 +443,13 @@ export class Board {
     else if (item.type === "repo") {
       this.place(item.key);
       if (!dbl) this.toggle(item.repo.root);
-    } else if (item.type === "summary") this.pick(item.repo.root);
-    else if (item.type === "band") this.toggleBand(item.band.path);
+    } else if (item.type === "band") this.toggleBand(item.band.path);
     cx.notify();
   }
 
   // The project (and checkout) the user is looking at, for the new session box to preselect:
-  // Projects mode follows its columns, other views the highlighted row, else the board's repo.
+  // Projects mode follows its columns, other views the highlighted row, else the selected tab's
+  // project, else (All) the first open project.
   launchTarget() {
     const real = (root) => (root && root !== OTHER ? root : null);
     let root = null, checkout = null;
@@ -450,14 +458,14 @@ export class Board {
       if (root && this.col > 0) checkout = this.pc.sel.worktree;
     } else {
       const item = this.byKey.get(this.cursor);
-      if (item?.type === "repo" || item?.type === "summary") root = real(item.repo.root);
+      if (item?.type === "repo") root = real(item.repo.root);
       else if (item?.type === "session") {
         const at = whereIs(this.model, item.key);
         root = real(at?.repo.root);
         if (root) checkout = at.band.path || null;
       }
-      root = root ?? real(this.root);
     }
+    root = root ?? real(this.root) ?? real(this.open[0]); // All is no project: the highlighted row's, else the first open one
     return root ? { root, ...(checkout ? { checkout } : {}) } : null;
   }
 
@@ -519,10 +527,7 @@ export class Board {
     if (!it) return;
     if (it.type === "project") {
       this.cols = { project: it.project.key, worktree: it.project.key === this.cols.project ? this.cols.worktree : null };
-      // the rail and the header follow, as when a tab is clicked; this.repo is set first so watch() keeps the selection
-      if (it.project.key !== OTHER && it.project.key !== shared(REPO)) { this.repo = it.project.key; setShared(REPO, it.project.key); }
-    }
-    else if (it.type === "worktree") this.cols = { ...this.cols, worktree: it.worktree.key };
+    } else if (it.type === "worktree") this.cols = { ...this.cols, worktree: it.worktree.key };
     this.col = COLUMN_TYPES.indexOf(it.type);
     this.place(key);
   }
@@ -538,7 +543,7 @@ export class Board {
     if (dir) {
       const stops = this.items.filter((i) => i.type === COLUMN_TYPES[this.col]).map((i) => i.key);
       this.choose(stepCursor(stops, this.cursor, dir));
-    } else if (k === "h" || k === "left") { if (this.col > 0) this.enterColumn(this.col - 1); }
+    } else if (k === "h" || k === "left") { if (this.col > (this.pc.scoped ? 1 : 0)) this.enterColumn(this.col - 1); }
     else if (k === "l" || k === "right" || (k === "enter" && this.col < 2)) { if (this.col < 2) this.enterColumn(this.col + 1); }
     else return false;
     return true;
@@ -546,6 +551,7 @@ export class Board {
 
   // After a refresh: keep the cursor in the focused column, on that column's selection.
   fitColumn() {
+    this.col = Math.max(this.col, this.pc.scoped ? 1 : 0); // a project tab has no PROJECTS column
     if (this.col === 2 && !this.pc.sessions.length) this.col = 1;
     const sel = this.pc.sel;
     const key = this.col === 0 ? `proj:${sel.project}` : this.col === 1 ? `wt:${sel.worktree}` : this.byKey.get(this.cursor)?.type === "session" ? this.cursor : this.pc.sessions[0]?.id;
@@ -566,11 +572,10 @@ export class Board {
     else if (k === "enter") {
       if (item?.type === "session") this.show(item.row, cx);
       else if (item?.type === "repo") this.toggle(item.repo.root);
-      else if (item?.type === "summary") this.pick(item.repo.root);
     } else if ((k === "left" || k === "right") && item?.type === "repo") {
       if (k === "left") { this.folded.add(item.repo.root); this.persistFolds(); } else this.unfold(item.repo.root);
     } else if (k === "." || k === ",") {
-      const id = attentionTarget(this.model, item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
+      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
       if (id) this.goTo(id, cx);
     } else if (k === "s") {
       if (item?.type === "session") this.pinRow(item.row);
@@ -583,9 +588,9 @@ export class Board {
     else if (k === "e") this.openPresets();
     else if (k === "A" || (k === "a" && m.shift)) this.showArchived = !this.showArchived;
     else {
-      const tab = digitTile(this.tabs(), k);
-      if (!tab) return;
-      setShared(REPO, tab.root);
+      const to = tabKey(this.tabRoots, k);
+      if (to === null) return;
+      setShared(REPO, to);
     }
     cx.notify();
   }
@@ -606,10 +611,13 @@ export class Board {
     this.seen = r.seen;
     if (r.changed && r.open) this.pendingOpen = r.open; // first run, a gone project, a closed project that needs you; written by watch
     this.base = onlyOpen(this.all, this.open);
-    this.model = arrange(this.base, { filter: this.filter, sort: this.sort });
+    this.tabRoots = this.base.repos.filter((r) => r.root !== OTHER).map((r) => r.root);
+    this.tab = tabOf(this.tabRoots, picked);
+    this.root = this.tab === ALL ? null : this.tab;
+    this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
+    this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
     this.pinned = shared(PINNED);
-    this.root = selectedRepo(this.model, picked)?.root ?? null;
-    this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root) : null;
+    this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root, this.tab !== ALL) : null;
     if (this.pc) this.cols = this.pc.sel;
     this.items = viewOf(this.view).view.items(this.model, this);
     this.byKey = new Map(this.items.map((i) => [i.key, i]));
@@ -619,13 +627,11 @@ export class Board {
     this.index = at.index;
     if (this.pc) this.fitColumn();
     // the agent order ignores the filter: a hidden agent keeps its place
-    const shown = agentOrder(this.filter ? arrange(this.base, { sort: this.sort }) : this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
+    const shown = agentOrder(this.filter ? arrange(this.scoped, { sort: this.sort }) : this.model, this.view, this.root, this.pc ? { mode: "projects", sel: this.cols } : {});
     const order = [...shown, ...agentOrder(this.all, "tree", null).filter((id) => !shown.includes(id))]; // closed projects' agents follow
     const key = order.join("\n");
     if (key !== this.order) { this.order = key; setAgentOrder(order); }
   }
-
-  tabs() { return this.base.repos.filter((r) => r.root !== OTHER); }
 
   closeTab(root, cx) {
     const r = closeProject(this.open, root, this.root);
@@ -639,27 +645,28 @@ export class Board {
     openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 320, height: pickerHeight(projectList(store()).length), props: { role: "projects" } });
   }
 
-  // The top row: a tab per open project (status dot, name, close), the Other group while it is
-  // the selection, then + for the picker, with a red dot while a closed project needs you. It
-  // starts 34px in, clear of the window buttons.
+  // The top row: an All tab, then a tab per open project (status dot, name, close), then + for the
+  // picker, with a red dot while a closed project needs you. It starts 34px in, clear of the window buttons.
   tabRow(t) {
-    const shown = this.base.repos.filter((r) => r.root !== OTHER || r.root === this.root);
+    const shown = this.base.repos.filter((r) => r.root !== OTHER);
+    const base = (id, on, closable) => h_flex().id(id).h_full().min_w(0).max_w(150).items_center().gap(6).pl(10).pr(closable ? 5 : 10)
+      .border_b(2).border_color(on ? t.accent : t.chrome).text_size(13).text_color(on ? t.foreground : t.muted).cursor_pointer()
+      .when(!on, (el) => el.hover((s) => s.bg(t.hover)));
+    const all = () => base("tab-all", this.tab === ALL, false).tooltip("All projects (0)").on_click(() => setShared(REPO, ALL)).child(div().child("All"));
     const tab = (r) => {
-      const on = r.root === this.root, closable = r.root !== OTHER;
-      return h_flex().id(`tab-${r.root}`).h_full().min_w(0).max_w(150).items_center().gap(6).pl(10).pr(closable ? 5 : 10)
-        .border_b(2).border_color(on ? t.accent : t.chrome).text_size(13).text_color(on ? t.foreground : t.muted).cursor_pointer()
-        .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+      return base(`tab-${r.root}`, r.root === this.tab, true)
         .tooltip(r.name)
         .on_click(() => setShared(REPO, r.root))
-        .on_mouse_down("right", () => closable && box(440, 200, { role: "remove-project", root: r.root, name: r.name }))
+        .on_mouse_down("right", () => box(440, 200, { role: "remove-project", root: r.root, name: r.name }))
         .child(ball(rollup(r.rows), t, 7))
         .child(div().min_w(0).truncate().child(r.name))
-        .when(closable, (el) => el.child(div().id(`tab-x-${r.root}`).size(16).flex_none().flex().items_center().justify_center().rounded(4)
+        .child(div().id(`tab-x-${r.root}`).size(16).flex_none().flex().items_center().justify_center().rounded(4)
           .text_color(t.dim).hover((s) => s.bg(t.selected).text_color(t.foreground))
           .on_click((_e, cx) => { cx.stop_propagation(); this.closeTab(r.root, cx); })
-          .child(svg("mods/nebula/icons/x.svg").size(11))));
+          .child(svg("mods/nebula/icons/x.svg").size(11)));
     };
     return h_flex().h(42).flex_none().items_center().pl(34).pr(10).gap(2)
+      .when(this.base.repos.length > 0, (el) => el.child(all()))
       .children(shown.map(tab))
       .child(div().id("tab-add").relative().size(26).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer()
         .text_color(t.dim).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip("Open or close projects")
@@ -714,10 +721,7 @@ export class Board {
         .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false)))));
   }
 
-  canFoldAll() {
-    if (this.view === "tree") return this.base.repos.length > 0;
-    return (this.view === "cards" || this.view === "list") && bandPaths(selectedRepo(this.base, this.root)).length > 0;
-  }
+  canFoldAll() { return this.view !== "columns" && this.scoped.repos.length > 0; }
 
   headerButton(t, id, icon, label, hint, compact, action) {
     return h_flex().id(id).h(24).items_center().gap(7).pl(10).pr(6).border_1().border_color(t.border).rounded(6).bg(t.raised)

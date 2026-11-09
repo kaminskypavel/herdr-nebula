@@ -130,7 +130,7 @@ test("every view carries the rows: Tree, List, Columns status and Projects", () 
   const m = buildBoard({ ...base, nebula: joined });
   const sessions = (items) => items.filter((i) => i.type === "session").map((i) => i.key);
   assert.ok(sessions(treeItems(m, new Set())).includes("nebula:o1"));
-  assert.deepEqual(sessions(listItems(m, "/w/app")), ["t1", "nebula:m1", "nebula:w1"]);
+  assert.deepEqual(sessions(listItems({ repos: m.repos.filter((r) => r.root === "/w/app") })), ["t1", "nebula:m1", "nebula:w1"]);
   assert.ok(columnsModel(m).flatMap((c) => c.rows).some((r) => r.id === "nebula:l1"));
   const pc = projectColumns(m, { project: "/w/app", worktree: "/w/app-worktrees/fix" });
   assert.deepEqual(pc.sessions.map((r) => r.id), ["nebula:w1"]);

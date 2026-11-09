@@ -2,9 +2,10 @@ import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
+import { ALL } from "../lib/tabs.js";
 import { ball, badge, drawItem, metaLine, title } from "./row.js";
 
-export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined, b.filter ? new Set() : b.bandsFolded);
+export const items = (model, b) => listItems(model, { all: b.tab === ALL, empty: b.filter ? NO_MATCH : undefined, bands: b.filter ? new Set() : b.bandsFolded, folded: b.filter ? new Set() : b.folded });
 
 function card(row, t, selected, click, menu, pinned) {
   const meta = metaLine(row, t, 11);

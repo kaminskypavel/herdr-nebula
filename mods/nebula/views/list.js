@@ -1,9 +1,10 @@
 import { v_flex, v_virtual_list, Scrollbar } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
+import { ALL } from "../lib/tabs.js";
 import { HEIGHT, drawItem } from "./row.js";
 
-export const items = (model, b) => listItems(model, b.root, b.filter ? NO_MATCH : undefined, b.filter ? new Set() : b.bandsFolded);
+export const items = (model, b) => listItems(model, { all: b.tab === ALL, empty: b.filter ? NO_MATCH : undefined, bands: b.filter ? new Set() : b.bandsFolded, folded: b.filter ? new Set() : b.folded });
 
 export function virtualList(b, list, t, deep) {
   return v_flex().relative().size_full()
@@ -17,4 +18,4 @@ export function virtualList(b, list, t, deep) {
     .child(Scrollbar.vertical("board-list").absolute().inset_0());
 }
 
-export const body = (b, t) => virtualList(b, b.items, t, false);
+export const body = (b, t) => virtualList(b, b.items, t, b.tab === ALL);

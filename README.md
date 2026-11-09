@@ -25,7 +25,8 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 
 ## What you get
 
-- **Project tabs.** Git repos or plain folders. The board shows only the projects you have open, as tabs with a status dot; <kbd>×</kbd> closes one, <kbd>+</kbd> opens the projects picker (search, session counts, a check on the open ones, and "Add a project"). A closed project whose agent needs you opens as a tab by itself, and <kbd>+</kbd> carries a red dot until it does.
+- **Project tabs.** Git repos or plain folders. The board shows only the projects you have open, as tabs with a status dot, after an **All** tab. <kbd>×</kbd> closes a tab, <kbd>+</kbd> opens the projects picker (search, session counts, a check on the open ones, and "Add a project"). A closed project whose agent needs you opens as a tab by itself, and <kbd>+</kbd> carries a red dot until it does.
+- **One rule for every view.** The selected tab scopes Tree, Cards, List and Columns alike: a project tab shows that project alone, All shows every open project grouped by project, with sessions outside any project at the end. The filter and the sort work inside the tab. When you open an agent in the main panel (or jump with <kbd>⌘]</kbd>), the board selects that agent's project tab and highlights it; on All it stays on All.
 - **An icon bar.** A thin bar on the left: Board (show or fold it), Projects, New session, Presets, and at the bottom New window, Shortcuts and Settings.
 - **A board in four views.** Tree, Cards, List and Columns. Columns groups by status, or nebula-style as Projects, Worktrees, Sessions.
 - **Status at a glance.** 🔴 needs you, 🟡 working, 🔵 done and not seen yet, 🟢 done and seen.
@@ -77,7 +78,7 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 | Board | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd> | New session, presets, next view |
 | Board | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete |
 | Board | <kbd>s</kbd>, or shift-click | Pin the agent beside the active one (again to unpin) |
-| Board | <kbd>1</kbd> to <kbd>9</kbd> | Select the open project tab |
+| Board | <kbd>0</kbd>, <kbd>1</kbd> to <kbd>9</kbd> | Select the All tab, or an open project tab |
 
 The <kbd>?</kbd> button on the icon bar lists them all, live.
 

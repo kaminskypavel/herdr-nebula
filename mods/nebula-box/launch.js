@@ -15,7 +15,7 @@ import { inside } from "./lib/projects.js";
 import { REFOCUS_MS } from "./lib/focus.js";
 import { branchName } from "./lib/branch.js";
 import { mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
-import { REPO, SETTINGS, FOCUS_BOARD, LAUNCHED } from "./lib/shared.js";
+import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED } from "./lib/shared.js";
 import { openList, readPresetFile } from "./presets.js";
 import { button, dialogTitle, dropdown, agentIcon, inputBox, textCard, worktreeRow } from "./ui.js";
 import {
@@ -106,7 +106,7 @@ export class Launch {
     this.ids = installedHarnesses(known);
     this.presets = usablePresets(readPresets(text), this.ids);
     const pf = prefillOf(props()?.prefill, this.ids);
-    const cwd = focused()?.cwd ?? null, want = shared(REPO);
+    const cwd = focused()?.cwd ?? null, sel = shared(REPO), want = !sel || sel === ALL ? shared(OPEN)?.[0] : sel; // the All tab is no project: the first open one
     const at = (pred) => this.repos.findIndex(pred);
     // Worktrees live beside their repo, not inside it, so git's common dir names the repo.
     const folder = pf?.checkout || (this.from === "terminal" ? cwd : null);

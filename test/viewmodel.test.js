@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   OTHER, buildBoard, treeItems, listItems, columnsModel, stopsOf, stepCursor, placeCursor, attentionTarget,
-  agentOrder, projectColumns, projectItems, rollup, summaryParts, bandParts, parseWt, objectsOnly, selectedRepo,
+  agentOrder, projectColumns, projectItems, rollup, summaryParts, bandParts, parseWt, objectsOnly,
   bandSummary, bandPaths, foldBands,
 } from "../mods/nebula/lib/viewmodel.js";
 import { arrange, rowGroup } from "../mods/nebula/lib/arrange.js";
 
 const NOW = 10_000_000;
+// What a project tab shows: the model cut to that one project (lib/tabs.js scopeModel).
+const alphaOnly = (m) => ({ ...m, repos: m.repos.filter((r) => r.root === "/r/alpha") });
 const repos = ["alpha", "beta", "gamma", "delta"].map((n) => ({
   root: `/r/${n}`, name: n,
   checkouts: [{ path: `/r/${n}`, branch: "main" }, { path: `/r/${n}-worktrees/feat`, branch: "feat" }],
@@ -32,17 +34,22 @@ function fleet(extra = {}) {
   return { terminals, agents, panes: [], spaces: [{ id: "sp", tabs }], repos, now: NOW, ...extra };
 }
 
-test("15 sessions across 4 repos: Tree has every repo, List has the selected repo's bands plus three summary rows", () => {
+test("15 sessions across 4 repos: Tree and List on All have every repo, List on a project tab has that repo's bands alone", () => {
   const m = buildBoard(fleet());
   const tree = treeItems(m, new Set());
   assert.equal(tree.filter((i) => i.type === "repo").length, 4);
   assert.equal(tree.filter((i) => i.type === "session").length, 15);
-  const list = listItems(m, "/r/alpha");
-  assert.equal(list.filter((i) => i.type === "summary").length, 3);
-  assert.deepEqual(list.filter((i) => i.type === "summary").map((i) => i.repo.name), ["beta", "gamma", "delta"]);
+  const all = listItems(m, { all: true });
+  assert.deepEqual(all.filter((i) => i.type === "repo").map((i) => i.repo.name), ["alpha", "beta", "gamma", "delta"]);
+  assert.equal(all.filter((i) => i.type === "session").length, 15);
+  assert.deepEqual(listItems(m, { all: true, folded: new Set(["/r/beta"]) }).filter((i) => i.type === "repo").map((i) => i.folded), [false, true, false, false]);
+  const list = listItems({ repos: [m.repos[0]] });
+  assert.ok(!list.some((i) => ["summary", "divider", "repo"].includes(i.type)));
   const mine = list.filter((i) => i.type === "session");
   assert.ok(mine.length > 0 && mine.every((i) => i.row.address && m.repos[0].bands.some((b) => b.rows.includes(i.row))));
   assert.ok(list.filter((i) => i.type === "band").length >= 1);
+  assert.deepEqual(listItems({ repos: [] }, { empty: "No matches" }), [{ key: "empty", type: "empty", text: "No matches" }]);
+  assert.equal(listItems({ repos: [{ ...m.repos[0], rows: [], bands: [] }] })[0].text, "No sessions");
 });
 
 test("a folded repo in Tree keeps its header and hides its bands and sessions", () => {
@@ -107,15 +114,15 @@ test("an exited board-launched session yields a grey row offering relaunch and d
   assert.ok(cols[3].rows.some((r) => r.id === "t99"));
 });
 
-test("sessions outside every repo land in an Other group that Tree and List can reach", () => {
+test("sessions outside every repo land in an Other group, shown by Tree and by List on All", () => {
   const f = fleet();
   f.terminals.push({ address: "t98", cwd: "/Users/x/Desktop", status: "working", state: "live", program: { key: "claude", name: "Claude Code" }, labels: {} });
   const m = buildBoard(f);
   const other = m.repos.find((r) => r.root === OTHER);
   assert.equal(other.rows.length, 1);
-  assert.equal(listItems(m, "/r/alpha").filter((i) => i.type === "summary").length, 4);
-  assert.equal(selectedRepo(m, OTHER).root, OTHER);
-  assert.equal(selectedRepo(m, "/nope").root, "/r/alpha");
+  const all = listItems(m, { all: true });
+  assert.equal(all.filter((i) => i.type === "repo").at(-1).repo.root, OTHER);
+  assert.ok(all.some((i) => i.key === "t98"));
 });
 
 test("the cursor stays on a session when its status change moves the row", () => {
@@ -204,12 +211,13 @@ test("a terminal sub-agent nests under its parent with its own name", () => {
   assert.deepEqual(row.subs.map((s) => [s.text, s.status]), [["lint pass", "working"]]);
 });
 
-test("Tree shows every session, so the agent order matches; List and Cards put the selected repo first; Columns go by status", () => {
+test("Tree, List and Cards agent order follows the model; Columns go by status", () => {
   const m = buildBoard(fleet());
   const ids = (r) => r.rows.map((x) => x.id);
   assert.equal(agentOrder(m, "tree", "/r/beta").length, 15);
-  assert.deepEqual(agentOrder(m, "list", "/r/beta").slice(0, ids(m.repos[1]).length), ids(m.repos[1]));
+  assert.deepEqual(agentOrder(m, "list", "/r/beta"), agentOrder(m, "tree", "/r/beta"));
   assert.equal(new Set(agentOrder(m, "cards", "/r/beta")).size, 15);
+  assert.deepEqual(agentOrder({ repos: [m.repos[1]] }, "list", "/r/beta"), ids(m.repos[1]));
   const cols = agentOrder(m, "columns", "/r/beta");
   assert.deepEqual(cols.slice(0, 2).map((id) => m.repos.flatMap((r) => r.rows).find((r) => r.id === id).status), ["needs", "needs"]);
 });
@@ -348,7 +356,7 @@ test("every band lists needs you, working, unseen, seen, then grey rows, in toda
   assert.deepEqual(ids(m.repos[0].bands[0].rows), ["n1", "w1", "w2", "u1", "s1", "s2", "e1", "e2"]);
   assert.deepEqual(ids(m.repos[0].rows), ids(m.repos[0].bands[0].rows));
   assert.deepEqual(ids(treeItems(m, new Set()).filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
-  assert.deepEqual(ids(listItems(m, "/r/alpha").filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
+  assert.deepEqual(ids(listItems(alphaOnly(m)).filter((i) => i.type === "session").map((i) => i.row)), ids(m.repos[0].rows));
 });
 
 test("nebula rows and the Other group sort grey last too", () => {
@@ -395,14 +403,14 @@ test("a folded band keeps its header and hides its sessions, in Tree and List", 
   const alpha = m.repos.find((r) => r.name === "alpha");
   const band = alpha.bands[0];
   const folded = new Set([band.path]);
-  for (const items of [treeItems(m, new Set(), undefined, folded), listItems(m, "/r/alpha", undefined, folded)]) {
+  for (const items of [treeItems(m, new Set(), undefined, folded), listItems(alphaOnly(m), { bands: folded })]) {
     const head = items.find((i) => i.key === `band:${band.path}`);
     assert.equal(head.folded, true);
     for (const row of band.rows) assert.ok(!items.some((i) => i.key === row.id));
     for (const row of alpha.bands[1].rows) assert.ok(items.some((i) => i.key === row.id));
     assert.equal(items.find((i) => i.key === `band:${alpha.bands[1].path}`).folded, false);
   }
-  assert.ok(!stopsOf(listItems(m, "/r/alpha", undefined, folded)).includes(band.rows[0].id));
+  assert.ok(!stopsOf(listItems(alphaOnly(m), { bands: folded })).includes(band.rows[0].id));
 });
 
 test("a folded band header still counts its sessions by status", () => {
@@ -438,7 +446,7 @@ test("Collapse all / Expand all helpers fold every band of the given repos and l
 test("a filter ignores folded bands when the view passes no folds (views do this, so matches stay visible)", () => {
   const m = buildBoard(fleet());
   const band = m.repos.find((r) => r.name === "alpha").bands[0];
-  const items = listItems(m, "/r/alpha", undefined, new Set());
+  const items = listItems(alphaOnly(m), { bands: new Set() });
   assert.ok(band.rows.every((row) => items.some((i) => i.key === row.id)));
 });
 
@@ -464,7 +472,7 @@ test("archived rows sort after live rows in their band, keep status order, and r
 
 test("a shelf line sits above the first archived row of a band, and only there", () => {
   const m = buildBoard(archivedFleet());
-  const items = listItems(m, "/r/alpha");
+  const items = listItems(alphaOnly(m));
   const shelves = items.filter((i) => i.type === "shelf");
   assert.ok(shelves.length >= 1);
   for (const sh of shelves) {
@@ -474,7 +482,7 @@ test("a shelf line sits above the first archived row of a band, and only there",
     assert.ok(!items[at - 1]?.row?.archived);
   }
   assert.equal(shelves.length, new Set(shelves.map((s) => s.key)).size);
-  const none = listItems(buildBoard(fleet()), "/r/alpha");
+  const none = listItems(alphaOnly(buildBoard(fleet())));
   assert.ok(!none.some((i) => i.type === "shelf"));
   assert.ok(!stopsOf(items).includes(shelves[0].key));
 });
@@ -488,7 +496,7 @@ test("nebula rows stay after the archived rows, and a folded band hides its shel
   const band = m.repos.find((r) => r.name === "alpha").bands.find((b) => b.path === band0.path);
   assert.equal(band.rows.at(-1).kind, "nebula");
   assert.ok(band.rows.at(-2).archived);
-  const items = listItems(m, "/r/alpha", undefined, new Set([band.path]));
+  const items = listItems(alphaOnly(m), { bands: new Set([band.path]) });
   assert.ok(!items.some((i) => i.key === `archived:${band.path}`));
 });
 

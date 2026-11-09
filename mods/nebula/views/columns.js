@@ -82,14 +82,15 @@ function column(i, title, rows, empty, focused, t) {
       .children(rows.length ? rows : [div().px(8).text_size(12).text_color(t.dim).child(empty)]));
 }
 
+// On a project tab the model is that project alone: no PROJECTS column, the other two shift left (col stays 1 and 2).
 function projectsBody(b, t) {
-  const { pc, col } = b, sel = pc.sel;
+  const { pc, col } = b, sel = pc.sel, at = pc.scoped ? 1 : 0;
   return h_flex().flex_1().min_h(0).px(8).py(6)
-    .child(column(0, "PROJECTS", pc.projects.map((p) =>
-      navRow(`proj-${p.key}`, `proj:${p.key}`, p.name, p.status, p.count, p.key === sel.project, col === 0, t, b.click)), "No projects", col === 0, t))
-    .child(column(1, "WORKTREES", pc.worktrees.map((w) =>
+    .when(!pc.scoped, (el) => el.child(column(0, "PROJECTS", pc.projects.map((p) =>
+      navRow(`proj-${p.key}`, `proj:${p.key}`, p.name, p.status, p.count, p.key === sel.project, col === 0, t, b.click)), "No projects", col === 0, t)))
+    .child(column(1 - at, "WORKTREES", pc.worktrees.map((w) =>
       navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)), "No sessions", col === 1, t))
-    .child(column(2, "SESSIONS", pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id)), "No sessions", col === 2, t));
+    .child(column(2 - at, "SESSIONS", pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id)), "No sessions", col === 2, t));
 }
 
 export const body = (b, t) =>

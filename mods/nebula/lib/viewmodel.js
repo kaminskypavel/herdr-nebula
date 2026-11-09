@@ -104,9 +104,6 @@ export function buildBoard({ terminals = [], agents = [], panes = [], spaces = [
   return { repos: out };
 }
 
-export const selectedRepo = (model, root) =>
-  model.repos.find((r) => r.root === root) ?? model.repos.find((r) => r.root !== OTHER) ?? model.repos[0] ?? null;
-
 export const summaryParts = (repo) =>
   STATUS_ORDER.filter((s) => repo.counts[s] > 0).map((s) => ({ status: s, n: repo.counts[s], color: COLOR[s], label: LABEL[s] }));
 
@@ -118,8 +115,8 @@ export const bandStats = (b) => [
 export const bandParts = (b) => bandStats(b).map((p) => p.text);
 
 // Items are what a view draws, one per line: { key, type, ... }. Types: repo, band,
-// session (with its row), sub (nested under the session before it), summary (another
-// repo in Cards and List), divider, shelf (the thin "Archived" line above a band's archived rows), empty. Only repo, session and summary can hold the
+// session (with its row), sub (nested under the session before it), divider, shelf (the thin
+// "Archived" line above a band's archived rows), empty. Only repo and session can hold the
 // cursor, and their keys are the cursor's ids: a session's address, or `repo:<root>`.
 const repoKey = (repo) => `repo:${repo.root}`;
 
@@ -155,15 +152,13 @@ export function treeItems(model, folded, empty = "No repos yet", bands = new Set
   ]);
 }
 
-export function listItems(model, root, empty = "No repos yet", bands = new Set()) {
-  const repo = selectedRepo(model, root);
+// Cards and List: on All the projects with their headers (as Tree), on a project tab that
+// project's bands alone (the model holds only it, see lib/tabs.js).
+export function listItems(model, { all = false, empty = "No repos yet", bands = new Set(), folded = new Set() } = {}) {
+  if (all) return treeItems(model, folded, empty, bands);
+  const repo = model.repos[0];
   if (!repo) return [{ key: "empty", type: "empty", text: empty }];
-  const others = model.repos.filter((r) => r !== repo);
-  return [
-    ...(repo.rows.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }]),
-    ...(others.length ? [{ key: "others", type: "divider", text: "Other repos" }] : []),
-    ...others.map((r) => ({ key: repoKey(r), type: "summary", repo: r })),
-  ];
+  return repo.rows.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }];
 }
 
 const columnsMemo = new WeakMap();
@@ -179,8 +174,9 @@ export function columnsModel(model) {
 
 // Projects mode of Columns (Miller columns): projects, the selected project's worktrees,
 // the selected worktree's sessions. `sel` is { project, worktree } (a repo root and a band
-// path); a missing or stale one falls back, the project to the rail's repo (`rail`) when it
-// has sessions, else the first project with sessions, and the worktree to the first. Each
+// path); a missing or stale one falls back, the project to the selected tab (`rail`) when it
+// has sessions, else the first project with sessions, and the worktree to the first. On a project
+// tab (`scoped`) the model holds that project alone and the PROJECTS column is left out. Each
 // project and worktree carries the most urgent status of its sessions (exited sorts last), and
 // both columns are ordered by it, all-grey ones last.
 const URGENT = [...STATUS_ORDER, "exited"];
@@ -189,7 +185,7 @@ export const rollup = (rows) => URGENT.find((s) => rows.some((r) => r.status ===
 // A model sorted by name (lib/arrange.js) keeps its own order.
 const byUrgency = (items, model) => (model.sort === "name" ? items : [...items].sort((a, b) => rank(a.status) - rank(b.status)));
 
-export function projectColumns(model, sel = {}, rail = null) {
+export function projectColumns(model, sel = {}, rail = null, scoped = false) {
   const repos = model.repos;
   const repo = repos.find((r) => r.root === sel?.project) ?? repos.find((r) => r.root === rail && r.rows.length)
     ?? repos.find((r) => r.rows.length) ?? repos[0] ?? null;
@@ -199,17 +195,18 @@ export function projectColumns(model, sel = {}, rail = null) {
     worktrees: byUrgency((repo?.bands ?? []).map((b) => ({ key: b.path, label: b.label || repo.name, status: rollup(b.rows), count: b.rows.length })), model),
     sessions: band?.rows ?? [],
     sel: { project: repo?.root ?? null, worktree: band?.path ?? null },
+    scoped,
   };
 }
 
 // The cursor's keys: `proj:<root>`, `wt:<path>`, and a session's address.
 export const projectItems = (pc) => [
-  ...pc.projects.map((project) => ({ key: `proj:${project.key}`, type: "project", project })),
+  ...(pc.scoped ? [] : pc.projects).map((project) => ({ key: `proj:${project.key}`, type: "project", project })),
   ...pc.worktrees.map((worktree) => ({ key: `wt:${worktree.key}`, type: "worktree", worktree })),
   ...pc.sessions.map((row) => ({ key: row.id, type: "session", row })),
 ];
 
-export const stopsOf = (items) => items.filter((i) => ["session", "repo", "summary", "project", "worktree"].includes(i.type)).map((i) => i.key);
+export const stopsOf = (items) => items.filter((i) => ["session", "repo", "project", "worktree"].includes(i.type)).map((i) => i.key);
 
 export function placeCursor(stops, cursor, lastIndex = 0) {
   if (!stops.length) return { id: null, index: 0 };
@@ -232,13 +229,12 @@ const live = (model) => model.repos.flatMap((r) => r.rows).filter(isLive);
 export const attentionTarget = (model, from, dir) =>
   nextAttention(live(model).map((r) => ({ id: r.id, status: r.status })), from, dir);
 
-// opts: { mode: "projects", sel } puts Columns' selected project first, in worktree order.
+// The model is what the board shows (the selected tab). opts: { mode: "projects", sel } puts Columns' selected project first, in worktree order.
 export function agentOrder(model, view, root, opts = {}) {
   const tree = live(model).map((r) => r.id);
   let first = [];
   if (view === "columns" && opts.mode === "projects") first = (model.repos.find((r) => r.root === projectColumns(model, opts.sel, root).sel.project)?.rows ?? []).filter(isLive).map((r) => r.id);
   else if (view === "columns") first = columnsModel(model).flatMap((c) => c.rows).filter(isLive).map((r) => r.id);
-  else if (view === "cards" || view === "list") first = (selectedRepo(model, root)?.rows ?? []).filter(isLive).map((r) => r.id);
   const seen = new Set(first);
   return [...first, ...tree.filter((id) => !seen.has(id))];
 }

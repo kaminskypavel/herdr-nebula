@@ -47,7 +47,7 @@ export class Projects {
     const row = rows[i];
     if (!row) { this.add(); return; }
     if (row.open) {
-      const shown = open.includes(shared(REPO)) ? shared(REPO) : open[0];
+      const shown = open.includes(shared(REPO)) ? shared(REPO) : null; // All (or nothing) is shown when no project tab is selected
       const r = closeProject(open, row.root, shown);
       setShared(OPEN, r.open);
       if (r.select) setShared(REPO, r.select);

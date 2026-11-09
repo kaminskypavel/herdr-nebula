@@ -96,7 +96,7 @@ const SHORTCUTS = [
     { keys: ["s"], text: "pin beside, again to unpin" },
     { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
     { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
-    { keys: ["1 to 9"], text: "open project tab" },
+    { keys: ["0", "1 to 9"], text: "All tab, project tab" },
   ] },
 ];
 
