@@ -1,24 +1,33 @@
-// The icon bar: Board (shows or folds the board, the focus key's job), Projects (the picker),
-// New session, Presets, then New window, Help and Settings at the bottom. It also owns the
-// keyboard cycle and the jump chords, because a hidden board receives no key commands:
+// The icon bar: Board (shows or folds the board, the focus key's job), then the project tabs like a
+// vertical workspace switcher (All, the open projects in their shared order with a status dot, and +
+// for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
+// scrolls when it does not fit. A click selects a project (shared nebula.repo, which the board follows);
+// a right-click opens a menu with Close. It also owns the keyboard cycle and the jump chords, because a hidden board receives no key commands:
 // keys.json binds them to this mod's commands (focus, next, prev), and the rail shows,
 // folds or focuses the board (lib/focus.js decides which). The board answers through
 // shared values:
 //   nebula.boardKeys    true while the board has the keyboard (the board writes it)
 //   nebula.focusBoard   a token the rail changes to ask the board for the keyboard
 //   nebula.launched     a token the dialogs change after a launch from the board
+// It reads nebula.open, nebula.repo and nebula.icons (the board and the picker write them) and works
+// out each project's status itself, so the dots stay live while the board is folded.
 import { svg, div } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import {
-  theme, run, shared, setShared, exec, terminals, focused, panes, layout, openOverlay, nextCommand, notify,
+  theme, run, shared, setShared, exec, terminals, agents, focused, panes, spaces, layout, openOverlay, nextCommand, notify,
 } from "herdr";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
 import { statusOf } from "./lib/status.js";
 import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
-import { pickerHeight } from "./lib/open.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS } from "./lib/shared.js";
+import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
+import { buildBoard } from "./lib/viewmodel.js";
+import { railTabs } from "./lib/rail.js";
+import { iconFor } from "./lib/icons.js";
+import { projectIcon } from "./lib/icon-view.js";
+import { ball } from "./views/row.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL } from "./lib/shared.js";
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
 const store = () => shared(STORE) ?? {};
@@ -32,6 +41,8 @@ export class Rail {
     this.shown = boardShown();
     this.keys = shared(BOARD_KEYS) === true;
     this.launched = shared(LAUNCHED);
+    this.tabs = this.tabsNow();
+    this.tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
     cx.spawn(async (cx) => {
       for (;;) {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
@@ -70,6 +81,17 @@ export class Rail {
     if (shown !== this.shown) { this.shown = shown; this.send({ type: "visible", shown }, cx); }
     if (keys !== this.keys) { this.keys = keys; this.send({ type: "keys", board: keys }, cx); }
     if (launched !== this.launched) { this.launched = launched; this.send({ type: "launch" }, cx); }
+    this.tabs = this.tabsNow();
+    const tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
+    if (tabsKey !== this.tabsKey) { this.tabsKey = tabsKey; cx.notify(); }
+  }
+
+  // The project tabs now: the open projects with their status, the selected one, and whether a closed
+  // project needs you. Worked out here from the live sessions (the board's summary is stale while it is folded).
+  tabsNow() {
+    const model = buildBoard({ terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos() });
+    const open = currentOpen(shared(OPEN), model, store());
+    return { ...railTabs({ summary: summarize(model), open, selected: shared(REPO) }), open, plus: closedNeeding(model, open) };
   }
 
   send(ev, cx) {
@@ -123,25 +145,43 @@ export class Rail {
     openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 320, height: pickerHeight(projectList(store()).length), props: { role: "projects" } });
   }
 
-  // One 32px button. opts: { on (lit: the board is shown), dot (a red dot: something needs you) }.
-  button(t, id, tip, action, child, { on = false, dot = false } = {}) {
-    return div().id(id).relative().size(32).flex_none().flex().items_center().justify_center().rounded(8).cursor_pointer().tooltip(tip)
+  // One button. opts: { on (lit: the board is shown, or this tab is selected), dot (a red dot: something needs you),
+  // mark (an accent bar on the bar's left edge while on), size (default 32), menu (a right-click handler) }.
+  button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null } = {}) {
+    return div().id(id).relative().size(size).flex_none().flex().items_center().justify_center().rounded(8).cursor_pointer().tooltip(tip)
       .text_color(on ? t.foreground : t.muted)
       .when(on, (el) => el.bg(t.selected))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover).text_color(t.foreground)))
+      .when(Boolean(menu), (el) => el.on_mouse_down("right", menu))
       .on_click(action).child(child)
+      .when(on && mark, (el) => el.child(div().absolute().left((size - 44) / 2).top((size - 16) / 2).w(3).h(16).rounded(2).bg(t.accent)))
       .when(dot, (el) => el.child(div().absolute().top(5).right(5).size(7).rounded_full().bg(t.ansi1).border_1().border_color(t.chrome)));
+  }
+
+  projectMenu(p, open, selected) {
+    openOverlay({ mod: "nebula-box", kind: "popup", at: "pointer", width: 190, height: 72, props: { role: "project-menu", root: p.root, name: p.name, open, selected } });
+  }
+
+  // A project's tab: its icon (the shared picture or initials) with the status dot at the corner.
+  projectTab(t, p, { open, selected }) {
+    const icons = shared(ICONS) ?? {};
+    return this.button(t, `proj-${p.root}`, p.name, () => setShared(REPO, p.root),
+      projectIcon({ icon: iconFor(icons, p.root, p.name), size: 28, badge: ball(p.status, t, 7), ring: p.on ? t.selected : t.chrome }),
+      { on: p.on, mark: true, size: 36, menu: () => this.projectMenu(p, open, selected) });
   }
 
   render() {
     const t = theme();
     const needs = flatten(groupSessions(terminals(), this.repos())).some((x) => statusOf(x) === "needs");
+    const tabs = this.tabs, selected = tabs.items.find((p) => p.on)?.root ?? null;
     const b = (id, tip, action, name, opts) => this.button(t, id, tip, action, svg(icon(name)).size(16), opts);
     return v_flex().size_full().bg(t.chrome).items_center().gap(4).pt(6).pb(10)
       .child(b("board", "Board (\u2303`)", (_e, cx) => this.toggleBoard(cx), "panel-left", { on: this.shown, dot: needs }))
-      .child(b("projects", "Projects", () => this.openProjects(), "folder"))
-      .child(b("new-session", "New session (p)", () => this.openBox("launch", 640, 520), "plus"))
-      .child(b("presets", "Presets (e)", () => this.openBox("presets", 600, 540), "bookmark"))
+      .when(tabs.items.length > 0, (el) => el.child(this.button(t, "all", "All projects (0)", () => setShared(REPO, ALL), svg(icon("layout-grid")).size(16), { on: tabs.all, mark: true })))
+      // The project list scrolls when it is taller than the room; the + and the bottom group stay pinned.
+      .child(v_flex().id("rail-projects").w_full().min_h(0).flex_shrink_1().items_center().gap(4).overflow_y_scroll()
+        .children(tabs.items.map((p) => this.projectTab(t, p, { open: tabs.open, selected }))))
+      .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
       .child(div().flex_1())
       .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
       .child(b("help", "Shortcuts", () => this.openBox("help", 560, 460), "circle-help"))
