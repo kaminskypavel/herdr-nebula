@@ -13,8 +13,8 @@ export const items = (model, b) =>
         .map((row) => ({ key: row.id, type: "session", row }));
 
 const MODES = [
-  { id: "status", title: "Status" },
-  { id: "projects", title: "Projects" },
+  { id: "status", title: "By status" },
+  { id: "projects", title: "By project" },
 ];
 
 function mini(row, t, selected, click, menu, pinned, openPort) {

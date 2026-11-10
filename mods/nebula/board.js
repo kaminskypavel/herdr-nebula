@@ -109,7 +109,7 @@ import {
   parseWt,
   objectsOnly,
 } from "./lib/viewmodel.js";
-import { arrange, cleanSort, SORTS, SORT_TITLE } from "./lib/arrange.js";
+import { arrange, cleanSort, SORTS, SORT_TITLE, SORT_TIP } from "./lib/arrange.js";
 import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState } from "./lib/tabs.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
@@ -623,26 +623,6 @@ export class Board {
     this.bandsFolded = r.bands;
     this.persistFolds();
     this.persistBands();
-  }
-
-  foldButton(t, icon, tip, action) {
-    return div()
-      .id(`tree-${icon}`)
-      .size(24)
-      .flex()
-      .items_center()
-      .justify_center()
-      .rounded(6)
-      .cursor_pointer()
-      .text_color(t.muted)
-      .hover((s) => s.bg(t.hover).text_color(t.foreground))
-      .tooltip(tip)
-      .on_mouse_down("left", (_e, cx) => {
-        cx.stop_propagation();
-        action();
-        cx.notify();
-      })
-      .child(svg(`mods/nebula/icons/${icon}.svg`).size(14));
   }
 
   persistFolds() {
@@ -1235,57 +1215,98 @@ export class Board {
     });
   }
 
+  // One slim row: the four views as icons, the filter, the sort and New session. Presets (e) and folding are keys.
   header(t) {
     const compact = (this.width ?? 9999) < COMPACT_BELOW;
-    return v_flex()
+    return h_flex()
+      .h(42)
       .flex_none()
+      .items_center()
+      .gap(8)
+      .pl(20)
+      .pr(14)
+      .border_b(1)
+      .border_color(t.border)
       .child(
         h_flex()
-          .h(42)
-          .items_center()
-          .pl(20)
-          .pr(14)
-          .border_b(1)
+          .flex_none()
+          .border_1()
           .border_color(t.border)
-          .child(
-            h_flex()
-              .border_1()
-              .border_color(t.border)
-              .rounded(6)
-              .p(1)
-              .bg(t.background)
-              .children(
-                VIEWS.map((v) => {
-                  const on = v.id === this.view;
-                  return h_flex()
-                    .id(`view-${v.id}`)
-                    .h(22)
-                    .px(compact ? 7 : 10)
-                    .gap(6)
-                    .items_center()
-                    .rounded(4)
-                    .text_size(fs(12))
-                    .cursor_pointer()
-                    .text_color(on ? t.foreground : t.muted)
-                    .when(on, (el) => el.bg(t.selected))
-                    .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
-                    .when(compact, (el) => el.tooltip(VIEW_TITLE[v.id]))
-                    .on_mouse_down("left", (_e, cx) => {
-                      cx.stop_propagation();
-                      this.handle.focus();
-                      this.setView(v.id, cx);
-                    })
-                    .child(svg(`mods/nebula/icons/${v.id}.svg`).size(13).flex_none())
-                    .when(!compact, (el) => el.child(div().child(VIEW_TITLE[v.id])));
-                }),
-              ),
-          )
-          .child(div().flex_1())
-          .when(this.has, (el) => el.child(this.keysChip(t)))
-          .child(this.headerButton(t, "presets", "bookmark", "Presets", "e", compact, () => this.openPresets()).mr(8))
-          .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())),
+          .rounded(6)
+          .p(1)
+          .bg(t.background)
+          .children(
+            VIEWS.map((v) => {
+              const on = v.id === this.view;
+              return h_flex()
+                .id(`view-${v.id}`)
+                .size(22)
+                .items_center()
+                .justify_center()
+                .rounded(4)
+                .cursor_pointer()
+                .text_color(on ? t.foreground : t.muted)
+                .when(on, (el) => el.bg(t.selected))
+                .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+                .tooltip(`${VIEW_TITLE[v.id]} · v`)
+                .on_mouse_down("left", (_e, cx) => {
+                  cx.stop_propagation();
+                  this.handle.focus();
+                  this.setView(v.id, cx);
+                })
+                .child(svg(`mods/nebula/icons/${v.id}.svg`).size(13).flex_none());
+            }),
+          ),
       )
-      .child(this.toolbar(t));
+      .child(this.filterBox(t))
+      .child(this.sortButton(t))
+      .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch()));
+  }
+
+  filterBox(t) {
+    return h_flex()
+      .id("filter")
+      .flex_1()
+      .min_w(0)
+      .h(24)
+      .items_center()
+      .gap(6)
+      .px(8)
+      .rounded(6)
+      .border_1()
+      .border_color(this.filtering ? t.accent : t.border)
+      .bg(t.background)
+      .cursor_text()
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .child(svg("mods/nebula/icons/search.svg").size(13).flex_none().text_color(t.dim))
+      .child(Input.new(this.input).flex_1().min_w(0).h_full().text_size(fs(12)).text_color(t.foreground));
+  }
+
+  // One small button that cycles the sort: Urgent (needs you first) or A-Z.
+  sortButton(t) {
+    return h_flex()
+      .id("sort")
+      .flex_none()
+      .h(24)
+      .min_w(rh(54))
+      .px(8)
+      .items_center()
+      .justify_center()
+      .rounded(6)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.background)
+      .text_size(fs(12))
+      .text_color(t.muted)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .tooltip(SORT_TIP[this.sort])
+      .on_mouse_down("left", (_e, cx) => {
+        cx.stop_propagation();
+        this.handle.focus();
+        this.setSort(cycleOf(SORTS, this.sort, 1), cx);
+      })
+      .child(SORT_TITLE[this.sort]);
   }
 
   // Under the toolbar (render draws it only when something needs you or finished unseen in the shown tab): the counts, the
@@ -1367,7 +1388,7 @@ export class Board {
       );
   }
 
-  // Shown while the board has the keyboard, so a stray letter is never a surprise: Esc gives them back.
+  // At the left of the status line while the board has the keyboard, so a stray letter is never a surprise: Esc gives them back.
   keysChip(t) {
     return h_flex()
       .id("keys-chip")
@@ -1406,78 +1427,8 @@ export class Board {
       .border_color(t.border)
       .text_size(fs(11.5))
       .text_color(said ? t.foreground : t.dim)
+      .when(this.has, (el) => el.child(this.keysChip(t)))
       .child(div().min_w(0).truncate().child(text));
-  }
-
-  // Under the view tabs: the filter on the left, the sort and (Tree, Cards, List) fold buttons on the right.
-  toolbar(t) {
-    return h_flex()
-      .h(34)
-      .flex_none()
-      .items_center()
-      .gap(8)
-      .pl(20)
-      .pr(14)
-      .border_b(1)
-      .border_color(t.border)
-      .child(
-        h_flex()
-          .id("filter")
-          .flex_1()
-          .min_w(0)
-          .h(24)
-          .items_center()
-          .gap(6)
-          .px(8)
-          .rounded(6)
-          .border_1()
-          .border_color(this.filtering ? t.accent : t.border)
-          .bg(t.background)
-          .cursor_text()
-          .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-          .child(svg("mods/nebula/icons/search.svg").size(13).flex_none().text_color(t.dim))
-          .child(Input.new(this.input).flex_1().min_w(0).h_full().text_size(fs(12)).text_color(t.foreground)),
-      )
-      .child(
-        h_flex()
-          .flex_none()
-          .border_1()
-          .border_color(t.border)
-          .rounded(6)
-          .p(1)
-          .bg(t.background)
-          .children(
-            SORTS.map((id) => {
-              const on = id === this.sort;
-              return h_flex()
-                .id(`sort-${id}`)
-                .h(20)
-                .px(8)
-                .items_center()
-                .rounded(4)
-                .text_size(fs(11.5))
-                .cursor_pointer()
-                .text_color(on ? t.foreground : t.muted)
-                .when(on, (el) => el.bg(t.selected))
-                .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
-                .on_mouse_down("left", (_e, cx) => {
-                  cx.stop_propagation();
-                  this.handle.focus();
-                  this.setSort(id, cx);
-                })
-                .child(div().child(SORT_TITLE[id]));
-            }),
-          ),
-      )
-      .when(this.canFoldAll(), (el) =>
-        el.child(
-          h_flex()
-            .flex_none()
-            .gap(2)
-            .child(this.foldButton(t, "collapse-all", "Collapse all", () => this.foldAll(true)))
-            .child(this.foldButton(t, "expand-all", "Expand all", () => this.foldAll(false))),
-        ),
-      );
   }
 
   canFoldAll() {

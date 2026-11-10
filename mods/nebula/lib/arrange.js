@@ -5,7 +5,9 @@
 import { STATUS_ORDER, tally } from "./status.js";
 
 export const SORTS = ["status", "name"];
-export const SORT_TITLE = { status: "Status", name: "Name" };
+// The sort button's word and its tooltip: Status puts what needs you first, Name is alphabetical.
+export const SORT_TITLE = { status: "Urgent", name: "A–Z" };
+export const SORT_TIP = { status: "Sort: urgent first", name: "Sort: by name" };
 
 export const NO_MATCH = "No matches";
 
