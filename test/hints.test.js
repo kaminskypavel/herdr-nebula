@@ -60,7 +60,7 @@ test("with the keys elsewhere, the hint says how to get them, from the live keym
     ],
     true,
   );
-  assert.equal(hintLine(hintPairs("away"), rebound), "⌃Space keys to the board · ⌘P jump to an agent · click a row to look");
+  assert.equal(hintLine(hintPairs("away"), rebound), "⌃Space keys to the board · ⌘P jump to an agent · click a row, ↩ to open");
 });
 
 test("the empty board and a repo header have hints too", () => {
