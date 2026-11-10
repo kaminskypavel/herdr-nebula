@@ -117,7 +117,7 @@ import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
-import { setReduceMotion } from "./lib/motion.js";
+import { setReduceMotion, animate, SPRING } from "./lib/motion.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -1252,11 +1252,33 @@ export class Board {
       .child(
         h_flex()
           .flex_none()
+          .relative()
           .border_1()
           .border_color(t.border)
           .rounded(6)
           .p(1)
           .bg(t.background)
+          // The pill behind the selected icon slides to the one picked (22 px icons, 1 px of padding around them).
+          .child(
+            animate(
+              div()
+                .id("view-pill")
+                .absolute()
+                .top(1)
+                .left(
+                  1 +
+                    22 *
+                      Math.max(
+                        0,
+                        VIEWS.findIndex((v) => v.id === this.view),
+                      ),
+                )
+                .size(22)
+                .rounded(4)
+                .bg(t.selected),
+              (el) => el.spring("left", SPRING),
+            ),
+          )
           .children(
             VIEWS.map((v) => {
               const on = v.id === this.view;
@@ -1268,7 +1290,6 @@ export class Board {
                 .rounded(4)
                 .cursor_pointer()
                 .text_color(on ? t.foreground : t.muted)
-                .when(on, (el) => el.bg(t.selected))
                 .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
                 .tooltip(`${VIEW_TITLE[v.id]} · v`)
                 .on_mouse_down("left", (_e, cx) => {
