@@ -92,7 +92,9 @@ import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import { trackUnseen, freshDone } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
-import { PORT_HIT } from "./views/row.js";
+import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
+import { attentionStrip, stripParts } from "./lib/strip.js";
+import { rowText } from "./lib/prompt.js";
 import {
   OTHER,
   NEW_SESSION,
@@ -1189,6 +1191,7 @@ export class Board {
     this.root = this.tab === ALL ? null : this.tab;
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
     this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
+    this.attn = attentionStrip(this.scoped);
     this.pinned = shared(PINNED);
     this.promptLine = this.config().promptLine;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root, this.tab !== ALL) : null;
@@ -1283,6 +1286,85 @@ export class Board {
           .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())),
       )
       .child(this.toolbar(t));
+  }
+
+  // Under the toolbar (render draws it only when something needs you or finished unseen in the shown tab): the counts, the
+  // key to go to the next one, and up to three rows to click (the agent shows, the keys stay here).
+  strip(t) {
+    const a = this.attn;
+    const next = shortcutLabel(keys(), window()?.platform === "macos")({ action: "nebula.next", def: "⌘]" });
+    const parts = stripParts(a, [`${next} next`]);
+    const tone = { needs: t.ansi1, unseen: t.ansi6, plain: t.muted };
+    return v_flex()
+      .id("attention-strip")
+      .flex_none()
+      .px(20)
+      .py(6)
+      .gap(2)
+      .border_b(1)
+      .border_color(t.border)
+      .child(
+        h_flex()
+          .h(rh(20))
+          .items_center()
+          .gap(6)
+          .text_size(fs(12))
+          .children(
+            parts.flatMap((p, i) => [
+              ...(i ? [div().flex_none().text_color(t.dim).child("·")] : []),
+              div()
+                .flex_none()
+                .text_color(tone[p.tone])
+                .when(p.tone !== "plain", (el) => el.font_semibold())
+                .child(p.text),
+            ]),
+          ),
+      )
+      .children(
+        a.items.map(({ row, project }) =>
+          h_flex()
+            .id(`attn-${row.id}`)
+            .h(rh(22))
+            .items_center()
+            .gap(8)
+            .px(6)
+            .rounded(6)
+            .text_size(fs(12))
+            .cursor_pointer()
+            .hover((s) => s.bg(t.hover))
+            .tooltip(row.prompt || row.title)
+            .on_click((_e, cx) => {
+              this.handle.focus();
+              this.showKeep(row, cx);
+              cx.notify();
+            })
+            .child(ball(row.status, t, 6, false, row.fresh))
+            .child(
+              div()
+                .flex_1()
+                .min_w(0)
+                .flex()
+                .child(rowTitle({ ...row, title: rowText(row, false).title }, t)),
+            )
+            .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(project)),
+        ),
+      )
+      .when(a.more > 0, (el) =>
+        el.child(
+          h_flex()
+            .id("attn-more")
+            .h(rh(20))
+            .items_center()
+            .px(6)
+            .rounded(6)
+            .text_size(fs(11))
+            .text_color(t.muted)
+            .cursor_pointer()
+            .hover((s) => s.bg(t.hover))
+            .on_click(() => this.openJump())
+            .child(`+${a.more} more`),
+        ),
+      );
   }
 
   // Shown while the board has the keyboard, so a stray letter is never a surprise: Esc gives them back.
@@ -1519,6 +1601,7 @@ export class Board {
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
+      .when(this.base.repos.length > 0 && this.open.length > 0 && this.attn.needs + this.attn.unseen > 0, (el) => el.child(this.strip(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
       .child(this.statusLine(t));

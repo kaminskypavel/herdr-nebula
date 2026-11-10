@@ -27,11 +27,15 @@ const urgency = (rows) => {
   return i < 0 ? STATUS_ORDER.length : i;
 };
 
+// 0 for a band holding a live session that needs you, else 1: Array.prototype.sort is stable, so equal bands keep their order.
+const needsFirst = (band) => (band.rows.some((r) => r.status === "needs" && !r.archived && r.kind !== "nebula") ? 0 : 1);
+
 // Filter: a project whose name matches keeps everything. Otherwise a session stays when
 // its title, or its worktree's label or branch, matches; bands and projects left empty hide,
 // except an empty band whose own label or branch matches (it is what was looked for).
 // Sort "status": sessions as buildBoard ordered them (needs you ... grey last), projects by
-// their most urgent status. Sort "name": projects, worktrees and sessions alphabetical.
+// their most urgent status, and inside a project the worktrees with a session that needs you first
+// (otherwise in the order they came). Sort "name": projects, worktrees and sessions alphabetical.
 export function arrange(model, { filter = "", sort = "status" } = {}) {
   const q = fold(filter).trim(),
     has = (s) => fold(s).includes(q),
@@ -47,6 +51,7 @@ export function arrange(model, { filter = "", sort = "status" } = {}) {
     }
     if (q && !whole && !bands.length) continue;
     if (sort === "name") bands = [...bands].sort(byName((b) => b.label));
+    else bands = [...bands].sort((a, b) => needsFirst(a) - needsFirst(b));
     const rows = bands.flatMap((b) => b.rows);
     repos.push({ ...repo, bands, rows, counts: tally(rows.map((r) => r.status)) });
   }

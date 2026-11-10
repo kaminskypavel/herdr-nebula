@@ -33,6 +33,43 @@ test("no filter, status sort: projects by most urgent status, grey and empty las
   );
 });
 
+test("status sort puts a worktree with a needs-you session before one without, and keeps the rest in order", () => {
+  const m = arrange(
+    {
+      repos: [
+        repo("/a", "a", [
+          band("/a", "main", [row("1", "one", "working")]),
+          band("/a-x", "x", [row("2", "two", "seen")]),
+          band("/a-y", "y", [row("3", "three", "needs")]),
+          band("/a-z", "z", [row("4", "four", "needs", { archived: true })]),
+          band("/a-w", "w", [row("5", "five", "needs")]),
+        ]),
+      ],
+    },
+    { sort: "status" },
+  );
+  assert.deepEqual(
+    m.repos[0].bands.map((b) => b.label),
+    ["y", "w", "main", "x", "z"],
+    "archived needs-you does not count",
+  );
+  assert.deepEqual(
+    m.repos[0].rows.map((r) => r.id),
+    ["3", "5", "1", "2", "4"],
+  );
+});
+
+test("name sort does not move worktrees for urgency", () => {
+  const m = arrange(
+    { repos: [repo("/a", "a", [band("/a", "alpha", [row("1", "one", "seen")]), band("/a-z", "zeta", [row("2", "two", "needs")])])] },
+    { sort: "name" },
+  );
+  assert.deepEqual(
+    m.repos[0].bands.map((b) => b.label),
+    ["alpha", "zeta"],
+  );
+});
+
 test("default sort is status, the same as asking for it", () => {
   assert.deepEqual(arrange(model()), arrange(model(), { sort: "status", filter: "" }));
 });
