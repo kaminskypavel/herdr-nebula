@@ -170,7 +170,7 @@ export const shortcutLabel = (binds, mac) => (k) => {
 // what the row looks like. The same words the board uses.
 export const LEGEND = [
   { status: "needs", label: "needs you", text: "red title, bar and dot" },
-  { status: "working", label: "working", text: "yellow dot" },
+  { status: "working", label: "working", text: "yellow spinner" },
   { status: "unseen", label: "done, not seen", text: "bold title, cyan age" },
   { status: "seen", label: "done, seen", text: "muted title, green dot" },
 ];

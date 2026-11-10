@@ -15,3 +15,7 @@ export const reduced = () => off;
 
 /** Applies `fn` (a chain of .loop, .transition, .spring, .frames) to `el` unless motion is off. */
 export const animate = (el, fn) => (off ? el : fn(el));
+
+// Claude Code's own star spinner, shown in place of a working row's dot.
+export const STAR = ["·", "✢", "✳", "✶", "✻", "✽"];
+export const STAR_MS = 110;

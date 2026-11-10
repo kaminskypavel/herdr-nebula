@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, badge, metaLine, portLinks, title, ageColor } from "./row.js";
+import { ball, rowDot, badge, metaLine, portLinks, title, ageColor } from "./row.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs } from "../lib/scale.js";
 
@@ -177,7 +177,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
       h_flex()
         .gap(8)
         .items_center()
-        .child(ball(row.status, t, 8, row.archived, row.fresh))
+        .child(rowDot(row, t))
         .child(title(row, t, look).flex_1().text_size(fs(13)))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )

@@ -9,6 +9,7 @@ import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "..
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
 import { pulseOf } from "../lib/attention.js";
+import { animate, reduced, STAR, STAR_MS } from "../lib/motion.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
@@ -25,8 +26,8 @@ export const itemHeight = (item, opts = {}) =>
 
 const tone = (status, t) => t[COLOR[status]] ?? t.unknown;
 
-// `hollow` (an archived session) draws a ring instead of a filled dot. Needs-you pulses red, working
-// pulses gently and `fresh` (an unseen finish only seconds old) pulses for those seconds (lib/attention.js).
+// `hollow` (an archived session) draws a ring instead of a filled dot. A `fresh` dot (a state only seconds
+// old: needs you, working, an unseen finish) pulses for those seconds (lib/attention.js).
 export function ball(status, t, size = 8, hollow = false, fresh = false) {
   const b = div()
     .size(size)
@@ -35,7 +36,14 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
     .when(hollow, (el) => el.border(1.5).border_color(tone(status, t)))
     .when(!hollow, (el) => el.bg(tone(status, t)));
   const pulse = hollow ? null : pulseOf(status, fresh);
-  return pulse ? b.loop("opacity", pulse) : b;
+  return pulse ? animate(b, (el) => el.loop("opacity", pulse)) : b;
+}
+
+// A working row's dot: Claude Code's star spinner in the working color, in the same box as the dot. Still
+// (the plain dot) when the row is archived or motion is reduced.
+export function rowDot(row, t, size = 8) {
+  if (row.status !== "working" || row.archived || reduced()) return ball(row.status, t, size, row.archived, row.fresh);
+  return div().size(size).flex_none().flex().items_center().justify_center().text_size(fs(11)).line_height(1).text_color(t.ansi3).frames(STAR, STAR_MS);
 }
 
 // The color of a row's age: red for needs you, cyan for an unseen finish, else `plain` (what the view uses).
@@ -200,7 +208,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         .max_w(rh(CONTENT_W))
         .items_center()
         .gap(10)
-        .child(ball(row.status, t, 8, row.archived, row.fresh))
+        .child(rowDot(row, t))
         .child(
           v_flex()
             .flex_1()

@@ -3,7 +3,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
-import { ball, badge, drawItem, metaLine, portLinks, title, ageColor } from "./row.js";
+import { rowDot, badge, drawItem, metaLine, portLinks, title, ageColor } from "./row.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 
@@ -50,11 +50,7 @@ function card(row, t, selected, click, menu, pinned, openPort) {
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
-    .child(
-      div()
-        .mt(rh(6))
-        .child(ball(row.status, t, 8, row.archived, row.fresh)),
-    )
+    .child(div().mt(rh(6)).child(rowDot(row, t)))
     .child(
       v_flex()
         .flex_1()
