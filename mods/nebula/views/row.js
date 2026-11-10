@@ -53,9 +53,12 @@ const age = (text, color, moon = false, bold = false) =>
     .when(moon, (el) => el.child(svg("mods/nebula/icons/moon.svg").size(11).flex_none()))
     .child(text);
 
-// The agent's icon (12px, dim like the text) and its model and effort; null when there is nothing to say.
-// The text shrinks and truncates, so a long value never pushes the age off.
-export function metaLine(row, t, size = 12) {
+// The agent's icon (12px, muted like the text) and its model and effort; null when there is nothing to say,
+// and when the row is neither selected nor running something other than its project's usual agent and
+// model (lib/rowmeta.js stampOdd): the common case stays quiet. The text shrinks and truncates, so a long
+// value never pushes the age off.
+export function metaLine(row, t, size = 12, selected = false) {
+  if (!selected && !row.metaOdd) return null;
   const { icon, text } = rowMeta(row);
   if (!icon && !text) return null;
   return h_flex()
@@ -146,6 +149,8 @@ export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).b
 
 // A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
 // selected row. `height` is the row's own (the lists state it), so the bar needs no stretch from its parent.
+const CONTENT_W = 560; // the widest a session row's content gets (Tree and List)
+
 const edgeBar = (color, height) =>
   div()
     .absolute()
@@ -157,7 +162,7 @@ const edgeBar = (color, height) =>
     .bg(color);
 
 export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true }) {
-  const meta = metaLine(row, t),
+  const meta = metaLine(row, t, 12, selected),
     ports = portCells(row, t),
     look = rowLook(row);
   const text = rowText(row, promptLine);
@@ -186,24 +191,36 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     )
     .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height)))
     .when(selected && look.bar !== "needs", (el) => el.child(edgeBar(t.accent, height)))
-    .child(ball(row.status, t, 8, row.archived, row.fresh))
     .child(
-      v_flex()
-        .flex_1()
+      // The content stops at CONTENT_W so the age sits near the title on a wide board; the row's fill still spans.
+      // The ports stay at the row's right edge (the lists find a clicked port by its distance from there).
+      h_flex()
+        .w_full()
         .min_w(0)
+        .max_w(rh(CONTENT_W))
+        .items_center()
+        .gap(10)
+        .child(ball(row.status, t, 8, row.archived, row.fresh))
         .child(
-          h_flex()
+          v_flex()
+            .flex_1()
             .min_w(0)
-            .items_center()
-            .gap(10)
-            .child(title({ ...row, title: text.title }, t, look))
-            .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
-            .when(Boolean(meta), (el) => el.child(meta)),
+            .child(
+              h_flex()
+                .min_w(0)
+                .items_center()
+                .gap(10)
+                .child(title({ ...row, title: text.title }, t, look))
+                .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
+                .when(Boolean(meta), (el) => el.child(meta)),
+            )
+            .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(text.sub))),
         )
-        .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(text.sub))),
+        .child(
+          pinned && look.ageTone !== "needs" ? age("pinned", t.muted) : age(look.ageText, ageColor(look, t, t.muted), row.asleep, look.ageTone === "needs"),
+        ),
     )
-    .child(pinned && look.ageTone !== "needs" ? age("pinned", t.muted) : age(look.ageText, ageColor(look, t, t.muted), row.asleep, look.ageTone === "needs"))
-    .when(Boolean(ports), (el) => el.child(ports));
+    .when(Boolean(ports), (el) => el.child(div().ml_auto().child(ports)));
 }
 
 // The line under a band with no session: it can hold the cursor, `p` and `d` act on it.

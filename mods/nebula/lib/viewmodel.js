@@ -8,6 +8,7 @@ import { byName, rowGroup } from "./arrange.js";
 import { freshDone } from "./attention.js";
 import { isLinked } from "./actions.js";
 import { parseSession, resumeHint } from "./resume.js";
+import { stampOdd } from "./rowmeta.js";
 
 export const OTHER = "other:";
 
@@ -172,10 +173,12 @@ export function buildBoard({
         };
       });
     const rows = bands.flatMap((b) => b.rows);
+    stampOdd(rows);
     return { root: r.root, name: r.name, bands, rows, counts: counts(rows) };
   });
   if (g.other.length || strays.length) {
     const rows = byGroup([...g.other.map(rowOf), ...strays]);
+    stampOdd(rows);
     out.push({ root: OTHER, name: "Other", bands: [{ path: "", branch: null, label: "", ahead: 0, added: 0, deleted: 0, rows }], rows, counts: counts(rows) });
   }
   return { repos: out };

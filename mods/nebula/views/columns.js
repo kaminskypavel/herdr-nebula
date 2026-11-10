@@ -153,7 +153,7 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
 function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort) {
-  const meta = metaLine(row, t, 11),
+  const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
   return v_flex()

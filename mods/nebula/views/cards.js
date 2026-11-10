@@ -32,7 +32,7 @@ const promptBlock = (prompt, t) => {
 };
 
 function card(row, t, selected, click, menu, pinned, openPort) {
-  const meta = metaLine(row, t, 11),
+  const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
   return h_flex()

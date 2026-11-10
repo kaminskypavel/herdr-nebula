@@ -892,3 +892,16 @@ test("only an unseen row is ever fresh", () => {
   const rows = buildBoard({ ...fleet(), now: NOW }).repos.flatMap((r) => r.rows);
   for (const r of rows) if (r.status !== "unseen") assert.equal(r.fresh, false, r.status);
 });
+
+test("buildBoard marks, per project, the rows that run something other than the project's usual agent", () => {
+  const args = fleet();
+  args.terminals[0].program = { key: "codex", name: "Codex", shell: false }; // t1 is alpha's only odd one
+  const board = buildBoard(args);
+  const alpha = board.repos.find((r) => r.root === "/r/alpha");
+  assert.deepEqual(
+    alpha.rows.filter((r) => r.metaOdd).map((r) => r.id),
+    ["t1"],
+  );
+  const beta = board.repos.find((r) => r.root === "/r/beta");
+  assert.ok(beta.rows.every((r) => r.metaOdd === false));
+});
