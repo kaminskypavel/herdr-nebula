@@ -4,6 +4,8 @@
 // terminal (and its tab when the agent was alone in it); a failed removal keeps the
 // worktree and shows what `wt` said.
 // props: { title, worktree, status, terminal, tab, alone, offer: { root, path, branch } | null }.
+// With worktreeOnly (the board's `d` on a worktree with no session) there is no session to end:
+// the same check runs, the removal starts ticked, and Delete runs `wt remove` alone.
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, theme, exec } from "herdr";
@@ -27,9 +29,9 @@ export class Confirm {
     this.check = summarizeCheck(null, null);
     this.files = [];
     this.unpushed = [];
-    this.killed = false;
+    this.killed = Boolean(props()?.worktreeOnly); // no session to end
     this.loaded = !props()?.offer;
-    this.remove = false;
+    this.remove = Boolean(props()?.worktreeOnly); // settled by the check below: only a known-clean worktree stays ticked
     this.busy = false;
     this.deleted = false;
     this.error = null;
@@ -56,6 +58,7 @@ export class Confirm {
     const p = props() ?? {};
     if (this.busy || this.deleted) return;
     if (this.remove && p.offer && !this.loaded) return;
+    if (p.worktreeOnly && !this.remove) return;
     this.busy = true;
     this.error = null;
     cx.notify();
@@ -90,7 +93,7 @@ export class Confirm {
           }
           dirty = re.dirty;
         }
-        this.deleted = true;
+        this.deleted = !p.worktreeOnly; // a failed removal can be tried again when it is the only thing asked
         if (this.remove && p.offer) {
           const plan = planRemove(p.offer, dirty);
           const r = await exec(plan.cmd, plan.args, { timeout: WT_TIMEOUT }).catch((e) => ({ code: 1, stderr: String(e) }));
@@ -150,7 +153,7 @@ export class Confirm {
       .gap(14)
       .bg(t.popover)
       .text_color(t.foreground)
-      .child(dialogTitle(t, this.deleted ? "Session deleted" : "Delete this session?"))
+      .child(dialogTitle(t, p.worktreeOnly ? "Delete this worktree?" : this.deleted ? "Session deleted" : "Delete this session?"))
       .child(
         v_flex()
           .gap(3)
@@ -160,13 +163,18 @@ export class Confirm {
             div()
               .text_size(fs(12))
               .text_color(t.dim)
-              .child(p.alone ? "Ends the agent and closes its tab." : "Ends the agent."),
+              .child(p.worktreeOnly ? "Nothing is running in it." : p.alone ? "Ends the agent and closes its tab." : "Ends the agent."),
           ),
       )
       .when(Boolean(p.offer), (el) =>
         el
           .child(div().h(1).bg(t.border))
-          .child(div().text_size(fs(12)).text_color(t.muted).child(`This is the last session in the worktree ${p.offer.branch}.`))
+          .child(
+            div()
+              .text_size(fs(12))
+              .text_color(t.muted)
+              .child(p.worktreeOnly ? `Removes the worktree ${p.offer.branch}.` : `This is the last session in the worktree ${p.offer.branch}.`),
+          )
           .when(!this.loaded, (e) => e.child(div().text_size(fs(12)).text_color(t.dim).child("Checking the worktree…")))
           .when(this.files.length > 0, (e) => e.child(this.list(t, `${this.files.length} uncommitted`, this.files, t.working)))
           .when(this.unpushed.length > 0, (e) =>
@@ -214,7 +222,9 @@ export class Confirm {
         el.child(
           v_flex()
             .gap(3)
-            .when(this.deleted, (e) => e.child(div().text_size(fs(12)).text_color(t.muted).child("The session is gone. The worktree was kept.")))
+            .when(this.deleted && !p.worktreeOnly, (e) =>
+              e.child(div().text_size(fs(12)).text_color(t.muted).child("The session is gone. The worktree was kept.")),
+            )
             .child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)),
         ),
       )

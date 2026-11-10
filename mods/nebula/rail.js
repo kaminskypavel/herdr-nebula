@@ -38,7 +38,7 @@ import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
 import { buildBoard } from "./lib/viewmodel.js";
-import { railTabs, tabHint } from "./lib/rail.js";
+import { railTabs, tabHint, pillText } from "./lib/rail.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
@@ -286,18 +286,48 @@ export class Rail {
     });
   }
 
-  // A project's tab: its icon (the shared picture or initials) with the status dot at the corner.
+  // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
+  // when agents there need you, a red pill with how many.
   projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {},
-      hint = tabHint(p.name, n);
-    return this.button(
-      t,
-      `proj-${p.root}`,
-      hint.tip,
-      () => setShared(REPO, p.root),
-      projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: ball(p.status, t, 8), ring: p.on ? t.selected : t.chrome }),
-      { on: p.on, mark: true, size: 42, num: hint.num, menu: () => this.projectMenu(p, open, selected) },
-    );
+      hint = tabHint(p.name, n),
+      ring = p.on ? t.selected : t.chrome;
+    const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: p.needs > 0 ? null : ball(p.status, t, 8), ring });
+    const icon =
+      p.needs > 0
+        ? div()
+            .relative()
+            .size(32)
+            .flex_none()
+            .child(face)
+            .child(
+              div()
+                .absolute()
+                .right(-6)
+                .bottom(-5)
+                .h(14)
+                .min_w(14)
+                .px(4)
+                .rounded_full()
+                .bg(t.ansi1)
+                .border_1()
+                .border_color(ring)
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_size(fs(9.5))
+                .font_semibold()
+                .text_color("#ffffff")
+                .child(pillText(p.needs)),
+            )
+        : face;
+    return this.button(t, `proj-${p.root}`, hint.tip, () => setShared(REPO, p.root), icon, {
+      on: p.on,
+      mark: true,
+      size: 42,
+      num: hint.num,
+      menu: () => this.projectMenu(p, open, selected),
+    });
   }
 
   render() {

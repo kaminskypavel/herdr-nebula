@@ -36,6 +36,11 @@ export function worktreeOffer(model, id) {
   return { root: at.repo.root, path: at.band.path, branch: at.band.branch };
 }
 
+// The worktree an empty band's `d` removes, or null when the board may not offer it: the band
+// has a session (use that session's delete) or buildBoard marked it undeletable (no branch to
+// name to `wt remove`, not a linked worktree, the repo's own checkout, the default branch).
+export const bandOffer = (root, band) => (band && !band.rows.length && band.deletable ? { root, path: band.path, branch: band.branch } : null);
+
 export const parseLines = (text) =>
   String(text ?? "")
     .split("\n")

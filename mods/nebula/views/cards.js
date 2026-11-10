@@ -14,6 +14,21 @@ export const items = (model, b) =>
     folded: b.filter ? new Set() : b.folded,
   });
 
+// The prompt under a card's title: it wraps and stops at three lines (the clip is the line height times three).
+const PROMPT_LINES = 3,
+  LINE = 1.4;
+const promptBlock = (prompt, t) => {
+  const size = fs(11);
+  return div()
+    .min_w(0)
+    .max_h(Math.ceil(size * LINE * PROMPT_LINES))
+    .overflow_hidden()
+    .text_size(size)
+    .line_height(LINE)
+    .text_color(t.dim)
+    .child(`› ${prompt}`);
+};
+
 function card(row, t, selected, click, menu, pinned) {
   const meta = metaLine(row, t, 11);
   return h_flex()
@@ -33,7 +48,7 @@ function card(row, t, selected, click, menu, pinned) {
     .child(
       div()
         .mt(4)
-        .child(ball(row.status, t, 8, row.archived)),
+        .child(ball(row.status, t, 8, row.archived, row.fresh)),
     )
     .child(
       v_flex()
@@ -66,7 +81,7 @@ function card(row, t, selected, click, menu, pinned) {
                 .child(pinned ? "pinned" : row.age),
             ),
         )
-        .when(Boolean(row.prompt), (el) => el.child(div().min_w(0).truncate().text_size(fs(11)).text_color(t.dim).child(`› ${row.prompt}`)))
+        .when(Boolean(row.prompt), (el) => el.child(promptBlock(row.prompt, t)))
         .children(
           row.subs.map((s) =>
             h_flex()

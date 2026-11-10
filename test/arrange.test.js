@@ -162,3 +162,20 @@ test("bandStats names each part's colour kind, bandParts keeps the text", () => 
   assert.deepEqual(bandParts(b), ["↑5", "+14387", "−3"]);
   assert.deepEqual(bandStats({ ahead: 0, added: 0, deleted: 2 }), [{ kind: "deleted", text: "−2" }]);
 });
+
+test("a filter keeps an empty band whose own label matches, and drops the other empty ones", () => {
+  const m = {
+    repos: [repo("/r", "proj", [band("/r", "main", [row("r1", "task", "seen")]), band("/r-wt/login", "login", []), band("/r-wt/billing", "billing", [])])],
+  };
+  assert.deepEqual(
+    arrange(m, { filter: "login" }).repos[0].bands.map((b) => b.label),
+    ["login"],
+  );
+  assert.deepEqual(
+    arrange(m, { filter: "zzz" }).repos.map((r) => r.root),
+    [],
+  );
+  // no filter: every band; the project's own name keeps all of them
+  assert.equal(arrange(m).repos[0].bands.length, 3);
+  assert.equal(arrange(m, { filter: "proj" }).repos[0].bands.length, 3);
+});

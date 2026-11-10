@@ -97,3 +97,13 @@ test("an unbound action (empty keys) falls back to the built-in key", () => {
   const groups = groupShortcuts([{ section: "global", keys: "  ", action: "nebula.next" }], true);
   assert.equal(rowOf(groups, "Anywhere", "next, previous needs-you").keys, "⌘] ⌘[");
 });
+
+test("the prompt line and empty worktrees are on by default, and only a boolean turns them off", () => {
+  const s = mergeSettings({});
+  assert.equal(s.promptLine, true);
+  assert.equal(s.showEmptyWorktrees, true);
+  assert.equal(mergeSettings({ promptLine: false }).promptLine, false);
+  assert.equal(mergeSettings({ showEmptyWorktrees: false }).showEmptyWorktrees, false);
+  assert.equal(mergeSettings({ promptLine: "no", showEmptyWorktrees: 0 }).promptLine, true);
+  assert.equal(mergeSettings({ promptLine: "no", showEmptyWorktrees: 0 }).showEmptyWorktrees, true);
+});

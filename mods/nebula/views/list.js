@@ -2,8 +2,7 @@ import { v_flex, v_virtual_list, Scrollbar } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
-import { HEIGHT, drawItem } from "./row.js";
-import { rh } from "../lib/scale.js";
+import { itemHeight, drawItem } from "./row.js";
 
 export const items = (model, b) =>
   listItems(model, {
@@ -21,11 +20,11 @@ export function virtualList(b, list, t, deep) {
       v_virtual_list(
         "board-list",
         list.length,
-        list.map((i) => rh(HEIGHT[i.type])),
+        list.map((i) => itemHeight(i, b)),
         (n) => list[n].key,
         (range) => {
           b.range = range;
-          return list.slice(range.start, range.end).map((i) => drawItem(i, t, { cursor: b.cursor, deep, pinned: b.pinned }));
+          return list.slice(range.start, range.end).map((i) => drawItem(i, t, { cursor: b.cursor, deep, pinned: b.pinned, promptLine: b.promptLine }));
         },
       )
         .size_full()

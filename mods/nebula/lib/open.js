@@ -4,7 +4,8 @@
 // (syncOpen); the picker, the add and remove dialogs only edit it.
 //
 // A "summary" is buildBoard's model reduced to one entry per project:
-// [{ root, name, count, status }], status being the most urgent one (viewmodel's rollup).
+// [{ root, name, count, needs, status }], status being the most urgent one (viewmodel's rollup)
+// and needs the number of Herdr sessions waiting on you.
 import { OTHER, rollup } from "./viewmodel.js";
 import { STATUS_ORDER } from "./status.js";
 import { projectList } from "./repos.js";
@@ -12,7 +13,14 @@ import { norm } from "./projects.js";
 
 const real = (model) => model.repos.filter((r) => r.root !== OTHER);
 
-export const summarize = (model) => real(model).map((r) => ({ root: r.root, name: r.name, count: r.rows.length, status: rollup(r.rows) }));
+export const summarize = (model) =>
+  real(model).map((r) => ({
+    root: r.root,
+    name: r.name,
+    count: r.rows.length,
+    needs: r.rows.filter((x) => x.kind !== "nebula" && x.status === "needs").length,
+    status: rollup(r.rows),
+  }));
 
 // The open list cut to roots still in the store (spelled as the store spells them), no repeats.
 export function cleanOpen(open, store) {

@@ -163,7 +163,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
       h_flex()
         .gap(8)
         .items_center()
-        .child(ball(row.status, t, 8, row.archived))
+        .child(ball(row.status, t, 8, row.archived, row.fresh))
         .child(title(row, t).flex_1().text_size(fs(13)))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )

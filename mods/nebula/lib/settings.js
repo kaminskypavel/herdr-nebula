@@ -15,6 +15,8 @@
 //   confirmArchive  ask before archiving a session
 //   editor          the command that opens a checkout (the folder is appended)
 //   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
+//   promptLine      Tree and List rows carry a dim second line with the last prompt
+//   showEmptyWorktrees  every checkout gets a band, one with no session in it too
 import { HARNESSES } from "./harness.js";
 
 export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
@@ -31,6 +33,8 @@ export const DEFAULTS = {
   confirmArchive: false,
   editor: "open",
   nebulaSessions: true,
+  promptLine: true,
+  showEmptyWorktrees: true,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -58,6 +62,8 @@ export function mergeSettings(stored) {
     confirmArchive: typeof s.confirmArchive === "boolean" ? s.confirmArchive : DEFAULTS.confirmArchive,
     editor: text(s.editor) ?? DEFAULTS.editor,
     nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
+    promptLine: typeof s.promptLine === "boolean" ? s.promptLine : DEFAULTS.promptLine,
+    showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
   };
 }
 
@@ -122,6 +128,7 @@ const SHORTCUTS = [
       { keys: ["↩", "click"], text: "show agent" },
       { keys: [".", ","], text: "next, previous needs-you" },
       { keys: ["p", "e", "v"], text: "new, presets, view" },
+      { keys: ["p", "d"], text: "on an empty worktree: new, delete" },
       { keys: ["s"], text: "pin beside, again to unpin" },
       { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
       { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },

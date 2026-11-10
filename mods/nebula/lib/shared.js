@@ -13,3 +13,4 @@ export const PINNED = "nebula.pinned";
 export const OPEN = "nebula.open";
 export const SUMMARY = "nebula.summary";
 export const ICONS = "nebula.icons";
+export const DRAFT = "nebula.draft"; // the new-session box's task, kept when Esc closes it

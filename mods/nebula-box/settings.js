@@ -17,6 +17,8 @@ const TOGGLES = {
   newWorktree: ["New worktree", "Start new sessions in their own wt worktree"],
   autoTitle: ["Auto-title", "Name each session after its first prompt"],
   confirmArchive: ["Confirm archive", "Ask before hiding a session"],
+  promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
+  showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
 const PICK_W = 150;
@@ -51,6 +53,8 @@ export class Settings {
       "newWorktree",
       "autoTitle",
       "confirmArchive",
+      "promptLine",
+      "showEmptyWorktrees",
       "presetSide",
       "editor",
       "harness",
@@ -327,6 +331,8 @@ export class Settings {
               toggle("newWorktree"),
               toggle("autoTitle"),
               toggle("confirmArchive"),
+              toggle("promptLine"),
+              toggle("showEmptyWorktrees"),
               this.line(
                 t,
                 at("presetSide"),

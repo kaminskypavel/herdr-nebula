@@ -21,6 +21,7 @@ import {
   bandSummary,
   bandPaths,
   foldBands,
+  vacantHint,
 } from "../mods/nebula/lib/viewmodel.js";
 import { arrange, rowGroup } from "../mods/nebula/lib/arrange.js";
 
@@ -340,8 +341,8 @@ test("wt list json gives each checkout's ahead count and line changes", () => {
     ],
   });
   const wt = parseWt(text);
-  assert.deepEqual(wt["/r/alpha-worktrees/feat"], { branch: "feat", ahead: 2, added: 48, deleted: 6 });
-  assert.deepEqual(wt["/r/alpha"], { branch: "main", ahead: 0, added: 5, deleted: 1 });
+  assert.deepEqual(wt["/r/alpha-worktrees/feat"], { branch: "feat", main: false, isDefault: false, ahead: 2, added: 48, deleted: 6 });
+  assert.deepEqual(wt["/r/alpha"], { branch: "main", main: false, isDefault: false, ahead: 0, added: 5, deleted: 1 });
   assert.deepEqual(parseWt("not json"), {});
   assert.deepEqual(parseWt(""), {});
 });
@@ -703,4 +704,149 @@ test("Name sort keeps alphabetical order inside each group: live, archived, nebu
       assert.deepEqual(titles, [...titles].sort());
     }
   }
+});
+
+// Show every worktree (nebula's show_all_worktrees). Mirrors its tests an_empty_worktree_is_a_band_the_cursor_walks_onto
+// and d_and_the_menu_on_an_empty_band_ask_to_delete_the_worktree (crates/nebula-tui/src/event_loop/launcher.rs).
+const onlyT1 = () => {
+  const f = fleet();
+  return { ...f, terminals: f.terminals.filter((t) => t.address === "t1") };
+};
+
+test("with showEmpty a checkout with no session still gets a band; off, it does not", () => {
+  const off = buildBoard(onlyT1());
+  assert.deepEqual(
+    off.repos[0].bands.map((b) => b.label),
+    ["main"],
+  );
+  const on = buildBoard({ ...onlyT1(), showEmpty: true });
+  assert.deepEqual(
+    on.repos[0].bands.map((b) => [b.label, b.rows.length]),
+    [
+      ["main", 1],
+      ["feat", 0],
+    ],
+  );
+});
+
+test("an empty band is a vacant line under its header that the cursor can stop on", () => {
+  const m = alphaOnly(buildBoard({ ...onlyT1(), showEmpty: true }));
+  const items = listItems(m);
+  assert.deepEqual(
+    items.map((i) => i.type),
+    ["band", "session", "band", "vacant"],
+  );
+  const vacant = items.find((i) => i.type === "vacant");
+  assert.equal(vacant.key, "vacant:/r/alpha-worktrees/feat");
+  assert.equal(vacant.root, "/r/alpha");
+  const stops = stopsOf(items);
+  assert.deepEqual(stops, ["t1", "vacant:/r/alpha-worktrees/feat"]);
+  // j walks onto it, past the last stop nothing moves, k goes back up
+  assert.equal(stepCursor(stops, "t1", 1), vacant.key);
+  assert.equal(stepCursor(stops, vacant.key, 1), vacant.key);
+  assert.equal(stepCursor(stops, vacant.key, -1), "t1");
+});
+
+test("Tree puts the vacant line under the band's header, and a folded band hides it", () => {
+  const m = buildBoard({ ...onlyT1(), showEmpty: true });
+  assert.ok(treeItems(m, new Set()).some((i) => i.type === "vacant" && i.key === "vacant:/r/alpha-worktrees/feat"));
+  const folded = treeItems(m, new Set(), undefined, new Set(["/r/alpha-worktrees/feat"]));
+  assert.ok(!folded.some((i) => i.key === "vacant:/r/alpha-worktrees/feat"));
+  assert.ok(
+    folded.some((i) => i.type === "vacant"),
+    "other repos' empty bands still show",
+  );
+  assert.ok(folded.some((i) => i.key === "band:/r/alpha-worktrees/feat"));
+});
+
+test("a project tab whose worktrees are all empty lists them instead of saying No sessions", () => {
+  const f = fleet();
+  const m = alphaOnly(buildBoard({ ...f, terminals: [], showEmpty: true }));
+  assert.deepEqual(
+    listItems(m).map((i) => i.type),
+    ["band", "vacant", "band", "vacant"],
+  );
+  const none = alphaOnly(buildBoard({ ...f, terminals: [] }));
+  assert.deepEqual(
+    listItems(none).map((i) => i.type),
+    ["empty"],
+  );
+});
+
+test("the vacant line names what p and d do; d only where the worktree may go", () => {
+  assert.equal(vacantHint({ deletable: true }), "nothing running · p new session · d delete worktree");
+  assert.equal(vacantHint({ deletable: false }), "nothing running · p new session");
+  assert.equal(vacantHint({}), "nothing running · p new session");
+});
+
+test("only a named linked worktree is deletable, never the repo's own checkout or the default branch", () => {
+  const wt = {
+    "/r/alpha": { branch: "main", main: true, isDefault: true, ahead: 0, added: 0, deleted: 0 },
+    "/r/alpha-worktrees/feat": { branch: "feat", main: false, isDefault: false, ahead: 0, added: 0, deleted: 0 },
+  };
+  const bands = (extra) => Object.fromEntries(buildBoard({ ...onlyT1(), showEmpty: true, wt, ...extra }).repos[0].bands.map((b) => [b.label, b.deletable]));
+  assert.deepEqual(bands(), { main: false, feat: true });
+  // a linked worktree wt calls the default branch stays too
+  const dflt = { ...wt, "/r/alpha-worktrees/feat": { ...wt["/r/alpha-worktrees/feat"], isDefault: true } };
+  assert.deepEqual(bands({ wt: dflt }), { main: false, feat: false });
+  // a checkout outside <repo>-worktrees, and one with no branch to name
+  const outside = {
+    ...fleet(),
+    terminals: [],
+    showEmpty: true,
+    repos: [{ root: "/r/alpha", name: "alpha", checkouts: [{ path: "/r/alpha" }, { path: "/elsewhere/feat", branch: "feat" }] }],
+  };
+  assert.deepEqual(
+    buildBoard(outside).repos[0].bands.map((b) => b.deletable),
+    [false, false],
+  );
+});
+
+test("wt list json marks the repo's own checkout and the default branch", () => {
+  const text = JSON.stringify({
+    repo: { default_branch: "main" },
+    items: [
+      { branch: "main", worktree: { path: "/r/alpha", main: true } },
+      { branch: "dev", worktree: { path: "/r/alpha-worktrees/dev" } },
+    ],
+  });
+  const wt = parseWt(text);
+  assert.equal(wt["/r/alpha"].main, true);
+  assert.equal(wt["/r/alpha"].isDefault, true);
+  assert.equal(wt["/r/alpha-worktrees/dev"].main, false);
+  assert.equal(wt["/r/alpha-worktrees/dev"].isDefault, false);
+});
+
+// Last prompt, fresh finish.
+test("a row carries when it turned unseen and whether that is fresh", () => {
+  const f = fleet();
+  const row = (extra) =>
+    buildBoard({ ...f, ...extra })
+      .repos.flatMap((r) => r.rows)
+      .find((r) => r.id === "t7"); // t7 is done (unseen)
+  const r = row();
+  assert.equal(r.status, "unseen");
+  assert.equal(r.unseenSince, NOW - 60_000 * 7);
+  assert.equal(r.fresh, false, "seven minutes ago");
+  const tabs = f.spaces[0].tabs.map((t) => (t.id === "tab7" ? { ...t, changed_at: NOW - 1500 } : t));
+  assert.equal(row({ spaces: [{ id: "sp", tabs }] }).fresh, true, "a second and a half ago");
+  assert.equal(row().unseenSince > 0, true);
+});
+
+test("a tab with no change time falls back to the time the board noted", () => {
+  const f = fleet();
+  const tabs = f.spaces[0].tabs.map((t) => (t.id === "tab7" ? { ...t, changed_at: null } : t));
+  const row = (unseenAt) =>
+    buildBoard({ ...f, spaces: [{ id: "sp", tabs }], unseenAt })
+      .repos.flatMap((r) => r.rows)
+      .find((r) => r.id === "t7");
+  assert.equal(row({}).fresh, false);
+  assert.equal(row({}).unseenSince, 0);
+  assert.equal(row({ t7: NOW - 1000 }).fresh, true);
+  assert.equal(row({ t7: NOW - 60_000 }).fresh, false);
+});
+
+test("only an unseen row is ever fresh", () => {
+  const rows = buildBoard({ ...fleet(), now: NOW }).repos.flatMap((r) => r.rows);
+  for (const r of rows) if (r.status !== "unseen") assert.equal(r.fresh, false, r.status);
 });

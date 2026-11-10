@@ -18,6 +18,13 @@ export const WT_TIMEOUT = 600000;
 
 export const branchOf = (typed, task, random) => typed?.trim() || slug(task) || random;
 
+// The box's task on open: a preset or relaunch seed wins, else the draft Esc kept last time
+// (shared "nebula.draft"; anything but text is no draft).
+export const seedTask = (seed, draft) => (typeof seed === "string" && seed ? seed : typeof draft === "string" ? draft : "");
+
+// What Esc keeps: the task as typed, or nothing when it is blank.
+export const draftOf = (task) => (String(task ?? "").trim() ? String(task) : "");
+
 export function withoutEnter(before, now) {
   for (let i = 0; i < now.length; i++) if (now[i] === "\n" && now.slice(0, i) + now.slice(i + 1) === before) return before;
   return now;

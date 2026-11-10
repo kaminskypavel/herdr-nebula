@@ -3,26 +3,35 @@
 // there. A virtual list's renderer takes no handlers, so `click` is optional: the plain
 // views (Cards, Columns) pass it, the lists answer on_item_click in the board instead.
 import { div, svg } from "gpui-kit";
-import { h_flex } from "gpui-base";
+import { h_flex, v_flex } from "gpui-base";
 import { COLOR } from "../lib/status.js";
-import { bandStats, bandSummary, summaryParts, BAND_COLOR } from "../lib/viewmodel.js";
+import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "../lib/viewmodel.js";
 import { rowMeta } from "../lib/rowmeta.js";
+import { rowText } from "../lib/prompt.js";
+import { pulseOf } from "../lib/attention.js";
 import { fs, rh } from "../lib/scale.js";
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
-export const HEIGHT = { repo: 28, band: 32, session: 26, sub: 22, shelf: 22, empty: 40 };
+// `sessionTall` is a session row with the prompt line under its title.
+export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 40, vacant: 26, sub: 22, shelf: 22, empty: 40 };
+
+// The stated height of an item in a virtual list; opts: { promptLine } (the setting).
+export const itemHeight = (item, opts = {}) =>
+  rh(item.type === "session" && rowText(item.row, opts.promptLine !== false).sub ? HEIGHT.sessionTall : HEIGHT[item.type]);
 
 const tone = (status, t) => t[COLOR[status]] ?? t.unknown;
 
-// `hollow` (an archived session) draws a ring instead of a filled dot.
-export function ball(status, t, size = 8, hollow = false) {
+// `hollow` (an archived session) draws a ring instead of a filled dot. Needs-you pulses red, working
+// pulses gently and `fresh` (an unseen finish only seconds old) pulses for those seconds (lib/attention.js).
+export function ball(status, t, size = 8, hollow = false, fresh = false) {
   const b = div()
     .size(size)
     .rounded_full()
     .flex_none()
     .when(hollow, (el) => el.border(1.5).border_color(tone(status, t)))
     .when(!hollow, (el) => el.bg(tone(status, t)));
-  return status === "working" ? b.loop("opacity", { from: 0.35, to: 1, period: 1200 }) : b;
+  const pulse = hollow ? null : pulseOf(status, fresh);
+  return pulse ? b.loop("opacity", pulse) : b;
 }
 
 const age = (text, color) => div().flex_none().text_size(fs(12)).text_color(color).child(text);
@@ -57,10 +66,11 @@ export function title(row, t) {
 
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(10)).text_color(t.dim).child(text);
 
-export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false }) {
+export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true }) {
   const meta = metaLine(row, t);
+  const text = rowText(row, promptLine);
   return h_flex()
-    .h(rh(HEIGHT.session))
+    .h(rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session))
     .flex_none()
     .items_center()
     .gap(10)
@@ -78,12 +88,45 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         .cursor_pointer()
         .on_click((_e, cx) => click(row.id, cx)),
     )
-    .child(ball(row.status, t, 8, row.archived))
-    .child(title(row, t))
-    .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
-    .when(Boolean(meta), (el) => el.child(meta))
-    .child(div().flex_1())
+    .child(ball(row.status, t, 8, row.archived, row.fresh))
+    .child(
+      v_flex()
+        .flex_1()
+        .min_w(0)
+        .child(
+          h_flex()
+            .min_w(0)
+            .items_center()
+            .gap(10)
+            .child(title({ ...row, title: text.title }, t))
+            .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
+            .when(Boolean(meta), (el) => el.child(meta)),
+        )
+        .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(text.sub))),
+    )
     .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim));
+}
+
+// The line under a band with no session: it can hold the cursor, `p` and `d` act on it.
+export function vacantLine(item, t, { selected, indent = 14, click = null }) {
+  return h_flex()
+    .h(rh(HEIGHT.vacant))
+    .flex_none()
+    .items_center()
+    .pl(indent)
+    .pr(10)
+    .rounded(6)
+    .text_size(fs(11.5))
+    .text_color(selected ? t.muted : t.dim)
+    .when(selected, (el) => el.bg(t.selected))
+    .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+    .when(Boolean(click), (el) =>
+      el
+        .id(`vacant-${item.band.path}`)
+        .cursor_pointer()
+        .on_click((_e, cx) => click(item.key, cx)),
+    )
+    .child(div().min_w(0).truncate().child(vacantHint(item.band)));
 }
 
 export function subLine(sub, t, { indent = 30 }) {
@@ -211,7 +254,7 @@ export const shelfLine = (text, t) =>
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.dim).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo":
@@ -219,7 +262,9 @@ export function drawItem(item, t, { cursor, deep = false, click = null, pinned =
     case "band":
       return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click });
     case "session":
-      return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned });
+      return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned, promptLine });
+    case "vacant":
+      return vacantLine(item, t, { selected, indent: deep ? 32 : 14, click });
     case "sub":
       return subLine(item.sub, t, { indent: deep ? 48 : 30 });
     case "shelf":

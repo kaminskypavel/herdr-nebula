@@ -28,7 +28,8 @@ const urgency = (rows) => {
 };
 
 // Filter: a project whose name matches keeps everything. Otherwise a session stays when
-// its title, or its worktree's label or branch, matches; bands and projects left empty hide.
+// its title, or its worktree's label or branch, matches; bands and projects left empty hide,
+// except an empty band whose own label or branch matches (it is what was looked for).
 // Sort "status": sessions as buildBoard ordered them (needs you ... grey last), projects by
 // their most urgent status. Sort "name": projects, worktrees and sessions alphabetical.
 export function arrange(model, { filter = "", sort = "status" } = {}) {
@@ -42,7 +43,7 @@ export function arrange(model, { filter = "", sort = "status" } = {}) {
     for (const b of repo.bands) {
       const all = whole || has(b.label) || has(b.branch);
       const rows = all ? b.rows : b.rows.filter((r) => has(r.title));
-      if (rows.length || !q) bands.push({ ...b, rows: sort === "name" ? [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || byTitle(a, b)) : rows });
+      if (rows.length || !q || all) bands.push({ ...b, rows: sort === "name" ? [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || byTitle(a, b)) : rows });
     }
     if (q && !whole && !bands.length) continue;
     if (sort === "name") bands = [...bands].sort(byName((b) => b.label));

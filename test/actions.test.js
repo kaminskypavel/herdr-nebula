@@ -6,6 +6,7 @@ import {
   rowAction,
   isLinked,
   worktreeOffer,
+  bandOffer,
   parseLines,
   removeLabel,
   planRemove,
@@ -254,4 +255,49 @@ test("whereIs finds the repo and band holding a row, else null", () => {
   assert.deepEqual(whereIs(model, "b"), { repo, band });
   assert.equal(whereIs(model, "nope"), null);
   assert.equal(whereIs({ repos: [] }, "a"), null);
+});
+
+// Mirrors d_and_the_menu_on_an_empty_band_ask_to_delete_the_worktree: `d` on an empty band asks about the
+// worktree itself, with the same offer the last session's delete makes.
+test("an empty linked worktree offers its own removal, the same offer as deleting its last session", () => {
+  const withSession = model([["t1", WT]]);
+  const empty = buildBoard({ terminals: [], repos, now: 5000, showEmpty: true });
+  const band = empty.repos[0].bands.find((b) => b.path === WT);
+  assert.deepEqual(bandOffer("/w/checkout-flow", band), worktreeOffer(withSession, "t1"));
+  assert.deepEqual(bandOffer("/w/checkout-flow", band), { root: "/w/checkout-flow", path: WT, branch: "fix-x" });
+});
+
+test("the repo's own checkout, the default branch and a band with sessions offer no removal", () => {
+  const empty = buildBoard({
+    terminals: [],
+    repos,
+    now: 5000,
+    showEmpty: true,
+    wt: { [WT]: { branch: "fix-x", isDefault: true, ahead: 0, added: 0, deleted: 0 } },
+  });
+  assert.equal(
+    bandOffer(
+      "/w/checkout-flow",
+      empty.repos[0].bands.find((b) => b.path === "/w/checkout-flow"),
+    ),
+    null,
+  );
+  assert.equal(
+    bandOffer(
+      "/w/checkout-flow",
+      empty.repos[0].bands.find((b) => b.path === WT),
+    ),
+    null,
+    "default branch",
+  );
+  const busy = model([["t1", WT]]);
+  assert.equal(
+    bandOffer(
+      "/w/checkout-flow",
+      busy.repos[0].bands.find((b) => b.path === WT),
+    ),
+    null,
+    "has a session",
+  );
+  assert.equal(bandOffer("/w/checkout-flow", undefined), null);
 });

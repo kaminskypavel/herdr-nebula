@@ -13,7 +13,7 @@ import { inside } from "./lib/projects.js";
 import { REFOCUS_MS } from "./lib/focus.js";
 import { branchName } from "./lib/branch.js";
 import { mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
-import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED } from "./lib/shared.js";
+import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT } from "./lib/shared.js";
 import { openList, readPresetFile } from "./presets.js";
 import { button, dialogTitle, dropdown, agentIcon, inputBox, textCard, worktreeRow } from "./ui.js";
 import {
@@ -30,12 +30,15 @@ import {
   cyclePreset,
   prefillOf,
   withoutEnter,
+  seedTask,
+  draftOf,
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
 
 // Two field triggers per row inside the dialog's 22px side padding (640 - 44 = 596 = 2 * 293 + 10).
 const FIELD_W = 293;
 const LEGEND = "Enter launch · Shift+Enter new line · Shift+Tab presets";
+const QUEUED = "Launching when ready…";
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 function place(s, all) {
@@ -56,6 +59,7 @@ export class Launch {
     this.handle = cx.focus_handle();
     this.ready = false;
     this.busy = null;
+    this.queued = false; // Enter came before the box was ready: launch as soon as it is
     this.error = "";
     this.repos = projectList(shared(STORE) ?? {});
     this.settings = mergeSettings(shared(SETTINGS));
@@ -121,7 +125,7 @@ export class Launch {
     });
 
     if (this.newWt) this.syncBranch();
-    const seed = props()?.prefill?.task;
+    const seed = seedTask(props()?.prefill?.task, shared(DRAFT));
     if (seed) {
       this.now = seed;
       this.task.set_value(seed);
@@ -138,6 +142,10 @@ export class Launch {
       }
       this.ready = true;
       cx.notify();
+      if (this.queued) {
+        this.queued = false;
+        this.go(cx);
+      }
     });
   }
 
@@ -428,7 +436,10 @@ export class Launch {
     }
     if (k === "escape") {
       if (this.inBranch) this.task.focus();
-      else this.close();
+      else {
+        setShared(DRAFT, draftOf(this.task.value())); // the next open starts on it
+        this.close();
+      }
       cx.stop_propagation();
     } else if (k === "tab") {
       if (m.shift)
@@ -453,8 +464,23 @@ export class Launch {
     }
   }
 
+  // The task as typed, without the line break the Enter that launched it left in the field.
+  currentTask() {
+    const now = this.task.value();
+    return withoutEnter(this.now === now ? this.before : this.now, now);
+  }
+
   go(cx) {
-    if (this.busy || !this.ready) return;
+    if (this.busy) return;
+    if (!this.ready) {
+      // Not loaded yet: remember the Enter instead of swallowing it, and take its newline out of the field.
+      this.queued = true;
+      const task = this.currentTask();
+      this.task.set_value(task);
+      this.before = this.now = task;
+      cx.notify();
+      return;
+    }
     const repo = this.repo();
     if (!repo) {
       this.error = "Add a project first.";
@@ -466,8 +492,7 @@ export class Launch {
       cx.notify();
       return;
     }
-    const now = this.task.value(),
-      task = withoutEnter(this.now === now ? this.before : this.now, now);
+    const task = this.currentTask();
     this.busy = "Launching…";
     cx.notify();
     // owner: null, so closing the box (Cmd+K again) does not cancel the launch half way.
@@ -527,6 +552,7 @@ export class Launch {
   }
 
   finish(terminal, cx) {
+    setShared(DRAFT, ""); // launched: nothing to keep
     try {
       this.close();
     } catch {}
@@ -688,7 +714,7 @@ export class Launch {
               .child(
                 div()
                   .truncate()
-                  .child(this.busy ?? LEGEND),
+                  .child(this.busy ?? (this.queued ? QUEUED : LEGEND)),
               ),
           )
           .child(

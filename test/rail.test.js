@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { railTabs, tabHint } from "../mods/nebula/lib/rail.js";
+import { railTabs, tabHint, pillText } from "../mods/nebula/lib/rail.js";
 import { ALL } from "../mods/nebula/lib/shared.js";
 
 const summary = [
   { root: "/r/a", name: "a", count: 1, status: "done" },
-  { root: "/r/b", name: "b", count: 2, status: "needs" },
+  { root: "/r/b", name: "b", count: 2, needs: 2, status: "needs" },
   { root: "/r/c", name: "c", count: 0, status: "exited" },
 ];
 
@@ -24,8 +24,8 @@ test("the rail follows the open list's order, not the store's, and never moves t
 test("each item carries its name and status; only the selected one is on", () => {
   const r = railTabs({ summary, open: ["/r/a", "/r/b"], selected: "/r/b" });
   assert.deepEqual(r.items, [
-    { root: "/r/a", name: "a", status: "done", on: false },
-    { root: "/r/b", name: "b", status: "needs", on: true },
+    { root: "/r/a", name: "a", status: "done", needs: 0, on: false },
+    { root: "/r/b", name: "b", status: "needs", needs: 2, on: true },
   ]);
   assert.equal(r.all, false);
 });
@@ -54,4 +54,22 @@ test("the first nine tabs carry their cmd number in the tooltip and the gutter",
 test("from the tenth tab on there is no number and the tooltip is the name", () => {
   assert.deepEqual(tabHint("alpha", 10), { tip: "alpha", num: null });
   assert.deepEqual(tabHint("alpha", 25), { tip: "alpha", num: null });
+});
+
+test("a tab carries how many sessions need you; a summary without the count reads as none", () => {
+  const r = railTabs({ summary, open: ["/r/a", "/r/b"], selected: ALL });
+  assert.deepEqual(
+    r.items.map((i) => [i.root, i.needs]),
+    [
+      ["/r/a", 0],
+      ["/r/b", 2],
+    ],
+  );
+});
+
+test("the red pill shows the count, 9+ from ten on", () => {
+  assert.equal(pillText(1), "1");
+  assert.equal(pillText(9), "9");
+  assert.equal(pillText(10), "9+");
+  assert.equal(pillText(37), "9+");
 });

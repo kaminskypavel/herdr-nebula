@@ -10,7 +10,8 @@
 //                       and the rail). The order is stable: picking a project does not move it.
 //   nebula.icons        { [root]: { path, initials, color } } each project's icon (lib/icons.js; worked out here, read by the rail and picker)
 //   nebula.rowAction    { id, action, n } the row menu sets; the board does the action
-//   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor
+//   nebula.settings     the settings overlay writes it (lib/settings.js): the default view, whether `a` asks, the editor,
+//                       the prompt line on rows, whether empty worktrees get a band
 //   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
 //   nebula.pinned       the terminal pinned beside the active tab, or null (written here; lib/pin.js edits the layout)
 // Moving the cursor (j, k, arrows, the attention keys) only highlights a row; Enter or a
@@ -37,7 +38,7 @@ import {
   focused,
   settings,
 } from "herdr";
-import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf } from "./lib/repos.js";
+import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import {
@@ -60,7 +61,8 @@ import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
-import { actionsFor, rowAction, worktreeOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
+import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
+import { trackUnseen, freshDone } from "./lib/attention.js";
 import {
   OTHER,
   NEW_SESSION,
@@ -190,6 +192,9 @@ export class Board {
     this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
     this.visible = findNode(layout(), "board")?.hidden !== true;
     this.resuming = new Set();
+    this.unseenState = new Map(); // when each row turned unseen, for tabs with no change time (lib/attention.js)
+    this.unseenAt = {};
+    this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
     if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
     this.findNebula(cx);
@@ -334,6 +339,7 @@ export class Board {
         setShared(SUMMARY, JSON.parse(summary));
       }
     }
+    if (this.all) this.watchMotion(cx);
     const asked = shared(FOCUS_BOARD);
     if (asked !== this.asked) {
       this.asked = asked;
@@ -394,6 +400,36 @@ export class Board {
       const row = this.byKey.get(picked.id)?.row;
       if (row) this.act(picked.action, row, cx);
     }
+  }
+
+  // A just-finished row pulses for a few seconds and then holds still, so the board redraws when a row
+  // enters or leaves that window. A tab with no change time gets the moment the board saw its row turn
+  // unseen. Also redraws when a setting that changes the rows is flipped.
+  watchMotion(cx) {
+    const now = Date.now(),
+      rows = this.all.repos.flatMap((r) => r.rows).filter((r) => r.kind !== "nebula");
+    const u = trackUnseen(
+      this.unseenState,
+      rows.map((r) => ({ id: r.id, status: r.status })),
+      now,
+    );
+    this.unseenState = u.state;
+    this.unseenAt = u.at;
+    const cfg = this.config();
+    const key = JSON.stringify([
+      u.at,
+      rows.filter((r) => freshDone(r.status, r.archived, r.unseenSince, now)).map((r) => r.id),
+      cfg.promptLine,
+      cfg.showEmptyWorktrees,
+    ]);
+    if (key !== this.motionKey) {
+      this.motionKey = key;
+      cx.notify();
+    }
+  }
+
+  config() {
+    return mergeSettings(shared(SETTINGS));
   }
 
   // The icons of the listed projects, off the render path: a project's file is looked for once (when it
@@ -635,7 +671,8 @@ export class Board {
       this.place(item.key);
       if (shift) this.pinRow(item.row);
       else this.show(item.row, cx);
-    } else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
+    } else if (item.type === "vacant") this.place(item.key);
+    else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {
       this.place(item.key);
       if (!dbl) this.toggle(item.repo.root);
@@ -656,7 +693,10 @@ export class Board {
     } else {
       const item = this.byKey.get(this.cursor);
       if (item?.type === "repo") root = real(item.repo.root);
-      else if (item?.type === "session") {
+      else if (item?.type === "vacant") {
+        root = real(item.root);
+        checkout = item.band.path;
+      } else if (item?.type === "session") {
         const at = whereIs(this.model, item.key);
         root = real(at?.repo.root);
         if (root) checkout = at.band.path || null;
@@ -686,6 +726,16 @@ export class Board {
       alone: aloneInTab(panes(), row.tab, row.address),
       offer: worktreeOffer(full, row.id),
     };
+  }
+
+  // `d` on a band with no session: the delete confirm for the worktree itself (git check, then `wt remove`).
+  deleteBand(item) {
+    const offer = bandOffer(item.root, item.band);
+    if (!offer) {
+      notify({ title: "This checkout stays", body: "The repo's own checkout and the default branch are not removed here.", level: "info", timeout: 3500 });
+      return;
+    }
+    box(520, 460, { role: "confirm", worktreeOnly: true, title: offer.branch, worktree: tilde(offer.path, home()), status: "", offer });
   }
 
   act(action, row, cx) {
@@ -800,6 +850,7 @@ export class Board {
       this.place(stepCursor(this.stops, this.cursor, k === "j" || k === "down" ? 1 : -1));
       this.reveal(cx, this.cursor);
     } else if (act && item?.type === "session") this.act(act, item.row, cx);
+    else if (act === "delete" && item?.type === "vacant") this.deleteBand(item);
     else if (k === "enter") {
       if (item?.type === "session") this.show(item.row, cx);
       else if (item?.type === "repo") this.toggle(item.repo.root);
@@ -839,6 +890,8 @@ export class Board {
       wt: Object.assign({}, ...Object.values(this.wt)),
       now: Date.now(),
       showArchived,
+      showEmpty: this.config().showEmptyWorktrees,
+      unseenAt: this.unseenAt,
       nebula: this.nebulaOn ? shownSessions(this.nebula, shared(HIDDEN)) : [],
       resumed: shared(RESUMED) ?? {},
     };
@@ -859,6 +912,7 @@ export class Board {
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
     this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
     this.pinned = shared(PINNED);
+    this.promptLine = this.config().promptLine;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root, this.tab !== ALL) : null;
     if (this.pc) this.cols = this.pc.sel;
     this.items = viewOf(this.view).view.items(this.model, this);

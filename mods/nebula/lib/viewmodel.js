@@ -5,6 +5,8 @@ import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subR
 import { nextAttention } from "./order.js";
 import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
 import { byName, rowGroup } from "./arrange.js";
+import { freshDone } from "./attention.js";
+import { isLinked } from "./actions.js";
 
 export const OTHER = "other:";
 
@@ -65,6 +67,9 @@ function sessionRow(t, where, ctx) {
     labels = readLabels(t.labels);
   const since = status === "working" ? (tab?.working_since ?? tab?.changed_at) : tab?.changed_at;
   const exited = status === "exited";
+  // When it turned unseen: the tab's change time, else the board's own note of seeing it turn (ctx.unseenAt).
+  const unseenSince = status === "unseen" ? (tab?.changed_at > 0 ? tab.changed_at : (ctx.unseenAt[t.address] ?? 0)) : 0;
+  const archived = Boolean(tab?.settled);
   return {
     id: t.address,
     address: t.address,
@@ -74,7 +79,9 @@ function sessionRow(t, where, ctx) {
     status,
     exited,
     offers: exited ? ["relaunch", "delete"] : [],
-    archived: Boolean(tab?.settled),
+    archived,
+    fresh: freshDone(status, archived, unseenSince, ctx.now),
+    unseenSince,
     title: tab?.named && tab.name ? tab.name : NEW_SESSION,
     program: programName(t),
     model: labels.launch?.model ?? "",
@@ -99,8 +106,14 @@ export const byGroup = (rows) => [...rows].sort((a, b) => rowGroup(a) - rowGroup
 
 const counts = (rows) => tally(rows.map((r) => r.status));
 
+// Whether the board may offer to remove a checkout: a named linked worktree, never the
+// repo's own checkout (wt's `main`) or the default branch.
+const canDelete = (root, branch, path, git) => Boolean(branch) && isLinked(root, path) && !git.main && !git.isDefault;
+
 const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 };
 
+// `showEmpty` keeps the bands with no session (a checkout of its own with nothing running);
+// `unseenAt` is { [terminal]: ms } the board noted for tabs that carry no change time (lib/attention.js).
 // `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
 // shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
 // worktree, or land in Other with the stray terminals.
@@ -115,13 +128,15 @@ export function buildBoard({
   showArchived = false,
   nebula = [],
   resumed = {},
+  showEmpty = false,
+  unseenAt = {},
 }) {
   const where = tabLookup(agents, panes, spaces);
   const g = groupSessions(
     terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),
     repos,
   );
-  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now };
+  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, unseenAt };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
   const mine = new Map(),
     strays = [];
@@ -132,7 +147,7 @@ export function buildBoard({
   }
   const out = g.repos.map((r) => {
     const bands = r.bands
-      .filter((b) => b.sessions.length || mine.has(b))
+      .filter((b) => showEmpty || b.sessions.length || mine.has(b))
       .map((b) => {
         const git = gitOf(wt, b.path);
         return {
@@ -142,6 +157,7 @@ export function buildBoard({
           ahead: git.ahead,
           added: git.added,
           deleted: git.deleted,
+          deletable: canDelete(r.root, b.branch ?? git.branch ?? null, b.path, git),
           rows: byGroup([...b.sessions.map(rowOf), ...(mine.get(b) ?? [])]),
         };
       });
@@ -170,8 +186,9 @@ export const bandParts = (b) => bandStats(b).map((p) => p.text);
 
 // Items are what a view draws, one per line: { key, type, ... }. Types: repo, band,
 // session (with its row), sub (nested under the session before it), divider, shelf (the thin
-// "Archived" line above a band's archived rows), empty. Only repo and session can hold the
-// cursor, and their keys are the cursor's ids: a session's address, or `repo:<root>`.
+// "Archived" line above a band's archived rows), vacant (the line under a band with no session,
+// which `p` and `d` act on), empty. Only repo, session and vacant can hold the cursor, and their
+// keys are the cursor's ids: a session's address, `repo:<root>` or `vacant:<path>`.
 const repoKey = (repo) => `repo:${repo.root}`;
 
 // A band folds by its path (`folded` is a Set of paths); the header stays and stands for
@@ -187,9 +204,14 @@ export function foldBands(folded, repos, fold) {
   return out;
 }
 
+// The dim line of a band with no session: what can be done there. `d` is offered only where the
+// board may remove the checkout (never the repo's own, never the default branch).
+export const vacantHint = (band) => `nothing running · p new session${band.deletable ? " · d delete worktree" : ""}`;
+
 function bandItems(repo, folded) {
   return repo.bands.flatMap((b) => [
     ...(b.label ? [{ key: `band:${b.path}`, type: "band", band: b, folded: folded.has(b.path) }] : []),
+    ...(b.label && !b.rows.length && !folded.has(b.path) ? [{ key: `vacant:${b.path}`, type: "vacant", band: b, root: repo.root }] : []),
     ...(b.label && folded.has(b.path) ? [] : b.rows).flatMap((row, i, rows) => [
       ...(row.archived && !rows[i - 1]?.archived ? [{ key: `archived:${b.path}`, type: "shelf", text: "Archived" }] : []),
       { key: row.id, type: "session", row },
@@ -212,7 +234,7 @@ export function listItems(model, { all = false, empty = "No repos yet", bands = 
   if (all) return treeItems(model, folded, empty, bands);
   const repo = model.repos[0];
   if (!repo) return [{ key: "empty", type: "empty", text: empty }];
-  return repo.rows.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }];
+  return repo.bands.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }];
 }
 
 const columnsMemo = new WeakMap();
@@ -272,7 +294,7 @@ export const projectItems = (pc) => [
   ...pc.sessions.map((row) => ({ key: row.id, type: "session", row })),
 ];
 
-export const stopsOf = (items) => items.filter((i) => ["session", "repo", "project", "worktree"].includes(i.type)).map((i) => i.key);
+export const stopsOf = (items) => items.filter((i) => ["session", "repo", "project", "worktree", "vacant"].includes(i.type)).map((i) => i.key);
 
 export function placeCursor(stops, cursor, lastIndex = 0) {
   if (!stops.length) return { id: null, index: 0 };
@@ -315,9 +337,11 @@ export function agentOrder(model, view, root, opts = {}) {
 }
 
 export function parseWt(text) {
-  let items;
+  let items, repoDefault;
   try {
-    items = JSON.parse(text)?.items;
+    const parsed = JSON.parse(text);
+    items = parsed?.items;
+    repoDefault = parsed?.repo?.default_branch;
   } catch {
     return {};
   }
@@ -326,7 +350,14 @@ export function parseWt(text) {
     const path = it?.worktree?.path;
     if (!path) continue;
     const d = it.worktree.changes?.diff;
-    out[norm(path)] = { branch: it.branch ?? null, ahead: it.upstream?.ahead ?? 0, added: d?.added ?? 0, deleted: d?.deleted ?? 0 };
+    out[norm(path)] = {
+      branch: it.branch ?? null,
+      main: it.worktree.main === true,
+      isDefault: Boolean(it.branch) && it.branch === repoDefault,
+      ahead: it.upstream?.ahead ?? 0,
+      added: d?.added ?? 0,
+      deleted: d?.deleted ?? 0,
+    };
   }
   return out;
 }

@@ -4,6 +4,8 @@ import {
   WT,
   branchOf,
   withoutEnter,
+  seedTask,
+  draftOf,
   planLaunch,
   runSteps,
   bind,
@@ -192,6 +194,28 @@ test("Enter's newline is dropped wherever it landed; Shift+Enter keeps its own",
   assert.equal(withoutEnter("fix it", "fix\n it"), "fix it");
   assert.equal(withoutEnter("", "\n"), "");
   assert.equal(withoutEnter("fix it", "fix it, now"), "fix it, now");
+});
+
+test("the box opens on the draft Esc kept, unless a preset or relaunch brings its own task", () => {
+  assert.equal(seedTask(undefined, "half a thought"), "half a thought");
+  assert.equal(seedTask("", "half a thought"), "half a thought");
+  assert.equal(seedTask("from a preset", "half a thought"), "from a preset");
+  assert.equal(seedTask(undefined, undefined), "");
+  assert.equal(seedTask(undefined, null), "");
+  assert.equal(seedTask(undefined, 7), "");
+});
+
+test("Esc keeps a task as typed, and nothing for a blank one", () => {
+  assert.equal(draftOf("fix the\nlogin"), "fix the\nlogin");
+  assert.equal(draftOf("  trailing  "), "  trailing  ");
+  for (const blank of ["", "  \n ", undefined, null]) assert.equal(draftOf(blank), "");
+});
+
+test("an Enter that came before the box was ready leaves no line break in the queued task", () => {
+  // the field held "fix it", then Enter made it "fix it\n" before submit fired
+  assert.equal(withoutEnter("fix it", "fix it\n"), "fix it");
+  // after the field is rewritten clean, asking again keeps it as it is
+  assert.equal(withoutEnter("fix it", "fix it"), "fix it");
 });
 
 // runSteps with a stub exec that records calls and answers by program.

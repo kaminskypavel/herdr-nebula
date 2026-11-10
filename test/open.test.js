@@ -136,3 +136,11 @@ test("a project opened from the picker goes in front of the open ones and the sy
   assert.deepEqual(syncOpen(open, board([]), store).open, open);
   assert.deepEqual(currentOpen(open, board([]), store), open);
 });
+
+test("a project's summary counts the sessions that need you, not the nebula rows or the others", () => {
+  const m = board([term("a", "t1", "blocked"), term("a", "t2", "blocked"), term("a", "t3", "working"), term("b", "t4", "done")]);
+  const by = Object.fromEntries(summarize(m).map((p) => [p.name, p.needs]));
+  assert.deepEqual(by, { a: 2, b: 0, c: 0 });
+  // an agent error counts as needing you, as everywhere on the board
+  assert.equal(summarize(board([term("c", "t1", "error")]))[2].needs, 1);
+});
