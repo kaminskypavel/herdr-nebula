@@ -127,6 +127,8 @@ Plain JavaScript (Herdr mods run JS); `tsc` only type-checks it. [Bun](https://b
 
 `herdr-app check mods/nebula` checks the board mod. After `scripts/install.sh`, `herdr-app check mods/nebula-box` checks the box mod too.
 
+Releasing: `bun run release:draft` writes the next CHANGELOG section from the commits since the last tag (features and fixes by area, a minor step with features, else a patch step) and sets the version; edit it, then `bun run release:publish` commits, tags and pushes, and the Release workflow publishes the GitHub release with that section. Installed copies then offer it as "herdr-nebula vX is ready" with Update and What changed.
+
 ---
 
 <div align="center">

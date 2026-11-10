@@ -12,10 +12,17 @@ test("an installed copy behind main has an update; one with its own changes is l
 });
 
 test("the popup names the changes and runs nebula.update on click; a local copy gets a plain notice", () => {
-  const n = updateNotice({ behind: 2, subjects: ["feat: motion", "fix: x"], latest: "abc" });
-  assert.equal(n.title, "herdr-nebula update");
-  assert.equal(n.body, "2 changes · feat: motion · click to update");
-  assert.deepEqual(n.action, { name: "nebula.update", args: {} });
+  const n = updateNotice({ behind: 2, subjects: ["feat: motion", "fix: x"], latest: "abc", latestVersion: "v0.2.0" });
+  assert.equal(n.title, "herdr-nebula v0.2.0 is ready");
+  assert.equal(n.body, "2 changes · feat: motion");
+  assert.deepEqual(
+    n.actions.map((a) => [a.label, a.name, Boolean(a.primary)]),
+    [
+      ["Update", "nebula.update", true],
+      ["What changed", "nebula.changes", false],
+    ],
+  );
+  assert.equal(updateNotice({ behind: 1, latest: "abc" }).title, "herdr-nebula abc is ready");
   assert.equal(updateNotice({ behind: 1, dirty: true }).action, undefined);
   assert.equal(updateNotice({ behind: 0 }), null);
 });
@@ -53,4 +60,33 @@ test("Settings says where the copy stands; the shell's JSON line is found among 
   assert.deepEqual(reportIn('welcome\n{"behind":1}\n'), { behind: 1 });
   assert.deepEqual(reportIn('\u001b]1337;CurrentDir=/tmp\u0007{"behind":2}'), { behind: 2 });
   assert.equal(reportIn("nothing"), null);
+});
+
+test("the notes since the installed version come from the CHANGELOG, newest first", async () => {
+  const { notesSince, notesOf, updatedNotice } = await import("../mods/nebula/lib/update.js");
+  const log = "# Changelog\n\n## v0.3.0 (2026-12-01)\n\n- three\n\n## v0.2.0 (2026-11-20)\n\n- two\n\n## v0.1.0 (2026-11-10)\n\n- one\n";
+  assert.deepEqual(notesSince(log, "v0.1.0"), [
+    { version: "v0.3.0", text: "- three" },
+    { version: "v0.2.0", text: "- two" },
+  ]);
+  assert.deepEqual(
+    notesSince(log, "v0.2.0-4-gabc").map((x) => x.version),
+    ["v0.3.0"],
+  );
+  assert.deepEqual(
+    notesSince(log, "abc1234").map((x) => x.version),
+    ["v0.3.0"],
+  );
+  assert.equal(notesOf(log, "v0.2.0-1-gdef"), "- two");
+  assert.equal(notesOf(log, "abc"), null);
+  assert.equal(updatedNotice({ version: "v0.2.0" }).title, "herdr-nebula updated to v0.2.0");
+});
+
+test("a CHANGELOG section becomes headings, bullets and text for the What changed pane", async () => {
+  const { noteLines } = await import("../mods/nebula/lib/update.js");
+  assert.deepEqual(noteLines("### Board\n- a `code` thing\nplain"), [
+    { kind: "head", text: "Board" },
+    { kind: "item", text: "a code thing" },
+    { kind: "text", text: "plain" },
+  ]);
 });

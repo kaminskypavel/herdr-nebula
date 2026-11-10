@@ -1,6 +1,7 @@
 {
   "name": "herdr-nebula",
   "private": true,
+  "version": "0.1.0",
   "type": "module",
   "packageManager": "bun@1.4.4",
   "engines": {
@@ -13,7 +14,9 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --noEmit",
-    "check": "bun run lint && bun run format:check && bun run typecheck && bun run test"
+    "check": "bun run lint && bun run format:check && bun run typecheck && bun run test",
+    "release:draft": "node scripts/release.mjs draft",
+    "release:publish": "node scripts/release.mjs publish"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

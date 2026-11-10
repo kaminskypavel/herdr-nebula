@@ -51,7 +51,7 @@ import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETT
 import { fs, setTextScale } from "./lib/scale.js";
 import { setReduceMotion, animate, markerTops, FADE, SPRING } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
-import { CHECK_EVERY_MS, updateState, updateNotice, shouldNotify, reportIn } from "./lib/update.js";
+import { CHECK_EVERY_MS, updateState, updateNotice, updatedNotice, shouldNotify, reportIn } from "./lib/update.js";
 import { HELP_SIZE } from "./lib/hints.js";
 import { NOTHING_WAITING } from "./lib/flash.js";
 
@@ -109,7 +109,9 @@ export class Rail {
           this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
         else if (c === "update")
           this.runUpdate(cx); // the update popup's click, or Settings' Update
-        else if (c === "checkupdate") this.checkUpdate(cx, true); // Settings' Check now
+        else if (c === "checkupdate")
+          this.checkUpdate(cx, true); // Settings' Check now
+        else if (c === "changes") this.openBox("changes", 560, 600); // the release notes pane (What changed)
         cx.notify();
       }
     });
@@ -367,9 +369,16 @@ export class Rail {
         }
         setShared(UPDATE, { ...report, checkedAt: Date.now() });
         const head = localStorage.getItem("update.head");
-        if (head && head !== report.head) notify({ icon: LOGO, title: "herdr-nebula updated", body: `Now at ${report.head}`, level: "success" });
+        if (head && head !== report.head) notify(updatedNotice(report));
         localStorage.setItem("update.head", report.head);
-        if (manual && updateState(report) === "current") notify({ icon: LOGO, title: "herdr-nebula is up to date", body: report.head, level: "success" });
+        if (manual && updateState(report) === "current")
+          notify({
+            icon: LOGO,
+            title: "herdr-nebula is up to date",
+            body: report.version || report.head,
+            level: "success",
+            actions: [{ label: "What changed", name: "nebula.changes", args: {} }],
+          });
         else if (manual || shouldNotify(report, localStorage.getItem("update.seen"))) {
           const n = updateNotice(report);
           if (n) notify(n);

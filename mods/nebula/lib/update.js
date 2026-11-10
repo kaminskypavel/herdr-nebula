@@ -22,15 +22,30 @@ export function updateNotice(report) {
     changes = `${n} change${n === 1 ? "" : "s"}`;
   if (state === "local")
     return { title: "herdr-nebula has updates", body: `${changes} on GitHub; your copy has its own changes, so pull with git`, level: "info", icon: LOGO };
+  // As Herdr's own: "<name> <version> is ready" with Update and What changed (the notes pane).
   const first = (report.subjects ?? [])[0];
   return {
-    title: "herdr-nebula update",
-    body: first ? `${changes} · ${first} · click to update` : `${changes} · click to update`,
+    title: `herdr-nebula ${report.latestVersion || report.latest || ""} is ready`.replace("  ", " "),
+    body: first ? `${changes} · ${first}` : changes,
     level: "info",
     icon: LOGO,
-    action: { name: "nebula.update", args: {} },
+    action: { name: "nebula.changes", args: {} },
+    actions: [
+      { label: "Update", name: "nebula.update", args: {}, primary: true },
+      { label: "What changed", name: "nebula.changes", args: {} },
+    ],
   };
 }
+
+// The popup after an update landed (the version changed since the last check), with What changed.
+export const updatedNotice = (report) => ({
+  title: `herdr-nebula updated to ${report.version || report.head}`,
+  body: "Click to see what changed",
+  level: "success",
+  icon: LOGO,
+  action: { name: "nebula.changes", args: {} },
+  actions: [{ label: "What changed", name: "nebula.changes", args: {} }],
+});
 
 // Whether to show the popup for this report: once per latest commit, so a dismissed update does not nag.
 export const shouldNotify = (report, seenLatest) => Boolean(report?.latest) && updateState(report) !== "current" && report.latest !== seenLatest;
@@ -79,4 +94,44 @@ export function reportIn(stdout) {
   } catch {
     return null;
   }
+}
+
+// The CHANGELOG's sections newer than `version` (a tag like v0.1.0, or git describe's v0.1.0-3-gabc, which
+// counts as v0.1.0): "## vX" headings, newest first, up to the installed one. -> [{ version, text }] where text
+// is the section's body (markdown). Without a known version, only the newest section.
+export function notesSince(changelog, version) {
+  const base = String(version ?? "").match(/^v\d+\.\d+\.\d+/)?.[0] ?? null;
+  const out = [];
+  for (const part of String(changelog ?? "").split(/\n(?=## v\d)/)) {
+    const m = part.match(/^## (v\d+\.\d+\.\d+)[^\n]*\n([\s\S]*)$/);
+    if (!m) continue;
+    if (m[1] === base) break;
+    out.push({ version: m[1], text: m[2].trim() });
+    if (!base) break;
+  }
+  return out;
+}
+
+// One version's section of the CHANGELOG, or null (what the installed version brought).
+export function notesOf(changelog, version) {
+  const base = String(version ?? "").match(/^v\d+\.\d+\.\d+/)?.[0];
+  if (!base) return null;
+  const part = String(changelog ?? "")
+    .split(/\n(?=## v\d)/)
+    .find((x) => x.startsWith(`## ${base}`));
+  return part ? part.replace(/^## [^\n]*\n/, "").trim() : null;
+}
+
+// A CHANGELOG section's markdown as lines to draw: "### " headings, "- " bullets, the rest as text. Backticks go.
+export function noteLines(text) {
+  return String(text ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const plain = (s) => s.replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1");
+      if (l.startsWith("### ")) return { kind: "head", text: plain(l.slice(4)) };
+      if (l.startsWith("- ")) return { kind: "item", text: plain(l.slice(2)) };
+      return { kind: "text", text: plain(l) };
+    });
 }

@@ -73,6 +73,12 @@ export class About {
                   closeOverlay(props()?.overlay);
                 })
               : button(t, "ab-check", "Check for updates", "plain", () => run("nebula.checkupdate", {})),
+          )
+          .child(
+            button(t, "ab-changes", "What changed", "plain", () => {
+              run("nebula.changes", {});
+              closeOverlay(props()?.overlay);
+            }),
           ),
       )
       .child(div().flex_1())

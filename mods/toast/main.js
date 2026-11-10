@@ -120,6 +120,38 @@ export default class Toast extends View {
               ),
           )
           .when(Boolean(lines.body), (el) => el.child(div().truncate().text_size(12).text_color(t.muted).child(lines.body))),
+      )
+      // Buttons, as Herdr's own update toast has them ("Restart", "What changed"): props.actions is
+      // [{ label, name, args?, primary? }]; each runs its command and dismisses the toast.
+      .when(Array.isArray(p.actions) && p.actions.length > 0, (el) =>
+        el.child(
+          h_flex()
+            .flex_none()
+            .gap(6)
+            .children(
+              p.actions.map((a, i) =>
+                div()
+                  .id(`toast-act-${i}`)
+                  .h(26)
+                  .px(12)
+                  .flex()
+                  .items_center()
+                  .rounded(13)
+                  .text_size(12)
+                  .font_semibold()
+                  .cursor_pointer()
+                  .when(Boolean(a.primary), (b) => b.bg(t.accent).text_color(t.accent_foreground))
+                  .when(!a.primary, (b) => b.text_color(t.accent).hover((st) => st.bg(t.hover)))
+                  .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+                  .on_click((_e, cx) => {
+                    cx.stop_propagation();
+                    if (a.name) run(a.name, a.args ?? {});
+                    closeOverlay(p.overlay);
+                  })
+                  .child(a.label),
+              ),
+            ),
+        ),
       );
     return h_flex()
       .id("toast")

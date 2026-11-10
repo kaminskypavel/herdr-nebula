@@ -18,7 +18,7 @@ import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION } from "../
 import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
 import { SUB_PREFIX } from "../mods/nebula/lib/subagents.js";
-import { parseCheck, updateState } from "../mods/nebula/lib/update.js";
+import { parseCheck, updateState, notesSince, notesOf } from "../mods/nebula/lib/update.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOOKS_DIR = path.join(HERE, "..", "hooks");
@@ -421,8 +421,8 @@ function openWindow() {
 const REPO = path.join(HERE, "..");
 const git = (args, timeout = 20000) => execFileSync("git", ["-C", REPO, ...args], { encoding: "utf8", timeout, stdio: ["ignore", "pipe", "pipe"] });
 function checkReport() {
-  git(["fetch", "--quiet", "origin", "main"], 30000);
-  return parseCheck({
+  git(["fetch", "--quiet", "--tags", "origin", "main"], 30000);
+  const report = parseCheck({
     counts: git(["rev-list", "--left-right", "--count", "origin/main...HEAD"]),
     status: git(["status", "--porcelain", "--untracked-files=no"]),
     branch: git(["rev-parse", "--abbrev-ref", "HEAD"]),
@@ -431,6 +431,22 @@ function checkReport() {
     version: git(["describe", "--tags", "--always"]),
     log: git(["log", "--format=%s", "-n", "20", "HEAD..origin/main"]),
   });
+  // The release notes: what origin/main's CHANGELOG has past the installed version, and the installed one's own.
+  const quiet = (args) => {
+    try {
+      return git(args).trim();
+    } catch {
+      return "";
+    }
+  };
+  const remoteLog = quiet(["show", "origin/main:CHANGELOG.md"]),
+    localLog = fs.existsSync(path.join(REPO, "CHANGELOG.md")) ? fs.readFileSync(path.join(REPO, "CHANGELOG.md"), "utf8") : "";
+  return {
+    ...report,
+    latestVersion: quiet(["describe", "--tags", "--abbrev=0", "origin/main"]),
+    notes: report.behind > 0 ? notesSince(remoteLog, report.version) : [],
+    currentNotes: notesOf(localLog, report.version),
+  };
 }
 
 function update(args) {
