@@ -99,3 +99,18 @@ test("the bar passes a focus on to the board, except right after a project pick"
   assert.equal(passFocusOn({ pending: false, at: 9_800, now: 10_000, ms: 250 }), false);
   assert.equal(passFocusOn({ pending: false, at: 9_000, now: 10_000, ms: 250 }), true);
 });
+
+test("dragging a tab reorders it; dropping among the pins pins it, below them unpins it", async () => {
+  const { moveTab, dropSlot } = await import("../mods/nebula/lib/rail.js");
+  const order = ["/p1", "/p2", "/a", "/b", "/c"],
+    pinned = ["/p1", "/p2"];
+  assert.deepEqual(moveTab(order, pinned, 4, 2), { order: ["/p1", "/p2", "/c", "/a", "/b"], pinned: ["/p1", "/p2"] }); // boundary: stays unpinned
+  assert.deepEqual(moveTab(order, pinned, 3, 1), { order: ["/p1", "/b", "/p2", "/a", "/c"], pinned: ["/p1", "/b", "/p2"] }); // among pins: pinned
+  assert.deepEqual(moveTab(order, pinned, 0, 4), { order: ["/p2", "/a", "/b", "/p1", "/c"], pinned: ["/p2"] }); // below pins: unpinned
+  assert.deepEqual(moveTab(order, pinned, 1, 0), { order: ["/p2", "/p1", "/a", "/b", "/c"], pinned: ["/p2", "/p1"] }); // reorder pins
+  assert.equal(moveTab(order, pinned, 2, 2), null);
+  assert.equal(moveTab(order, pinned, 2, 3), null);
+  assert.deepEqual(moveTab(["/a", "/b"], ["/gone"], 1, 0).pinned, ["/gone"]);
+  assert.equal(dropSlot(3, 10, 42), 3);
+  assert.equal(dropSlot(3, 30, 42), 4);
+});

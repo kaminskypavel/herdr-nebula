@@ -41,7 +41,7 @@ import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
 import { buildBoard } from "./lib/viewmodel.js";
-import { railTabs, tabHint, pillText, passFocusOn } from "./lib/rail.js";
+import { railTabs, tabHint, pillText, passFocusOn, moveTab, dropSlot } from "./lib/rail.js";
 import { landing, rootOf } from "./lib/tabs.js";
 import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
@@ -77,6 +77,8 @@ const icon = (name) => `mods/nebula/icons/${name}.svg`;
 
 export class Rail {
   init(cx) {
+    this.drag = null; // a press on a project tab: { root, index, y, moved } (drag to reorder)
+    this.dropAt = null; // the slot a moved drag would land in
     this.checkouts = {};
     this.rootsKey = "";
     this.state = boardShown() ? TERMINAL : FOLDED;
@@ -583,12 +585,71 @@ export class Rail {
               .child(svg(PIN_ICON).size(9).text_color(t.accent)),
           )
       : icon;
-    return this.button(t, `proj-${p.root}`, p.pinned ? `${hint.tip} · pinned` : hint.tip, () => this.pick(p.root), shown, {
-      on: p.on,
-      size: 42,
-      num: hint.num,
-      menu: () => this.projectMenu(p, open, selected),
-    });
+    const i = n - 1,
+      d = this.drag?.moved ? this.drag : null,
+      slot = d && this.dropAt !== null && this.dropAt !== d.index && this.dropAt !== d.index + 1 ? this.dropAt : null;
+    const tab = this.button(
+      t,
+      `proj-${p.root}`,
+      p.pinned ? `${hint.tip} · pinned` : hint.tip,
+      () => {
+        if (!this.drag?.moved) this.pick(p.root); // the release that ends a drag is not a click
+      },
+      shown,
+      { on: p.on, size: 42, num: hint.num, menu: () => this.projectMenu(p, open, selected) },
+    );
+    // Drag to reorder (lib/rail.js moveTab): press, move 4px, and a line shows where it lands; the rail's
+    // mouse-up drops it. The line sits on the tab's top or bottom edge, so nothing shifts while it moves.
+    const line = (top) =>
+      div()
+        .absolute()
+        .left(5)
+        .right(5)
+        .h(2)
+        .rounded(1)
+        .bg(t.accent)
+        .when(top, (el) => el.top(-3))
+        .when(!top, (el) => el.bottom(-3));
+    return div()
+      .id(`drag-${p.root}`)
+      .relative()
+      .flex_none()
+      .when(d?.root === p.root, (el) => el.opacity(0.4))
+      .on_mouse_down("left", (e) => {
+        this.drag = { root: p.root, index: i, y: e.position.y, moved: false };
+        this.dropAt = null;
+      })
+      .on_mouse_move((e, cx) => {
+        if (!this.drag) return;
+        if (!this.drag.moved && Math.abs(e.position.y - this.drag.y) < 4) return;
+        const at = e.local_position && e.bounds ? dropSlot(i, e.local_position.y, e.bounds.height) : i;
+        if (this.drag.moved && at === this.dropAt) return;
+        this.drag.moved = true;
+        this.dropAt = at;
+        cx.notify();
+      })
+      .child(tab)
+      .when(slot === i, (el) => el.child(line(true)))
+      .when(slot === i + 1, (el) => el.child(line(false)));
+  }
+
+  // The rail's mouse-up: a moved drag lands in its slot (the open order and the pins change together).
+  dropTab(cx) {
+    const d = this.drag;
+    this.drag = null;
+    if (!d?.moved || this.dropAt === null) {
+      this.dropAt = null;
+      return;
+    }
+    const order = this.tabs.items.map((x) => x.root),
+      moved = moveTab(order, shared(PINNED_PROJECTS) ?? [], d.index, this.dropAt);
+    this.dropAt = null;
+    if (moved) {
+      const open = shared(OPEN) ?? [];
+      setShared(OPEN, [...moved.order, ...open.filter((r) => !moved.order.includes(r))]);
+      setShared(PINNED_PROJECTS, moved.pinned);
+    }
+    cx.notify();
   }
 
   // The accent bar at the bar's left edge: one marker in the scrolling project list, so it scrolls with the tabs,
@@ -622,9 +683,17 @@ export class Rail {
     const b = (id, tip, action, name, opts) => this.button(t, id, tip, action, svg(icon(name)).size(16), opts);
     return (
       v_flex()
+        .id("rail")
         .size_full()
         .bg(t.chrome)
         .items_center()
+        .on_mouse_up("left", (_e, cx) => this.dropTab(cx))
+        .on_hover((over, cx) => {
+          if (over || !this.drag) return; // the pointer left the bar mid-drag: drop nothing
+          this.drag = null;
+          this.dropAt = null;
+          cx.notify();
+        })
         .gap(4)
         .pt(6)
         .pb(10)

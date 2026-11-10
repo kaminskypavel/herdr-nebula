@@ -42,3 +42,23 @@ export const pillText = (n) => (n > 9 ? "9+" : String(n));
 // passes such a "focus" on to the board, except right after a project pick, when the keys belong to the agent
 // the pick showed. pending: a re-show still waiting; at: when the last re-show ran (ms); ms: the re-show delay.
 export const passFocusOn = ({ pending, at, now, ms }) => !pending && now - (at ?? 0) > ms * 2;
+
+// Dragging a project in the icon bar. order: the roots as drawn (pins first); pinned: the pin list; from: the
+// dragged index; to: the slot it lands in (0..order.length, before item `to`). Landing among the pins pins it,
+// below them unpins it, and on the boundary it keeps its state, so the pins stay one group on top.
+// -> { order, pinned } with pins of projects not drawn kept at the end, or null for a move that changes nothing.
+export function moveTab(order, pinned, from, to) {
+  const pins = pinned ?? [],
+    root = order[from];
+  if (root === undefined || to === from || to === from + 1) return null;
+  const was = pins.includes(root),
+    rest = order.filter((_, i) => i !== from),
+    slot = to > from ? to - 1 : to,
+    p = rest.filter((r) => pins.includes(r)).length; // pins above the boundary once it is lifted out
+  const now = slot < p ? true : slot > p ? false : was;
+  const next = [...rest.slice(0, slot), root, ...rest.slice(slot)];
+  return { order: next, pinned: [...next.filter((r) => (r === root ? now : pins.includes(r))), ...pins.filter((r) => !order.includes(r))] };
+}
+
+// The slot a drag lands in while it hovers icon `index`: before it on the top half, after it on the bottom.
+export const dropSlot = (index, y, height) => (y > height / 2 ? index + 1 : index);
