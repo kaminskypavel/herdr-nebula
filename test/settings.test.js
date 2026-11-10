@@ -79,7 +79,8 @@ test("with no rebinds the groups show the built-in keys", () => {
     groups.map((g) => g.group),
     ["Anywhere", "New-session box", "Board"],
   );
-  assert.equal(rowOf(groups, "Board", "new, presets, view").keys, "p e v");
+  assert.equal(rowOf(groups, "Board", "new, presets, view").keys, "p t v");
+  assert.equal(rowOf(groups, "Board", "clear Up next, clear all waiting").keys, "e ⇧E");
   assert.equal(rowOf(groups, "Anywhere", "new session (p on the board)").keys, "⌘K");
 });
 
@@ -137,7 +138,7 @@ test("Help lists Resume and Sleep on the board", () => {
 test("the board's keys include presets, the sort, Columns mode, fold all and the next finished agent", () => {
   const board = groupShortcuts([], true).find((g) => g.group === "Board");
   const keys = board.rows.map((r) => r.keys);
-  for (const k of ["p e v", "o m", "- =", ";"]) assert.ok(keys.includes(k), k);
+  for (const k of ["p t v", "e ⇧E", "o m", "- =", ";"]) assert.ok(keys.includes(k), k);
 });
 
 test("the color legend names the four states with the board's words and no em dash", () => {
@@ -146,4 +147,10 @@ test("the color legend names the four states with the board's words and no em da
     ["needs", "working", "unseen", "seen"],
   );
   for (const l of LEGEND) assert.ok(l.label && l.text && !`${l.label}${l.text}`.includes(String.fromCharCode(0x2014)));
+});
+
+test("the away setting is macos, herdr or off; anything else is macos", () => {
+  assert.equal(mergeSettings({}).away, "macos");
+  for (const v of ["macos", "herdr", "off"]) assert.equal(mergeSettings({ away: v }).away, v);
+  for (const v of ["on", true, null, 3]) assert.equal(mergeSettings({ away: v }).away, "macos");
 });

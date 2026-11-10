@@ -6,6 +6,7 @@
 // A "summary" is buildBoard's model reduced to one entry per project:
 // [{ root, name, count, needs, status }], status being the most urgent one (viewmodel's rollup)
 // and needs the number of Herdr sessions waiting on you.
+import { isCleared } from "./waiting.js";
 import { OTHER, rollup } from "./viewmodel.js";
 import { STATUS_ORDER } from "./status.js";
 import { projectList } from "./repos.js";
@@ -49,7 +50,9 @@ export function initialOpen(model, store) {
 const needing = (model) =>
   real(model).flatMap((r) => r.rows.filter((x) => x.kind !== "nebula" && x.status === "needs").map((x) => ({ root: r.root, id: x.id })));
 
-export const closedNeeding = (model, open) => needing(model).some((n) => !open.includes(n.root));
+// Whether a closed project has an agent that needs you and was not cleared with e (lib/waiting.js), for the + dot.
+export const closedNeeding = (model, open, cleared = {}) =>
+  real(model).some((r) => !open.includes(r.root) && r.rows.some((x) => x.kind !== "nebula" && x.status === "needs" && !isCleared(cleared, x)));
 
 // The open list for this moment. open: the stored value (undefined on first run); seen: the
 // ids that needed you at the last call (null at the first call). A session that newly needs

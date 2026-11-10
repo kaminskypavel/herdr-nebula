@@ -58,12 +58,19 @@ export function markerTops(items) {
 
 export const FADE = { duration: 180, easing: "ease-out" };
 
+// A project icon hops when a row there starts waiting: it rises HOP_PX for HOP_MS (the rail redraws it up, then
+// at rest, and the top spring carries it between).
+export const HOP_PX = 6;
+export const HOP_MS = 160;
+
+/** Whether a hop begun at `at` (ms-epoch, undefined for none) is still on its way up at `now`. */
+export const hopping = (at, now) => at > 0 && now - at >= 0 && now - at < HOP_MS;
+
 /**
  * The attention strip's height for what it shows (lib/strip.js: `items` rows and `more` the rest): 6 px of padding
  * above and below, the 1 px rule, the count line (20), each row (22), the "+N more" line (20), 2 px between lines.
  * The board springs the strip's height to this, or to 0 when nothing needs attention.
  */
-export const stripHeight = ({ items, more }) => 13 + rh(20) + items.length * (2 + rh(22)) + (more > 0 ? 2 + rh(20) : 0);
 
 // A session row that appears for the first time fades in and rises. It is drawn at its start (invisible, 6 px
 // down) for ENTER_FROM_MS, then at rest, and the transitions carry it across; ENTER_MS later it is forgotten.

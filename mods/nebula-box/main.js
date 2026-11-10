@@ -25,6 +25,7 @@ import { Jump } from "./jump.js";
 import { About } from "./about.js";
 import { Changes } from "./changes.js";
 import { Popup } from "./popup.js";
+import { Away } from "./away.js";
 
 const PARTS = {
   add: AddRepo,
@@ -46,6 +47,7 @@ const PARTS = {
   about: About,
   changes: Changes,
   popup: Popup,
+  away: Away,
 };
 
 export default class NebulaBox extends View {

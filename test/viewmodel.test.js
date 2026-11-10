@@ -24,6 +24,7 @@ import {
   vacantHint,
 } from "../mods/nebula/lib/viewmodel.js";
 import { arrange, rowGroup } from "../mods/nebula/lib/arrange.js";
+import { clearKey } from "../mods/nebula/lib/waiting.js";
 
 const NOW = 10_000_000;
 // What a project tab shows: the model cut to that one project (lib/tabs.js scopeModel).
@@ -301,6 +302,39 @@ test("period from the top lands on the first blocked session, then the next, the
   const unseen = attentionTarget(m, second, 1);
   assert.equal(status(m, unseen), "unseen");
   assert.equal(unseen, rowsOf(m).find((r) => r.status === "unseen").id);
+});
+
+test("the attention walk skips a row cleared with e, and finds it again when it changes state", () => {
+  const m = buildBoard(fleet());
+  const rows = m.repos.flatMap((r) => r.rows);
+  const needs = rows.filter((r) => r.status === "needs");
+  const cleared = Object.fromEntries(needs.map((r) => [r.id, clearKey(r)]));
+  assert.equal(attentionTarget(m, null, 1, undefined, cleared), rows.find((r) => r.status === "unseen").id);
+  assert.equal(attentionTarget(m, null, 1, undefined, { [needs[0].id]: "needs:1" }), needs[0].id, "a stale clear no longer hides it");
+});
+
+test("a row that needs you carries the agent's line once read for that state; other rows and old keys carry none", () => {
+  const f = fleet();
+  const base = buildBoard(f).repos.flatMap((r) => r.rows);
+  const needs = base.find((r) => r.status === "needs"),
+    working = base.find((r) => r.status === "working");
+  const replies = { [needs.id]: { key: clearKey(needs), line: "Which db?" }, [working.id]: { key: clearKey(working), line: "x" } };
+  const rows = buildBoard({ ...f, replies }).repos.flatMap((r) => r.rows);
+  assert.equal(rows.find((r) => r.id === needs.id).said, "Which db?");
+  assert.equal(rows.find((r) => r.id === working.id).said, "");
+  const stale = buildBoard({ ...f, replies: { [needs.id]: { key: "needs:1", line: "old" } } }).repos.flatMap((r) => r.rows);
+  assert.equal(stale.find((r) => r.id === needs.id).said, "");
+});
+
+test("a session named like its project takes its task as its title", () => {
+  const f = fleet();
+  const t1 = f.terminals[0]; // t1 sits in alpha (repos are dealt round robin)
+  f.spaces[0].tabs[0].name = "alpha";
+  f.spaces[0].tabs[0].named = true;
+  t1.labels = { "nebula.prompt": "wire the retry" };
+  const row = buildBoard(f).repos[0].rows.find((r) => r.id === "t1");
+  assert.equal(row.title, "wire the retry");
+  assert.equal(row.taskTitle, true);
 });
 
 test("period does nothing when no session needs you or is unseen", () => {

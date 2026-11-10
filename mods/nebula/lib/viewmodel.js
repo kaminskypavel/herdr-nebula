@@ -8,7 +8,8 @@ import { byName, rowGroup } from "./arrange.js";
 import { freshState } from "./attention.js";
 import { isLinked } from "./actions.js";
 import { parseSession, resumeHint } from "./resume.js";
-import { stampOdd } from "./rowmeta.js";
+import { stampOdd, stampTask, saidBy } from "./rowmeta.js";
+import { isCleared } from "./waiting.js";
 
 export const OTHER = "other:";
 
@@ -77,7 +78,7 @@ function sessionRow(t, where, ctx) {
   // The CLI's conversation, if the prompt hook has seen one; asleep means the board stopped the CLI itself.
   const session = parseSession(labels.session) ? labels.session : null;
   const resume = { exited, session, address: t.address, asleep: exited && labels.asleep };
-  return {
+  const row = {
     id: t.address,
     address: t.address,
     pane: where?.pane ?? null,
@@ -103,6 +104,8 @@ function sessionRow(t, where, ctx) {
     subs: subsOf(t, ctx),
     ports: ctx.ports?.[t.address] ?? [],
   };
+  row.said = saidBy(ctx.replies, row); // what the agent last said, once read (shared "nebula.replies"; lib/reply.js)
+  return row;
 }
 
 // Every list is ordered by status: needs you, working, unseen, seen, then grey last (exited
@@ -127,6 +130,8 @@ const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 }
 // `showEmpty` keeps the bands with no session (a checkout of its own with nothing running);
 // `changeAt` is { [terminal]: ms } the board noted for tabs that carry no change time (lib/attention.js).
 // `ports` is { [terminal]: [port] }, the TCP ports each terminal's programs listen on (lib/ports.js).
+// `replies` is the shared "nebula.replies" map { [row id]: { key, line } }: a row that needs you or finished unseen
+// carries its line as `said`. A session named like its project takes its task as its title (lib/rowmeta.js stampTask).
 // `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
 // shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
 // worktree, or land in Other with the stray terminals.
@@ -144,13 +149,14 @@ export function buildBoard({
   showEmpty = false,
   changeAt = {},
   ports = {},
+  replies = {},
 }) {
   const where = tabLookup(agents, panes, spaces);
   const g = groupSessions(
     terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),
     repos,
   );
-  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, changeAt, ports };
+  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, changeAt, ports, replies };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
   const mine = new Map(),
     strays = [];
@@ -177,6 +183,7 @@ export function buildBoard({
       });
     const rows = bands.flatMap((b) => b.rows);
     stampOdd(rows);
+    stampTask(rows, r.name);
     return { root: r.root, name: r.name, bands, rows, counts: counts(rows) };
   });
   if (g.other.length || strays.length) {
@@ -333,9 +340,12 @@ const isLive = (r) => r.kind !== "nebula";
 const live = (model) => model.repos.flatMap((r) => r.rows).filter(isLive);
 
 // `statuses` narrows the walk: ["unseen"] is the next finished agent that has not been looked at (lib/order.js).
-export const attentionTarget = (model, from, dir, statuses) =>
+// `cleared` is the shared "nebula.cleared" map: a row cleared with e is skipped (lib/waiting.js).
+export const attentionTarget = (model, from, dir, statuses, cleared) =>
   nextAttention(
-    live(model).map((r) => ({ id: r.id, status: r.status })),
+    live(model)
+      .filter((r) => !isCleared(cleared, r))
+      .map((r) => ({ id: r.id, status: r.status })),
     from,
     dir,
     statuses,

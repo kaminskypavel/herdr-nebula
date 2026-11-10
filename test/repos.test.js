@@ -90,3 +90,21 @@ test("jumpTarget walks the sessions that need attention in the given direction",
   assert.equal(jumpTarget(terminals, repos, "t1", -1), "t3");
   assert.equal(jumpTarget([], repos, null, 1), null);
 });
+
+test("jumpTarget skips rows the user cleared, until they change state", () => {
+  const repos = [{ root: "/r/a", name: "a", checkouts: [{ path: "/r/a", branch: "main" }] }];
+  const terminals = [
+    { address: "t1", cwd: "/r/a", status: "blocked", state: "live" },
+    { address: "t2", cwd: "/r/a", status: "working", state: "live" },
+    { address: "t3", cwd: "/r/a", status: "blocked", state: "live" },
+    { address: "t4", cwd: "/r/a", status: "done", state: "live" },
+  ];
+  const changed = { t1: 10, t2: 20, t3: 30, t4: 40 };
+  const from = (cleared, id = "t2") => jumpTarget(terminals, repos, id, 1, { cleared, changed });
+  assert.equal(from({}), "t3");
+  assert.equal(from({ t3: "needs:30" }), "t1"); // t3 cleared: the next needs-you
+  assert.equal(from({ t3: "needs:30", t1: "needs:10" }), "t4"); // none needs you: the finished one
+  assert.equal(from({ t3: "needs:31" }), "t3"); // it changed state since: back
+  assert.equal(from({ t3: "needs:30", t1: "needs:10", t4: "unseen:40" }), null);
+  assert.equal(from({ t3: "needs:30" }, "t3"), "t1"); // standing on a cleared row still walks from it
+});

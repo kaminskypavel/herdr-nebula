@@ -16,10 +16,13 @@
 //   nebula.pinned       the terminal pinned beside the active tab, or null (written here; lib/pin.js edits the layout)
 //   nebula.flash        { text, n, undo? } a dialog's line for the status line (lib/flash.js)
 //   nebula.goto         { id, n } the jump palette's pick: the cursor goes to that session
+//   nebula.cleared      { [row id]: clearKey } what e (the Up next item) and E (everything waiting) cleared (lib/waiting.js)
+//   nebula.replies      { [row id]: { key, line } } the line each waiting agent last said, read here from its transcript (lib/reply.js)
 // Moving the cursor (j, k, arrows, the attention keys, a click) shows that agent in the main area
 // while the board keeps the keys (lib/preview.js; the setting "Preview while moving"); Enter or a
 // double click steps in, Esc hands the keys back to the terminal. The cursor is a session's address,
-// never an index. The bottom strip is the status line: key hints for where you are, or what the last
+// never an index. At the top sits the Up next card: the one item across all open projects that most deserves you
+// (lib/upnext.js), with Go and Clear. The bottom strip is the status line: key hints for where you are, or what the last
 // action did for a few seconds.
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
@@ -69,7 +72,24 @@ import {
 } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS, HIDDEN, FLASH, GOTO } from "./lib/shared.js";
+import {
+  ALL,
+  SUMMARY,
+  REPO,
+  SETTINGS,
+  FOCUS_BOARD,
+  BOARD_KEYS,
+  ROW_ACTION,
+  RESUMED,
+  PINNED,
+  OPEN,
+  ICONS,
+  HIDDEN,
+  FLASH,
+  GOTO,
+  CLEARED,
+  REPLIES,
+} from "./lib/shared.js";
 import { PREVIEW_MS, HOLD_MS, POLL_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
 import {
   makeFlash,
@@ -94,9 +114,12 @@ import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { LIST_APPS, installedEditors, openIn, defaultOpen } from "./lib/editors.js";
-import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
-import { attentionStrip, stripParts } from "./lib/strip.js";
-import { rowText } from "./lib/prompt.js";
+import { PORT_HIT } from "./views/row.js";
+import { waitingRows, clearRows } from "./lib/waiting.js";
+import { upNext, readsDue, mergeReplies, MAX_READS } from "./lib/upnext.js";
+import { TRANSCRIPT, lastReply, replyLine } from "./lib/reply.js";
+import { iconFor } from "./lib/icons.js";
+import { projectIcon } from "./lib/icon-view.js";
 import {
   OTHER,
   NEW_SESSION,
@@ -118,7 +141,7 @@ import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
-import { setReduceMotion, reduced, animate, stripHeight, trackEntering, enterPhase, FADE, SPRING } from "./lib/motion.js";
+import { setReduceMotion, reduced, animate, trackEntering, enterPhase, SPRING } from "./lib/motion.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -246,7 +269,9 @@ export class Board {
     this.changeAt = {};
     this.entering = null; // the rows seen so far and the ones still fading in (lib/motion.js trackEntering)
     this.enters = new Map(); // { [row id]: "from" | "to" } for the rows fading in now, read by the views
-    this.stripLast = null; // the attention strip's last content, kept while it slides shut
+    this.waitQueue = []; // what waits on you across the open projects, the Up next order (lib/waiting.js; sync keeps it)
+    this.upnext = null; // the Up next card's content (lib/upnext.js)
+    this.reading = new Set(); // the rows whose transcript is being read now (readReplies)
     this.viewing = new Set(); // the terminals the user is looking at: a row that needs you stops breathing there
     this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
@@ -427,7 +452,10 @@ export class Board {
         setShared(SUMMARY, JSON.parse(summary));
       }
     }
-    if (this.all) this.watchMotion(cx);
+    if (this.all) {
+      this.watchMotion(cx);
+      this.readReplies(cx);
+    }
     const asked = shared(FOCUS_BOARD);
     if (asked !== this.asked) {
       this.asked = asked;
@@ -547,6 +575,45 @@ export class Board {
 
   config() {
     return mergeSettings(shared(SETTINGS));
+  }
+
+  liveIds() {
+    return this.all.repos.flatMap((r) => r.rows.map((x) => x.id));
+  }
+
+  // Reads what the agents that wait on you last said, off the render path (lib/reply.js): the tail of each one's
+  // transcript, once per row per state change (the cached key is the row's clearKey), at most MAX_READS at a time.
+  // A row with no conversation label gets no line, so its prompt shows instead. The shared map keeps live rows only.
+  readReplies(cx) {
+    const have = shared(REPLIES) ?? {},
+      kept = mergeReplies(have, {}, this.liveIds());
+    if (Object.keys(kept).length !== Object.keys(have).length) setShared(REPLIES, kept);
+    const due = readsDue(this.waitQueue, kept).filter((d) => !this.reading.has(d.id));
+    for (const d of due.slice(0, Math.max(0, MAX_READS - this.reading.size))) {
+      this.reading.add(d.id);
+      cx.spawn(async (cx) => {
+        try {
+          const r = await exec("/bin/sh", ["-c", TRANSCRIPT[d.s.app], "sh", d.s.id], { timeout: 5000 }).catch(() => null);
+          const line = r?.code === 0 ? (replyLine(lastReply(r.stdout), d.status) ?? "") : ""; // "": read, nothing to quote
+          setShared(REPLIES, mergeReplies(shared(REPLIES), { [d.id]: { key: d.key, line } }, this.liveIds()));
+          cx.notify();
+        } finally {
+          this.reading.delete(d.id);
+        }
+      });
+    }
+  }
+
+  // `e` clears the Up next item, `E` everything waiting: the shared "nebula.cleared" map (lib/waiting.js). A cleared
+  // row comes back when it changes state. Going to an agent marks it seen in Herdr, so opening one needs no clear.
+  clear(all, cx) {
+    const rows = (all ? this.waitQueue : this.waitQueue.slice(0, 1)).map((x) => x.row);
+    if (!rows.length) this.say(NOTHING_WAITING, undefined, cx);
+    else {
+      setShared(CLEARED, clearRows(shared(CLEARED), rows, this.liveIds()));
+      this.say(all ? `Cleared ${rows.length} waiting` : `Cleared ${rows[0].title}`, undefined, cx);
+    }
+    cx?.notify();
   }
 
   // The icons of the listed projects, off the render path: a project's file is looked for once (when it
@@ -974,7 +1041,7 @@ export class Board {
       setShared(HIDDEN, withHidden(shared(HIDDEN), row.nebula.id));
       this.say(HIDDEN_TEXT, undefined, cx);
     } else if (action === "resume") this.show(row, cx);
-    else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : row.title });
+    else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : (row.tabName ?? row.title) });
     else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive) box(440, 190, { role: "archive-confirm", tab: row.tab, title: row.title });
     else if (action === "archive" || action === "unarchive") {
       const c = tabCommand(action, row.tab);
@@ -1153,11 +1220,17 @@ export class Board {
         this.persistFolds();
       } else this.unfold(item.repo.root);
     } else if (k === "." || k === ",") {
-      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
+      const id = attentionTarget(
+        arrange(this.base, { sort: this.sort }),
+        item?.type === "session" ? item.key : null,
+        k === "." ? 1 : -1,
+        undefined,
+        shared(CLEARED),
+      );
       if (id) this.goTo(id, cx);
       else this.say(NOTHING_WAITING, undefined, cx);
     } else if (k === ";") {
-      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, 1, ["unseen"]);
+      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, 1, ["unseen"], shared(CLEARED));
       if (id) this.goTo(id, cx);
       else this.say(NOTHING_DONE, undefined, cx);
     } else if (k === "o") {
@@ -1176,7 +1249,10 @@ export class Board {
       cx.timer.after(1, () => this.input.focus()); // after this key, so the "f" is not typed into it
       return;
     } else if (k === "p") this.openLaunch();
-    else if (k === "e") this.openPresets();
+    else if (k === "t")
+      this.openPresets(); // t for templates: e clears Up next, ⇧P relaunches a row
+    else if (k === "E" || (k === "e" && m.shift)) this.clear(true, cx);
+    else if (k === "e") this.clear(false, cx);
     else if (k === "A" || (k === "a" && m.shift)) this.showArchived = !this.showArchived;
     else {
       const to = tabKey(this.tabRoots, k);
@@ -1201,6 +1277,7 @@ export class Board {
       nebula: this.nebulaOn ? shownSessions(this.nebula, shared(HIDDEN)) : [],
       resumed: shared(RESUMED) ?? {},
       ports: this.ports,
+      replies: shared(REPLIES) ?? {},
     };
   }
 
@@ -1225,8 +1302,9 @@ export class Board {
     this.root = this.tab === ALL ? null : this.tab;
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
     this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
-    this.attn = attentionStrip(this.scoped);
-    this.waiting = attentionStrip(this.base, 0); // across every open project: what ⌘] and ⌘J reach
+    this.waitQueue = waitingRows(this.base, shared(CLEARED)); // across every open project: the one count the card, the status line and ⌘] share
+    this.upnext = upNext(this.waitQueue);
+    this.waiting = { needs: this.upnext?.needs ?? 0, unseen: this.upnext?.unseen ?? 0 };
     this.pinned = shared(PINNED);
     this.promptLine = this.config().promptLine;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root, this.tab !== ALL) : null;
@@ -1270,7 +1348,7 @@ export class Board {
     });
   }
 
-  // One slim row: the four views as icons, the filter, the sort and New session. Presets (e) and folding are keys.
+  // One slim row: the four views as icons, the filter, the sort and New session. Presets (t) and folding are keys.
   header(t) {
     const compact = (this.width ?? 9999) < COMPACT_BELOW;
     return h_flex()
@@ -1396,7 +1474,7 @@ export class Board {
   }
 
   // Words joined by " · ": a count in its color (red for needs you, cyan for done), the rest muted. Used by the
-  // attention strip and the status line while the terminal has the keys.
+  // Up next card's second line and the status line while the terminal has the keys.
   partsRow(t, parts) {
     const tone = { needs: t.ansi1, unseen: t.ansi6, plain: t.muted };
     return h_flex()
@@ -1416,80 +1494,98 @@ export class Board {
       );
   }
 
-  // Under the toolbar, open while something needs you or finished unseen in the shown tab and shut (height 0) otherwise:
-  // the counts, the key to go to the next one, and up to three rows to click (the agent shows, the keys stay here).
-  strip(t) {
-    const live = this.attn.needs + this.attn.unseen > 0;
-    if (live) this.stripLast = this.attn;
-    const a = this.stripLast; // the last content, kept while the strip collapses
-    const next = shortcutLabel(keys(), window()?.platform === "macos")({ action: "nebula.next", def: "⌘]" });
-    const body = a
-      ? v_flex()
-          .flex_none()
-          .px(20)
-          .py(6)
-          .gap(2)
-          .border_b(1)
-          .border_color(t.border)
-          .child(this.partsRow(t, stripParts(a, [`${next} next`])).h(rh(20)))
-          .children(
-            a.items.map(({ row, project }) =>
-              h_flex()
-                .id(`attn-${row.id}`)
-                .h(rh(22))
-                .items_center()
-                .gap(8)
-                .px(6)
-                .rounded(6)
-                .text_size(fs(12))
-                .cursor_pointer()
-                .hover((s) => s.bg(t.hover))
-                .tooltip(row.prompt || row.title)
-                .on_click((_e, cx) => {
-                  this.handle.focus();
-                  this.showKeep(row, cx);
-                  cx.notify();
-                })
-                .child(ball(row.status, t, 6, false, row.fresh))
-                .child(
-                  div()
-                    .flex_1()
-                    .min_w(0)
-                    .flex()
-                    .child(rowTitle({ ...row, title: rowText(row, false).title }, t)),
-                )
-                .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(project)),
-            ),
-          )
-          .when(a.more > 0, (el) =>
-            el.child(
-              h_flex()
-                .id("attn-more")
-                .h(rh(20))
-                .items_center()
-                .px(6)
-                .rounded(6)
-                .text_size(fs(11))
-                .text_color(t.muted)
-                .cursor_pointer()
-                .hover((s) => s.bg(t.hover))
-                .on_click(() => this.openJump())
-                .child(`+${a.more} more`),
-            ),
-          )
-      : null;
-    // Always mounted: its height springs between 0 and the content's, so it slides open and shut. The padding and rule
-    // sit on the inner box, which a 0 height would otherwise leave 13 px tall.
-    return animate(
-      v_flex()
-        .id("attention-strip")
+  // Under the toolbar: the Up next card, the one item across every open project that most deserves you (a question
+  // first, else the newest finish). Its project's icon, its title, `project · asks you · 2m`, what the agent said (its
+  // last prompt until the reply is read), Go and Clear. Under it the rest, as `N more: a · b · c`. Nothing waits: nothing
+  // here, no empty box. A click on the card is Go.
+  upNextCard(t) {
+    const u = this.upnext;
+    if (!u) return null;
+    const { row, root, project } = u.item;
+    const label = shortcutLabel(keys(), window()?.platform === "macos");
+    const go = (cx) => {
+      this.handle.focus();
+      this.goTo(row.id, cx);
+      this.showKeep(row, cx);
+      cx.notify();
+    };
+    const button = (id, text, hint, accent, action) =>
+      h_flex()
+        .id(id)
+        .h(rh(26))
         .flex_none()
-        .overflow_hidden()
-        .h(live ? stripHeight(a) : 0)
-        .opacity(live ? 1 : 0)
-        .when(Boolean(body), (el) => el.child(body)),
-      (el) => el.spring("height", SPRING).transition("opacity", FADE),
-    );
+        .items_center()
+        .gap(7)
+        .pl(10)
+        .pr(6)
+        .rounded(6)
+        .border_1()
+        .border_color(accent ? t.accent : t.border)
+        .bg(t.background)
+        .text_size(fs(12))
+        .text_color(t.foreground)
+        .cursor_pointer()
+        .hover((s) => s.bg(t.hover))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click((_e, cx) => {
+          cx.stop_propagation();
+          action(cx);
+        })
+        .child(div().child(text))
+        .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(11)).text_color(t.muted).child(hint));
+    return v_flex()
+      .id("up-next")
+      .flex_none()
+      .px(20)
+      .py(10)
+      .gap(6)
+      .border_b(1)
+      .border_color(t.border)
+      .child(
+        h_flex()
+          .id("up-next-card")
+          .items_center()
+          .gap(12)
+          .p(12)
+          .rounded(10)
+          .border_1()
+          .border_color(u.status === "needs" ? t.ansi1 : t.border)
+          .bg(t.raised)
+          .cursor_pointer()
+          .on_click((_e, cx) => go(cx))
+          .child(projectIcon({ icon: iconFor(shared(ICONS) ?? {}, root, project), size: 32 }))
+          .child(
+            v_flex()
+              .flex_1()
+              .min_w(0)
+              .gap(2)
+              .child(div().min_w(0).truncate().text_size(fs(15)).font_semibold().text_color(t.foreground).child(u.title))
+              .child(this.partsRow(t, u.subtitle))
+              .when(Boolean(u.line), (el) => el.child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).tooltip(u.line).child(u.line))),
+          )
+          .child(
+            h_flex()
+              .flex_none()
+              .gap(6)
+              .child(button("up-next-go", "Go", label({ action: "nebula.next", def: "⌘]" }), true, go))
+              .child(
+                button("up-next-clear", "Clear", "e", false, (cx) => {
+                  this.clear(false, cx);
+                }),
+              ),
+          ),
+      )
+      .when(u.more > 0, (el) =>
+        el.child(
+          div()
+            .min_w(0)
+            .truncate()
+            .px(2)
+            .text_size(fs(11))
+            .text_color(t.muted)
+            .child(`${u.more} more: ${u.moreTitles.join(" · ")}`),
+        ),
+      );
   }
 
   // At the left of the status line: KEYS (accent) while the board has the keyboard, so a stray letter is never a
@@ -1670,7 +1766,7 @@ export class Board {
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(this.base.repos.length > 0 && this.open.length > 0, (el) => el.child(this.strip(t)))
+      .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext), (el) => el.child(this.upNextCard(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
       .child(this.statusLine(t));

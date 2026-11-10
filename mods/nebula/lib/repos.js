@@ -9,6 +9,7 @@ import { statusOf } from "./status.js";
 import { nextAttention, flatten } from "./order.js";
 import { groupSessions, repoRoot, norm, baseName } from "./projects.js";
 import { PROJECTS } from "./shared.js";
+import { isCleared } from "./waiting.js";
 
 export const STORE = PROJECTS;
 
@@ -95,7 +96,12 @@ export function tilde(path, home) {
 
 export const digitTile = (tiles, key) => (/^[1-9]$/.test(key) ? (tiles[Number(key) - 1] ?? null) : null);
 
-export function jumpTarget(terminals, repos, from, dir) {
-  const rows = flatten(groupSessions(terminals, repos)).map((t) => ({ id: t.address, status: statusOf(t) }));
+// The next agent that waits on you, needs you before finished (the Up next order). `cleared` is the shared
+// "nebula.cleared" map and `changed` { [terminal]: the tab's change time }: a row the user cleared with `e` on the
+// board is skipped until it changes state (lib/waiting.js), so ⌘] never lands on what was dealt with.
+export function jumpTarget(terminals, repos, from, dir, { cleared = null, changed = {} } = {}) {
+  const rows = flatten(groupSessions(terminals, repos))
+    .map((t) => ({ id: t.address, status: statusOf(t), changedAt: changed[t.address] ?? 0 }))
+    .map((r) => (isCleared(cleared, r) ? { ...r, status: "seen" } : r)); // kept in the list so the walk still starts at `from`
   return nextAttention(rows, from, dir);
 }

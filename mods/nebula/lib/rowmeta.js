@@ -1,3 +1,5 @@
+import { clearKey } from "./waiting.js";
+
 // What a session row's second line says besides its age: the agent's icon (its name when
 // Herdr has no icon for it), then the model and effort when known. Pure; no herdr imports.
 
@@ -37,4 +39,34 @@ export function rowMeta(row) {
   const icon = ICONS.has(id) ? `icons/${id}.svg` : null;
   const text = [icon ? "" : row.program, known(row.model), known(row.effort)].filter(Boolean).join(" · ");
   return { icon, text };
+}
+
+const waiting = (row) => row.status === "needs" || row.status === "unseen";
+
+/**
+ * The line an agent last said, for a row that needs you or finished unseen: the cached reply when it was read for
+ * this very state (its key is the row's clearKey), else "". A moved-on state never shows an old line.
+ */
+export const saidBy = (replies, row) => (waiting(row) && replies?.[row.id]?.key === clearKey(row) ? (replies[row.id].line ?? "") : "");
+
+/** How long a task is when it stands in for a title. */
+export const TASK_MAX = 48;
+
+/**
+ * A session named like its project says nothing the project's name does not, so its task (the last prompt) stands in
+ * as its title, cut to TASK_MAX. Sets `title` and `taskTitle` (the views then do not repeat the prompt under it) and keeps the
+ * tab's own name in `tabName` (for rename). Mutates the rows of one project (buildBoard makes fresh ones every time).
+ */
+export function stampTask(rows, project) {
+  const same = (s) =>
+    String(s ?? "")
+      .trim()
+      .toLowerCase();
+  for (const r of rows) {
+    const task = String(r.prompt ?? "").trim();
+    if (!task || r.kind === "nebula" || same(r.title) !== same(project)) continue;
+    r.tabName = r.title;
+    r.title = task.length > TASK_MAX ? `${task.slice(0, TASK_MAX - 1).trimEnd()}…` : task;
+    r.taskTitle = true;
+  }
 }

@@ -43,17 +43,21 @@ const more = (pairs) => [...pairs.filter(([k]) => k !== "?").slice(0, MAX_HINTS)
 
 /**
  * The status line while the terminal has the keys: what waits and the keys to get there, as [{ text, tone }]
- * (lib/strip.js stripParts). `waiting` is { needs, unseen } across the open projects. `label` is shortcutLabel(keys(), mac).
+ * (lib/strip.js stripParts). `waiting` is { needs, unseen }: the Up next queue, across the open projects, cleared ones out. `label` is shortcutLabel(keys(), mac).
  */
 export function awayParts(waiting, label) {
-  if (waiting.needs > 0) return stripParts({ needs: waiting.needs, unseen: 0 }, [`${label(NEXT)} go`, `${label(JUMP)} jump`]);
-  if (waiting.unseen > 0) return stripParts({ needs: 0, unseen: waiting.unseen }, [`${label(JUMP)} jump`]);
+  if (waiting.needs > 0) return stripParts(waiting, [`${label(NEXT)} go`, `${label(JUMP)} jump`]);
+  if (waiting.unseen > 0) return stripParts(waiting, [`${label(JUMP)} jump`]);
   return [{ text: "All quiet", tone: "plain" }, ...stripParts({ needs: 0, unseen: 0 }, [`${label(NEW)} new session`])];
 }
 
-/** The [key, text] pairs for a place (not "away", which is awayParts). `preview`: the setting, which changes what Enter is said to do. */
-export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
+/**
+ * The [key, text] pairs for a place (not "away", which is awayParts). `preview`: the setting, which changes what Enter is said to do.
+ * `waiting`: something waits on you (the Up next card shows), so `e clear` is offered where the keys are not in a column or a nebula row.
+ */
+export function hintPairs(ctx, { preview = false, deletable = false, waiting = false } = {}) {
   const enter = preview ? "step in" : "open";
+  const clear = waiting ? [["e", "clear"]] : [];
   switch (ctx) {
     case "filter":
       return [
@@ -82,35 +86,15 @@ export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
         ["/", "jump"],
       ]);
     case "exited":
-      return more([
-        ["↩", "resume"],
-        ["a", "archive"],
-        ["d", "delete"],
-        ["/", "jump"],
-      ]);
+      return more([["↩", "resume"], ...clear, ["a", "archive"], ["d", "delete"], ["/", "jump"]]);
     case "row":
-      return more([
-        ["↩", enter],
-        ["Esc", "to terminal"],
-        ["r", "rename"],
-        ["a", "archive"],
-        ["d", "delete"],
-        ["/", "jump"],
-      ]);
+      return more([["↩", enter], ...clear, ["Esc", "to terminal"], ["r", "rename"], ["a", "archive"], ["d", "delete"], ["/", "jump"]]);
     case "vacant":
       return more([[NEW, "new session"], ...(deletable ? [["d", "delete worktree"]] : []), ["/", "jump"]]);
     case "repo":
-      return more([
-        ["↩", "fold"],
-        [NEW, "new session"],
-        ["/", "jump"],
-      ]);
+      return more([["↩", "fold"], ...clear, [NEW, "new session"], ["/", "jump"]]);
     default:
-      return more([
-        [NEW, "new session"],
-        ["/", "jump"],
-        [FOLD, "fold"],
-      ]);
+      return more([...clear, [NEW, "new session"], ["/", "jump"], [FOLD, "fold"]]);
   }
 }
 

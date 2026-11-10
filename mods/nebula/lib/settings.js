@@ -23,6 +23,9 @@
 //   textSize        the panels' text, in percent of the terminal's text size (lib/scale.js TEXT_SIZES)
 //   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
 //                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
+//   away            what happens when an agent starts waiting while the window is in the background, and
+//                   the welcome-back card on return: macos (a notification and the card), herdr (the card
+//                   only) or off (neither). Herdr's own popup is unaffected.
 import { HARNESSES } from "./harness.js";
 import { SLEEP_CHOICES, SLEEP_DEFAULT } from "./sleep.js";
 import { TEXT_SIZES } from "./scale.js";
@@ -30,6 +33,8 @@ import { TEXT_SIZES } from "./scale.js";
 export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
 export const VIEW_IDS = Object.keys(VIEW_TITLE);
 export const SIDES = ["prefix", "postfix"];
+export const AWAY_CHOICES = ["macos", "herdr", "off"];
+export const AWAY_LABEL = { macos: "macOS notification and welcome-back card", herdr: "Welcome-back card only", off: "Neither" };
 
 export const DEFAULTS = {
   view: "tree",
@@ -47,6 +52,7 @@ export const DEFAULTS = {
   reduceMotion: false,
   textSize: 100,
   sleepAfter: SLEEP_DEFAULT,
+  away: "macos",
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -80,6 +86,7 @@ export function mergeSettings(stored) {
     reduceMotion: typeof s.reduceMotion === "boolean" ? s.reduceMotion : DEFAULTS.reduceMotion,
     textSize: TEXT_SIZES.includes(s.textSize) ? s.textSize : DEFAULTS.textSize,
     sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
+    away: AWAY_CHOICES.includes(s.away) ? s.away : DEFAULTS.away,
   };
 }
 
@@ -150,7 +157,8 @@ const SHORTCUTS = [
       { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },
       { keys: [".", ","], text: "next, previous needs-you" },
       { keys: [";"], text: "next done, not seen yet" },
-      { keys: ["p", "e", "v"], text: "new, presets, view" },
+      { keys: ["p", "t", "v"], text: "new, presets, view" },
+      { keys: ["e", "⇧E"], text: "clear Up next, clear all waiting" },
       { keys: ["o", "m"], text: "sort, Columns by status or project" },
       { keys: ["-", "="], text: "fold all, expand all" },
       { keys: ["p", "d"], text: "on an empty worktree: new, delete" },

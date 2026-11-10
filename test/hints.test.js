@@ -45,6 +45,11 @@ test("Columns lists the column keys", () => {
   assert.match(hintLine(hintPairs("columns"), mac), /^j k move · h l column · ↩ open/);
 });
 
+test("e clear is offered on a row only while something waits", () => {
+  assert.equal(hintLine(hintPairs("row", { waiting: true }), mac), "↩ open · e clear · Esc to terminal · r rename · ? more");
+  assert.doesNotMatch(hintLine(hintPairs("row"), mac), /e clear/);
+});
+
 test("an archived row offers unarchive, a nebula row hide, an exited row resume", () => {
   assert.match(hintLine(hintPairs("archived"), mac), /u unarchive/);
   assert.match(hintLine(hintPairs("nebula"), mac), /^↩ resume · d hide/);
@@ -53,7 +58,7 @@ test("an archived row offers unarchive, a nebula row hide, an exited row resume"
 
 test("with the keys elsewhere, the line says what waits and the keys to get there, from the live keymap", () => {
   const text = (parts) => parts.map((p) => p.text).join(" · ");
-  assert.equal(text(awayParts({ needs: 2, unseen: 1 }, mac)), "2 need you · ⌘] go · ⌘J jump");
+  assert.equal(text(awayParts({ needs: 2, unseen: 1 }, mac)), "2 need you · 1 done · ⌘] go · ⌘J jump", "both counts: the same queue the Up next card walks");
   assert.deepEqual(awayParts({ needs: 1, unseen: 0 }, mac)[0], { text: "1 needs you", tone: "needs" });
   assert.equal(text(awayParts({ needs: 0, unseen: 1 }, mac)), "1 done · ⌘J jump");
   assert.equal(awayParts({ needs: 0, unseen: 1 }, mac)[0].tone, "unseen");

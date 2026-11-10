@@ -5,7 +5,7 @@ import { ALL } from "../mods/nebula/lib/shared.js";
 
 const summary = [
   { root: "/r/a", name: "a", count: 1, status: "done" },
-  { root: "/r/b", name: "b", count: 2, needs: 2, status: "needs" },
+  { root: "/r/b", name: "b", count: 2, needs: 2, status: "needs", ring: 0.5 },
   { root: "/r/c", name: "c", count: 0, status: "exited" },
 ];
 
@@ -24,8 +24,8 @@ test("the rail follows the open list's order, not the store's, and never moves t
 test("each item carries its name and status; only the selected one is on", () => {
   const r = railTabs({ summary, open: ["/r/a", "/r/b"], selected: "/r/b" });
   assert.deepEqual(r.items, [
-    { root: "/r/a", name: "a", status: "done", needs: 0, on: false, pinned: false },
-    { root: "/r/b", name: "b", status: "needs", needs: 2, on: true, pinned: false },
+    { root: "/r/a", name: "a", status: "done", needs: 0, ring: 0, on: false, pinned: false },
+    { root: "/r/b", name: "b", status: "needs", needs: 2, ring: 0.5, on: true, pinned: false },
   ]);
   assert.equal(r.all, false);
 });

@@ -1,6 +1,6 @@
 // The icon bar: Board (shows or folds the board, the focus key's job), then the project tabs like a
-// vertical workspace switcher (All, the open projects in their shared order with a status dot, and +
-// for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
+// vertical workspace switcher (All, the open projects in their shared order, calm icons with a red pill for the
+// agents that need you and a ring for a finish you have not seen, and + for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
 // scrolls when it does not fit. A click selects a project (shared nebula.repo, which the board follows);
 // a right-click opens a menu with Close. It also owns the keyboard cycle and the jump chords, because a hidden board receives no key commands:
 // keys.json binds them to this mod's commands (focus, next, prev, jump), and the rail shows,
@@ -9,8 +9,10 @@
 //   nebula.boardKeys    true while the board has the keyboard (the board writes it)
 //   nebula.focusBoard   a token the rail changes to ask the board for the keyboard
 //   nebula.launched     a token the dialogs change after a launch from the board
-// It reads nebula.open, nebula.repo and nebula.icons (the board and the picker write them) and works
-// out each project's status itself, so the dots stay live while the board is folded.
+// It reads nebula.open, nebula.repo, nebula.icons and nebula.cleared (the board and the picker write them) and works
+// out each project's alerts itself, so they stay live while the board is folded. It also watches the window: a row
+// that starts waiting hops its icon and, with the window in the background, posts a macOS notification; coming back
+// after a while opens the welcome-back card (nebula-box role "away").
 import { svg, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import {
@@ -30,6 +32,8 @@ import {
   nextCommand,
   notify,
   settings,
+  window,
+  appHome,
 } from "herdr";
 import { putToSleep } from "./sleeper.js";
 import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
@@ -46,10 +50,26 @@ import { landing, rootOf } from "./lib/tabs.js";
 import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
-import { ball } from "./views/row.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETTINGS, PINNED, PINNED_PROJECTS, CLEARED, REPLIES } from "./lib/shared.js";
+import { waitingRows, AWAY_MS, clearKey } from "./lib/waiting.js";
+import { projectAlerts, trackArrivals, awayItems, awayHeight, AWAY_WIDTH } from "./lib/alerts.js";
+import { sessionOf, TRANSCRIPT, lastReply, replyLine } from "./lib/reply.js";
+import { SESSION } from "./lib/labels.js";
+import {
+  shq,
+  TOOLS_SCRIPT,
+  parseTools,
+  notifierArgs,
+  osascriptArgs,
+  fallbackLine,
+  FRONT_SCRIPT,
+  herdrInFront,
+  FRONT_POLL_MS,
+  NOTIFIED_DIR,
+  notifiedLock,
+} from "./lib/notify.js";
 import { fs, setTextScale } from "./lib/scale.js";
-import { setReduceMotion, animate, markerTops, FADE, SPRING } from "./lib/motion.js";
+import { setReduceMotion, animate, markerTops, hopping, FADE, SPRING, HOP_PX } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
 import { CHECK_EVERY_MS, updateState, updateNotice, updatedNotice, shouldNotify, reportIn } from "./lib/update.js";
 import { HELP_SIZE } from "./lib/hints.js";
@@ -89,8 +109,13 @@ export class Rail {
     if (!Array.isArray(shared(PINNED_PROJECTS))) setShared(PINNED_PROJECTS, savedPins());
     this.pinsKey = JSON.stringify(shared(PINNED_PROJECTS));
     this.lastIn = {}; // { [project root]: the terminal last focused there }, so picking the project goes back to it
+    this.hops = {}; // { [project root]: when its icon last began to hop }, for a row that just started waiting
+    this.seenStatus = null; // each row's status at the last look (lib/alerts.js trackArrivals)
+    this.awayAt = null; // when no Herdr window was in front any more, or null while one is
+    this.herdrFront = true; // whether a Herdr window (this or another) is the front app, polled while this one is not
+    this.frontAt = 0; // when that was last asked
     this.tabs = this.tabsNow();
-    this.tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion()]);
+    this.tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion(), this.hopsNow()]);
     cx.spawn(async (cx) => {
       for (;;) {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
@@ -240,25 +265,127 @@ export class Rail {
       localStorage.setItem(PINS_KEY, pinsKey);
     }
     this.tabs = this.tabsNow();
+    this.look(cx);
     const f = focused(),
       term = f?.terminal ?? f?.agent ?? null,
       root = term ? rootOf(this.model, term) : null;
     if (root) this.lastIn[root] = term;
-    const tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion()]);
+    const tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion(), this.hopsNow()]);
     if (tabsKey !== this.tabsKey) {
       this.tabsKey = tabsKey;
       cx.notify();
     }
   }
 
-  // The project tabs now: the open projects with their status, the selected one, and whether a closed
-  // project needs you. Worked out here from the live sessions (the board's summary is stale while it is folded).
+  // The project tabs now: the open projects with what waits on you there (the red count and the finish ring,
+  // lib/alerts.js: a row cleared on the board does not count), the selected one, and whether a closed project
+  // needs you. Worked out here from the live sessions (the board's summary is stale while it is folded).
   tabsNow() {
     const model = buildBoard({ terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos() });
     this.model = model;
     const open = currentOpen(shared(OPEN), model, store());
-    const pinned = shared(PINNED_PROJECTS) ?? [];
-    return { ...railTabs({ summary: summarize(model), open, selected: shared(REPO), pinned }), open, plus: closedNeeding(model, open) };
+    const pinned = shared(PINNED_PROJECTS) ?? [],
+      cleared = shared(CLEARED),
+      now = Date.now(),
+      rowsOf = new Map(model.repos.map((r) => [r.root, r.rows]));
+    const summary = summarize(model).map((p) => ({ ...p, ...projectAlerts(rowsOf.get(p.root) ?? [], cleared, now) }));
+    return { ...railTabs({ summary, open, selected: shared(REPO), pinned }), open, plus: closedNeeding(model, open, shared(CLEARED) ?? {}) };
+  }
+
+  // The projects whose icon is mid-hop now, so the tabs key changes when a hop starts and when it ends.
+  hopsNow() {
+    const now = Date.now();
+    return Object.keys(this.hops).filter((root) => hopping(this.hops[root], now));
+  }
+
+  // What changed around the window since the last tick. A row that just started waiting hops its project's icon
+  // (not with Reduce motion) and, with the window in the background and the setting on macOS, posts a macOS
+  // notification. The window coming back after AWAY_MS opens the welcome-back card for what began waiting meanwhile.
+  look(cx) {
+    const now = Date.now(),
+      cleared = shared(CLEARED),
+      away = mergeSettings(shared(SETTINGS)).away,
+      active = window()?.active !== false;
+    if (active) this.herdrFront = true;
+    else if (now - this.frontAt > FRONT_POLL_MS) {
+      this.frontAt = now;
+      cx.spawn(async () => {
+        const r = await exec("/bin/sh", ["-c", FRONT_SCRIPT], { timeout: 3000 }).catch(() => null);
+        this.herdrFront = r ? herdrInFront(r.stdout) : this.herdrFront;
+      });
+    }
+    // Away means no Herdr window is in front: switching between two Herdr windows is not away.
+    const front = active || this.herdrFront;
+    const repoOf = new Map(this.model.repos.flatMap((repo) => repo.rows.map((row) => [row.id, repo])));
+    const seen = trackArrivals(
+      this.seenStatus,
+      this.model.repos.flatMap((repo) => repo.rows),
+      cleared,
+    );
+    this.seenStatus = seen.state;
+    for (const row of seen.arrived) {
+      const repo = repoOf.get(row.id);
+      if (!this.reduceMotion()) this.hops[repo.root] = now;
+      if (!front && away === "macos") this.notifyArrival(row, repo, cx);
+    }
+    if (!front) this.awayAt ??= now;
+    else if (this.awayAt !== null) {
+      const at = this.awayAt;
+      this.awayAt = null;
+      if (active && away !== "off" && now - at >= AWAY_MS) this.welcomeBack(at, now); // only the window you came back to
+    }
+  }
+
+  // The welcome-back card: what began waiting while the window was away, newest need first.
+  welcomeBack(at, now) {
+    const items = awayItems(waitingRows(this.model, shared(CLEARED)), at, shared(REPLIES));
+    if (!items.length) return;
+    openOverlay({
+      mod: "nebula-box",
+      kind: "dialog",
+      width: AWAY_WIDTH,
+      height: awayHeight(items.length),
+      props: { role: "away", away: now - at, items },
+    });
+  }
+
+  // A macOS notification for a row that started waiting: its project and session as the title, the agent's own
+  // line as the message. terminal-notifier's click runs `herdr-app do agent.focus` against this window's home;
+  // without it (or herdr-app on PATH) osascript posts one with no click. Fired once per state change (look()).
+  notifyArrival(row, repo, cx) {
+    cx.spawn(async () => {
+      await exec("/bin/mkdir", ["-p", NOTIFIED_DIR]).catch(() => null);
+      const lock = await exec("/bin/mkdir", [notifiedLock(row.id, clearKey(row))]).catch(() => null);
+      if (lock?.code !== 0) return; // another Herdr window posted it
+      const [tools, line] = await Promise.all([this.tools(), this.agentLine(row)]);
+      const title = `${repo.name} \u00b7 ${row.title}`;
+      if (tools.notifier && tools.herdr)
+        await exec(tools.notifier, notifierArgs({ title, message: line, group: row.id, home: appHome(), bin: tools.herdr, terminal: row.id })).catch(
+          () => null,
+        );
+      else await exec("osascript", osascriptArgs(title, line)).catch(() => null);
+    });
+  }
+
+  // Where herdr-app and terminal-notifier live, asked once of a login shell (like the update check) so the user's
+  // PATH applies; the answer is kept when it found something.
+  async tools() {
+    if (this.found) return this.found;
+    const r = await exec("/bin/sh", ["-c", `"\${SHELL:-/bin/zsh}" -lic ${shq(TOOLS_SCRIPT)} 2>/dev/null`], { timeout: 30000 }).catch(() => null);
+    const found = parseTools(r?.stdout);
+    if (found.herdr || found.notifier) this.found = found;
+    return found;
+  }
+
+  // The line an agent last said (lib/reply.js reads its transcript), else "needs you" or "finished".
+  async agentLine(row) {
+    const s = sessionOf(terminals().find((t) => t.address === row.id)?.labels?.[SESSION]);
+    if (s) {
+      const r = await exec("/bin/sh", ["-c", TRANSCRIPT[s.app], "sh", s.id], { timeout: 5000 }).catch(() => null);
+      const line = replyLine(lastReply(r?.stdout), row.status);
+      if (line) return line;
+    }
+    return fallbackLine(row.status);
   }
 
   send(ev, cx) {
@@ -285,7 +412,8 @@ export class Rail {
 
   jump(dir) {
     const f = focused();
-    const to = jumpTarget(terminals(), this.repos(), f?.terminal ?? f?.agent ?? null, dir);
+    const changed = Object.fromEntries(this.model.repos.flatMap((r) => r.rows.map((x) => [x.id, x.changedAt])));
+    const to = jumpTarget(terminals(), this.repos(), f?.terminal ?? f?.agent ?? null, dir, { cleared: shared(CLEARED), changed });
     if (to) run("agent.focus", { terminal: to });
     else notify({ title: NOTHING_WAITING, level: "info", timeout: 2000 }); // the board may be folded, so no status line to say it
   }
@@ -557,13 +685,14 @@ export class Rail {
       .child(svg(icon(name)).size(size));
   }
 
-  // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
-  // when agents there need you, a red pill with how many.
+  // A project's tab: its icon (the shared picture or initials), calm: a red pill with how many agents there need
+  // you, a cyan ring while a finish waits unseen (fading over its last minute), and a hop when a row just started
+  // waiting. No status dot: four dots alike told you nothing.
   projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {},
       hint = tabHint(p.name, n),
       ring = p.on ? t.selected : t.chrome;
-    const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: ICON, badge: p.needs > 0 ? null : ball(p.status, t, 8), ring });
+    const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: ICON });
     const icon =
       p.needs > 0
         ? div()
@@ -612,6 +741,31 @@ export class Rail {
               .child(svg(PIN_ICON).size(9).text_color(t.accent)),
           )
       : icon;
+    // The ring sits 2px off the icon (the button's own background shows in the gap), and hops with it.
+    const hop = hopping(this.hops[p.root], Date.now());
+    const lifted = animate(
+      div()
+        .id(`hop-${p.root}`)
+        .relative()
+        .size(ICON)
+        .flex_none()
+        .top(hop ? -HOP_PX : 0)
+        .child(shown)
+        .when(p.ring > 0, (el) =>
+          el.child(
+            div()
+              .absolute()
+              .left(-4)
+              .top(-4)
+              .size(ICON + 8)
+              .rounded(9)
+              .border_2()
+              .border_color(t.ansi6)
+              .opacity(p.ring),
+          ),
+        ),
+      (el) => el.spring("top", SPRING),
+    );
     const i = n - 1,
       d = this.drag?.moved ? this.drag : null,
       slot = d && this.dropAt !== null && this.dropAt !== d.index && this.dropAt !== d.index + 1 ? this.dropAt : null;
@@ -622,7 +776,7 @@ export class Rail {
       () => {
         if (!this.drag?.moved) this.pick(p.root); // the release that ends a drag is not a click
       },
-      shown,
+      lifted,
       { on: p.on, size: 42, num: hint.num, menu: () => this.projectMenu(p, open, selected) },
     );
     // Drag to reorder (lib/rail.js moveTab): press, move 4px, and a line shows where it lands; the rail's

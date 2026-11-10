@@ -3,7 +3,7 @@ import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run } from "herdr";
 import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
-import { VIEW_IDS, VIEW_TITLE, SIDES, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
+import { VIEW_IDS, VIEW_TITLE, SIDES, AWAY_CHOICES, AWAY_LABEL, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
 import { SETTINGS, UPDATE } from "./lib/shared.js";
 import { updateLine, updateState } from "./lib/update.js";
 import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
@@ -26,6 +26,11 @@ const TOGGLES = {
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
+const AWAY_OPTIONS = [
+  { value: "macos", label: "macOS" },
+  { value: "herdr", label: "Card" },
+  { value: "off", label: "Off" },
+];
 const TEXT_OPTIONS = TEXT_SIZES.map((p) => ({ value: p, label: textSizeLabel(p) }));
 const PICK_W = 150;
 
@@ -69,6 +74,7 @@ export class Settings {
       "harness",
       ...this.ids.map((id) => `h:${id}`),
       "sleepAfter",
+      "away",
       "nebulaSessions",
       "import",
       "update",
@@ -120,6 +126,7 @@ export class Settings {
     else if (row === "harness" && this.ids.length) this.save({ harness: cycleOf(this.ids, defaultHarness(this.s, this.ids), dir) });
     else if (row === "presetSide") this.save({ presetSide: cycleOf(SIDES, this.s.presetSide, dir) });
     else if (row === "sleepAfter") this.save({ sleepAfter: cycleOf(SLEEP_CHOICES, this.s.sleepAfter, dir) });
+    else if (row === "away") this.save({ away: cycleOf(AWAY_CHOICES, this.s.away, dir) });
     else if (row === "textSize") this.save({ textSize: cycleOf(TEXT_SIZES, this.s.textSize, dir) });
     else if (row in TOGGLES) this.save({ [row]: !this.s[row] });
     else if (row.startsWith("h:")) {
@@ -418,6 +425,20 @@ export class Settings {
                 segmented(t, "sleepAfter", SLEEP_OPTIONS, s.sleepAfter, (v, cx) => {
                   this.go(at("sleepAfter"), cx);
                   this.save({ sleepAfter: v });
+                }),
+              ),
+              this.line(
+                t,
+                at("away"),
+                v_flex()
+                  .gap(2)
+                  .child(div().truncate().text_size(fs(13)).text_color(t.foreground).child("When you're away"))
+                  .child(div().truncate().text_size(fs(12)).text_color(t.muted).child(AWAY_LABEL[s.away]))
+                  .child(div().truncate().text_size(fs(12)).text_color(t.muted).child("Herdr's own popup is unaffected")),
+                null,
+                segmented(t, "away", AWAY_OPTIONS, s.away, (v, cx) => {
+                  this.go(at("away"), cx);
+                  this.save({ away: v });
                 }),
               ),
             ]),

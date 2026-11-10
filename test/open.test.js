@@ -58,6 +58,10 @@ test("a session that needs you in an open project changes nothing", () => {
   assert.deepEqual(r.open, ["/r/a"]);
   assert.equal(r.changed, false);
   assert.equal(closedNeeding(board([term("a", "t1", "blocked")]), ["/r/a"]), false);
+  // cleared with e on the board: no + dot until it changes state
+  const m = board([term("b", "t1", "blocked")]);
+  const row = m.repos.flatMap((r) => r.rows).find((x) => x.id === "t1");
+  assert.equal(closedNeeding(m, ["/r/a"], { t1: `${row.status}:${row.changedAt || 0}` }), false);
 });
 
 test("opening puts the project first, once; closing the selected tab selects a neighbor", () => {
