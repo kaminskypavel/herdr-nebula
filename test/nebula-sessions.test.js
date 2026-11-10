@@ -297,9 +297,9 @@ test("resume plan with no matching space starts a space whose first tab carries 
   assert.deepEqual(launch.args, { folder: "/elsewhere/x", argv: ["claude", "--resume", "conv-o1", "--model", "opus"], tab: "name o1" });
 });
 
-test("planLaunch without argv or name is unchanged", () => {
+test("planLaunch without argv or name builds the argv and names the tab from the task", () => {
   const plan = planLaunch({ checkouts: [{ path: "/w/app" }], checkout: "/w/app", spaces: [], harness: "claude", task: "Fix", from: "board" });
-  assert.deepEqual(plan.steps.find((x) => x.launch).args, { folder: "/w/app", argv: ["claude", "Fix"] });
+  assert.deepEqual(plan.steps.find((x) => x.launch).args, { folder: "/w/app", argv: ["claude", "Fix"], tab: "Fix" });
 });
 
 test("setting nebulaSessions defaults on and only a boolean changes it", () => {
