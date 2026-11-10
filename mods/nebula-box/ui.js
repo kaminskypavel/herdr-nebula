@@ -304,14 +304,14 @@ export const heroCard = (t, el, focused) =>
   v_flex()
     .flex_1()
     .min_h(rh(110))
+    .overflow_hidden()
     .p(2)
     .rounded(12)
     .border_1()
     .border_color(focused ? soft(t.accent, "40") : t.popover)
     .child(
       el
-        .flex_1()
-        .w_full()
+        .size_full()
         .px(14)
         .py(12)
         .rounded(10)
@@ -319,7 +319,7 @@ export const heroCard = (t, el, focused) =>
         .border_color(focused ? t.accent : t.input)
         .bg(t.background)
         .text_color(t.foreground)
-        .text_size(fs(15)),
+        .text_size(fs(13)),
     );
 
 // The filled primary button of the new-session box: accent with its own ink. Add children (text, spinner).

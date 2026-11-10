@@ -94,7 +94,8 @@ export class Launch {
     this.now = "";
 
     this.task = TextareaState.new({ placeholder: "What should the agent do? Leave empty to start it without a task." });
-    this.task.set_auto_grow(4, 10);
+    // No auto-grow: the field fills the room the box leaves it and scrolls inside (heroCard), so a long task
+    // never runs under the pills when they wrap to a second row.
     this.task.on("focus", (_e, cx) => {
       this.taskFocus = true;
       cx.notify();
