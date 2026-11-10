@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, rowDot, badge, breathing, metaLine, nudged, portLinks, title, ageColor } from "./row.js";
+import { ball, rowDot, badge, breathing, entering, metaLine, nudged, portLinks, title, ageColor } from "./row.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs } from "../lib/scale.js";
 
@@ -17,9 +17,9 @@ const MODES = [
   { id: "projects", title: "By project" },
 ];
 
-function mini(row, t, selected, click, menu, pinned, openPort) {
+function mini(row, t, selected, click, menu, pinned, openPort, enter) {
   const ports = portLinks(row, t, openPort);
-  return nudged(v_flex(), row)
+  return entering(nudged(v_flex(), row), enter, `mini-${row.id}`)
     .id(`mini-${row.id}`)
     .flex_none()
     .gap(1)
@@ -126,7 +126,7 @@ function statusBody(b, t) {
                   .child(ball(c.status, t))
                   .child(div().min_w(0).truncate().child(`${c.title} ${c.rows.length}`)),
               )
-              .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu, b.pinned === r.id, b.openPort))),
+              .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu, b.pinned === r.id, b.openPort, b.enters?.get(r.id)))),
           ),
         ),
     );
@@ -153,11 +153,11 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
-function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort, viewing) {
+function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort, viewing, enter) {
   const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
-  return nudged(v_flex(), row)
+  return entering(nudged(v_flex(), row), enter, `pcs-${row.id}`)
     .id(`pcs-${row.id}`)
     .relative()
     .flex_none()
@@ -267,7 +267,9 @@ function projectsBody(b, t) {
       column(
         2 - at,
         "SESSIONS",
-        pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing)),
+        pc.sessions.map((r) =>
+          sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing, b.enters?.get(r.id)),
+        ),
         "No sessions",
         col === 2,
         t,

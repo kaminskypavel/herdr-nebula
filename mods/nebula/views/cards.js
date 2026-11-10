@@ -3,7 +3,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
-import { rowDot, badge, drawItem, metaLine, nudged, portLinks, title, ageColor } from "./row.js";
+import { rowDot, badge, drawItem, entering, metaLine, nudged, portLinks, title, ageColor } from "./row.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 
@@ -31,11 +31,11 @@ const promptBlock = (prompt, t) => {
     .when(Boolean(prompt), (el) => el.child(`› ${prompt}`));
 };
 
-function card(row, t, selected, click, menu, pinned, openPort) {
+function card(row, t, selected, click, menu, pinned, openPort, enter) {
   const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
-  return nudged(h_flex(), row)
+  return entering(nudged(h_flex(), row), enter, `card-${row.id}`)
     .id(`card-${row.id}`)
     .flex_1()
     .min_w(0)
@@ -114,7 +114,7 @@ export function body(b, t) {
           .px(0)
           .py(3)
           .items_start()
-          .children(pair.map((it) => card(it.row, t, b.cursor === it.key, b.click, b.menu, b.pinned === it.row.id, b.openPort)))
+          .children(pair.map((it) => card(it.row, t, b.cursor === it.key, b.click, b.menu, b.pinned === it.row.id, b.openPort, b.enters?.get(it.row.id))))
           .when(pair.length === 1, (el) => el.child(div().flex_1())),
       );
     }
@@ -124,7 +124,7 @@ export function body(b, t) {
     if (it.type === "session") run.push(it);
     else if (it.type !== "sub") {
       flush();
-      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, pinned: b.pinned, viewing: b.viewing }));
+      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, pinned: b.pinned, viewing: b.viewing, enters: b.enters }));
     }
   }
   flush();

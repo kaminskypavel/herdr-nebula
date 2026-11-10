@@ -32,7 +32,7 @@ export function virtualList(b, list, t, deep) {
             b.range = range;
             return list
               .slice(range.start, range.end)
-              .map((i) => drawItem(i, t, { cursor: b.cursor, deep, pinned: b.pinned, promptLine: b.promptLine, viewing: b.viewing }));
+              .map((i) => drawItem(i, t, { cursor: b.cursor, deep, pinned: b.pinned, promptLine: b.promptLine, viewing: b.viewing, enters: b.enters }));
           },
         )
           .size_full()

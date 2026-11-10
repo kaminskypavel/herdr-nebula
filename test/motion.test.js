@@ -1,6 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP, markerTops, stripHeight } from "../mods/nebula/lib/motion.js";
+import {
+  setReduceMotion,
+  reduced,
+  animate,
+  STAR,
+  STAR_MS,
+  BOB,
+  SPRING,
+  POP,
+  markerTops,
+  stripHeight,
+  trackEntering,
+  enterPhase,
+} from "../mods/nebula/lib/motion.js";
 import { setTextScale } from "../mods/nebula/lib/scale.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
@@ -72,4 +85,28 @@ test("the strip's height is its padding, rule, count line, rows and more line", 
   setTextScale({ font_size: 26 });
   assert.equal(stripHeight({ items: [1], more: 0 }), 13 + 40 + 2 + 44, "rows scale with the text size");
   setTextScale(undefined);
+});
+
+test("a row first seen enters: drawn at its start, then at rest, then forgotten", () => {
+  let st = trackEntering(null, [], 0);
+  assert.equal(st, null, "no rows yet: nothing is decided");
+  st = trackEntering(st, ["a", "b"], 100);
+  assert.equal(enterPhase(st, 100).size, 0, "the rows a started board has are not new");
+  st = trackEntering(st, ["a", "b", "c"], 200);
+  assert.deepEqual([...enterPhase(st, 200)], [["c", "from"]]);
+  assert.deepEqual([...enterPhase(st, 260)], [["c", "to"]]);
+  st = trackEntering(st, ["a", "b", "c"], 260);
+  assert.deepEqual([...enterPhase(st, 260)], [["c", "to"]], "still entering on the next look");
+  st = trackEntering(st, ["a", "b", "c"], 700);
+  assert.equal(enterPhase(st, 700).size, 0, "settled");
+});
+
+test("a row that goes and comes back enters again; one that goes mid-entry is dropped", () => {
+  let st = trackEntering(null, ["a"], 0);
+  st = trackEntering(st, ["a", "b"], 100);
+  st = trackEntering(st, ["a"], 150);
+  assert.equal(enterPhase(st, 150).size, 0, "gone while entering");
+  st = trackEntering(st, ["a"], 200);
+  st = trackEntering(st, ["a", "b"], 300);
+  assert.deepEqual([...enterPhase(st, 300)], [["b", "from"]], "back: new again");
 });

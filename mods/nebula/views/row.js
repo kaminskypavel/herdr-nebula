@@ -9,7 +9,7 @@ import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "..
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
 import { pulseOf, nudging, popping } from "../lib/attention.js";
-import { animate, reduced, BOB, BREATHE, NUDGE, POP, SPRING, STAR, STAR_MS } from "../lib/motion.js";
+import { animate, reduced, BOB, BREATHE, ENTER, ENTER_RISE, NUDGE, POP, SPRING, STAR, STAR_MS } from "../lib/motion.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
@@ -178,6 +178,20 @@ function portCells(row, t) {
 // A row that just began needing you wiggles sideways for its first moments (lib/attention.js nudging).
 export const nudged = (el, row, now = Date.now()) => (nudging(row, now) ? animate(el.relative(), (e) => e.loop("left", NUDGE)) : el);
 
+// A row that appeared for the first time: drawn invisible and 6 px down while `phase` is "from", at rest once it is
+// "to", and the transitions carry it across (lib/motion.js trackEntering). `id` is the id the row has anyway.
+export function entering(el, phase, id) {
+  if (!phase || reduced()) return el;
+  const from = phase === "from";
+  return el
+    .id(id)
+    .relative()
+    .top(from ? ENTER_RISE : 0)
+    .opacity(from ? 0 : 1)
+    .transition("top", ENTER)
+    .transition("opacity", ENTER);
+}
+
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(11)).text_color(t.muted).child(text);
 
 // A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
@@ -200,7 +214,7 @@ const edgeBar = (color, height, breathe = false) =>
     breathe,
   );
 
-export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set() }) {
+export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set(), enter = null }) {
   const meta = metaLine(row, t, 12, selected),
     ports = portCells(row, t),
     look = rowLook(row);
@@ -208,7 +222,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
   const height = rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session);
   // Needs you wins the left edge; a selected row then shows the fill and an accent outline instead of the accent bar.
   const outline = pinned || (selected && look.bar === "needs");
-  return h_flex()
+  return entering(h_flex(), enter, `session-${row.id}`)
     .relative()
     .h(height)
     .flex_none()
@@ -409,7 +423,7 @@ export const shelfLine = (text, t) =>
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true, viewing }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true, viewing, enters }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo":
@@ -417,7 +431,15 @@ export function drawItem(item, t, { cursor, deep = false, click = null, pinned =
     case "band":
       return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click });
     case "session":
-      return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned, promptLine, viewing });
+      return sessionLine(item.row, t, {
+        selected,
+        indent: deep ? 32 : 14,
+        click,
+        pinned: item.row.id === pinned,
+        promptLine,
+        viewing,
+        enter: enters?.get(item.row.id),
+      });
     case "vacant":
       return vacantLine(item, t, { selected, indent: deep ? 32 : 14, click });
     case "sub":

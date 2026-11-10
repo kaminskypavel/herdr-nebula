@@ -117,7 +117,7 @@ import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
-import { setReduceMotion, animate, stripHeight, FADE, SPRING } from "./lib/motion.js";
+import { setReduceMotion, reduced, animate, stripHeight, trackEntering, enterPhase, FADE, SPRING } from "./lib/motion.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -243,6 +243,8 @@ export class Board {
     this.resuming = new Set();
     this.stateTrack = new Map(); // when each row entered its state, for tabs with no change time (lib/attention.js)
     this.changeAt = {};
+    this.entering = null; // the rows seen so far and the ones still fading in (lib/motion.js trackEntering)
+    this.enters = new Map(); // { [row id]: "from" | "to" } for the rows fading in now, read by the views
     this.stripLast = null; // the attention strip's last content, kept while it slides shut
     this.viewing = new Set(); // the terminals the user is looking at: a row that needs you stops breathing there
     this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
@@ -528,6 +530,7 @@ export class Board {
       u.at,
       rows.filter((r) => freshState(r.status, r.archived, r.stateSince, now)).map((r) => r.id),
       rows.filter((r) => nudging(r, now) || popping(r, now)).map((r) => r.id),
+      [...enterPhase(this.entering, now)],
       [...this.viewing],
       cfg.promptLine,
       cfg.showEmptyWorktrees,
@@ -1182,6 +1185,13 @@ export class Board {
   sync() {
     const picked = shared(REPO);
     this.all = buildBoard(this.boardArgs(this.showArchived));
+    const now = Date.now();
+    this.entering = trackEntering(
+      this.entering,
+      this.all.repos.flatMap((r) => r.rows.filter((x) => x.kind !== "nebula").map((x) => x.id)),
+      now,
+    );
+    this.enters = reduced() ? new Map() : enterPhase(this.entering, now);
     const stored = shared(OPEN),
       r = syncOpen(stored, this.all, store(), this.seen);
     this.open = r.open ?? [];

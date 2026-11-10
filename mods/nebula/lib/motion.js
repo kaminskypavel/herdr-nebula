@@ -64,3 +64,31 @@ export const FADE = { duration: 180, easing: "ease-out" };
  * The board springs the strip's height to this, or to 0 when nothing needs attention.
  */
 export const stripHeight = ({ items, more }) => 13 + rh(20) + items.length * (2 + rh(22)) + (more > 0 ? 2 + rh(20) : 0);
+
+// A session row that appears for the first time fades in and rises. It is drawn at its start (invisible, 6 px
+// down) for ENTER_FROM_MS, then at rest, and the transitions carry it across; ENTER_MS later it is forgotten.
+export const ENTER = { duration: 180, easing: "ease-out" };
+export const ENTER_RISE = 6;
+const ENTER_FROM_MS = 50;
+const ENTER_MS = 400;
+
+/**
+ * Notes the rows that are new: `state` is the last call's ({ known: Set, at: Map id -> ms }, null the first time),
+ * `ids` the rows now. The first call that has any rows takes them all as already there (a started board does not
+ * animate every row), and a row seen again after it went is new again. -> the new state.
+ */
+export function trackEntering(state, ids, now) {
+  if (!state && !ids.length) return null;
+  const prev = state ?? { known: new Set(ids), at: new Map() };
+  const at = new Map();
+  for (const [id, since] of prev.at) if (now - since < ENTER_MS && ids.includes(id)) at.set(id, since);
+  for (const id of ids) if (!prev.known.has(id) && !at.has(id)) at.set(id, now);
+  return { known: new Set(ids), at };
+}
+
+/** -> Map id -> "from" (draw at the start) or "to" (draw at rest, so the transition runs), for the rows still entering. */
+export function enterPhase(state, now) {
+  const out = new Map();
+  for (const [id, since] of state?.at ?? []) if (now - since < ENTER_MS) out.set(id, now - since < ENTER_FROM_MS ? "from" : "to");
+  return out;
+}
