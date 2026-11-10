@@ -51,7 +51,7 @@ import { canResume, resumeCommand } from "./lib/resume.js";
 import { sleepVerdict } from "./lib/sleep.js";
 import { ASLEEP } from "./lib/labels.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
-import { REFOCUS_MS, findNode } from "./lib/focus.js";
+import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
 import {
   nebulaBin,
@@ -997,8 +997,8 @@ export class Board {
   }
 
   columnKey(k, m) {
-    if (m.shift) return false;
-    const dir = { j: 1, down: 1, k: -1, up: -1 }[k];
+    const dir = moveStep(k, m.shift);
+    if (m.shift && !dir) return false;
     if (dir) {
       const stops = this.items.filter((i) => i.type === COLUMN_TYPES[this.col]).map((i) => i.key);
       this.choose(stepCursor(stops, this.cursor, dir));
@@ -1053,8 +1053,9 @@ export class Board {
       return;
     }
     const u = k === "u" && !m.shift ? uKey(item?.type === "session" ? item.row : null, this.undo) : null;
-    if (k === "j" || k === "down" || k === "k" || k === "up") {
-      this.place(stepCursor(this.stops, this.cursor, k === "j" || k === "down" ? 1 : -1));
+    const step = moveStep(k, m.shift);
+    if (step) {
+      this.place(stepCursor(this.stops, this.cursor, step));
       this.reveal(cx, this.cursor);
     } else if (u && u.kind !== "row") this.undoArchive(u, cx);
     else if (act && item?.type === "session") this.act(act, item.row, cx);

@@ -134,7 +134,7 @@ const SHORTCUTS = [
     group: "Board",
     col: 1,
     rows: [
-      { keys: ["j", "k", "↑", "↓"], text: "move, showing the agent" },
+      { keys: ["j", "k", "↑", "↓", "Tab", "⇧Tab"], text: "move" },
       { keys: ["↩", "double click"], text: "step in, resume if exited" },
       { keys: ["Esc"], text: "keys back to the terminal" },
       { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },

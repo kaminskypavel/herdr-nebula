@@ -56,3 +56,10 @@ export function findNode(node, id) {
   }
   return null;
 }
+
+/** The cursor step a key asks for: j, down and Tab go down (1), k, up and shift-Tab go up (-1), else 0. */
+export function moveStep(key, shift = false) {
+  if (key === "tab") return shift ? -1 : 1;
+  if (shift) return 0;
+  return { j: 1, down: 1, k: -1, up: -1 }[key] ?? 0;
+}

@@ -114,13 +114,13 @@ test("Preview while moving is on by default, and only a boolean turns it off", (
   assert.equal(mergeSettings({ preview: "no" }).preview, false);
 });
 
-test("Help lists the jump palette, Esc, / f ? and moving shows the agent", () => {
+test("Help lists the jump palette, Esc, / f ? and Tab moves", () => {
   const groups = groupShortcuts([], true);
   assert.equal(rowOf(groups, "Anywhere", "jump to any agent, any project").keys, "⌘J");
   const board = groups.find((g) => g.group === "Board").rows;
   assert.ok(board.some((r) => r.keys === "Esc" && /terminal/.test(r.text)));
   assert.ok(board.some((r) => r.keys === "/ f ?" && /jump/.test(r.text)));
-  assert.ok(board.some((r) => /^move/.test(r.text) && /showing/.test(r.text)));
+  assert.ok(board.some((r) => r.text === "move" && r.keys.includes("Tab")));
 });
 
 test("a rebound jump key shows in Help", () => {

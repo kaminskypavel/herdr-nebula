@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { step, findNode, FOLDED, TERMINAL, BOARD } from "../mods/nebula/lib/focus.js";
+import { step, findNode, moveStep, FOLDED, TERMINAL, BOARD } from "../mods/nebula/lib/focus.js";
 import { digitTile, parseWorktrees, resolveAdd, jumpTarget, projectList, addProject, removeProject, taken } from "../mods/nebula/lib/repos.js";
 
 const chord = { type: "chord" };
@@ -157,4 +157,15 @@ test("findNode finds a layout node by id at any depth, else null", () => {
 
 test("an unknown event leaves the state alone", () => {
   assert.deepEqual(step(BOARD, { type: "nonsense" }), { state: BOARD, act: null });
+});
+
+test("Tab moves down like j, shift-Tab up like k; other shifted keys do not move", () => {
+  assert.equal(moveStep("tab"), 1);
+  assert.equal(moveStep("tab", true), -1);
+  assert.equal(moveStep("j"), 1);
+  assert.equal(moveStep("down"), 1);
+  assert.equal(moveStep("k"), -1);
+  assert.equal(moveStep("up"), -1);
+  assert.equal(moveStep("j", true), 0);
+  assert.equal(moveStep("x"), 0);
 });
