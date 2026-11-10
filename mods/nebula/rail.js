@@ -55,6 +55,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
 const RAIL_W = 76;
+const ICON = 32; // a project icon's size inside its 42px button
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
 const store = () => shared(STORE) ?? {};
@@ -330,7 +331,7 @@ export class Rail {
 
   // One button. opts: { on (lit: the board is shown, or this tab is selected), dot (a red dot: something needs you),
   // mark (an accent bar on the bar's left edge while on), size (default 32), menu (a right-click handler),
-  // num (the ⌘ number, drawn small in the gutter left of the button) }.
+  // num (the ⌘ number, on a small chip in the icon's top-left corner, opposite the status dot) }.
   button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null, num = null } = {}) {
     return div()
       .id(id)
@@ -365,14 +366,18 @@ export class Rail {
         el.child(
           div()
             .absolute()
-            .left(-13)
-            .top(0)
-            .h(size)
-            .w(8)
+            .left(Math.max(0, (size - ICON) / 2) - 2)
+            .top(Math.max(0, (size - ICON) / 2) - 2)
+            .min_w(15)
+            .h(15)
+            .px(3)
+            .rounded(4)
+            .bg(t.chrome)
             .flex()
             .items_center()
             .justify_center()
             .text_size(fs(11))
+            .font_semibold()
             .text_color(on ? t.foreground : t.muted)
             .child(String(num)),
         ),
@@ -397,7 +402,7 @@ export class Rail {
     const icons = shared(ICONS) ?? {},
       hint = tabHint(p.name, n),
       ring = p.on ? t.selected : t.chrome;
-    const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: 32, badge: p.needs > 0 ? null : ball(p.status, t, 8), ring });
+    const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: ICON, badge: p.needs > 0 ? null : ball(p.status, t, 8), ring });
     const icon =
       p.needs > 0
         ? div()

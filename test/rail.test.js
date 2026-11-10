@@ -46,7 +46,7 @@ test("a root missing from the summary is left out; nothing open gives no items",
   assert.deepEqual(railTabs({ summary, open: [], selected: ALL }), { all: true, items: [] });
 });
 
-test("the first nine tabs carry their cmd number in the tooltip and the gutter", () => {
+test("the first nine tabs carry their cmd number in the tooltip and on the icon", () => {
   assert.deepEqual(tabHint("alpha", 1), { tip: "alpha  \u23181", num: 1 });
   assert.deepEqual(tabHint("alpha", 9), { tip: "alpha  \u23189", num: 9 });
 });

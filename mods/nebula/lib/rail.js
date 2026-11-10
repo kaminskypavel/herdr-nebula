@@ -32,7 +32,7 @@ export const togglePinned = (pinned, root) => ((pinned ?? []).includes(root) ? p
 // The digit is always drawn: "show the numbers while ⌘ is held" is not possible, because Herdr reports
 // modifier changes (on_modifiers_changed) only on the keyboard focus path, and while you type in an
 // agent the terminal has it, so the icon bar never hears ⌘.
-// -> { tip (the tooltip: "name  ⌘n", or just the name), num (the digit drawn in the gutter, or null) }.
+// -> { tip (the tooltip: "name  ⌘n", or just the name), num (the digit drawn on the icon's corner, or null) }.
 export const tabHint = (name, n) => (n <= 9 ? { tip: `${name}  \u2318${n}`, num: n } : { tip: name, num: null });
 
 // The count in a tab's red pill: the number of sessions that need you, "9+" past nine.
