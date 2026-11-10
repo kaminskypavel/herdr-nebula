@@ -12,6 +12,9 @@ export const PREVIEW_MS = 150;
 /** How long the board insists it has the keys after asking a preview, while Herdr moves focus. */
 export const HOLD_MS = 1000;
 
+/** How often the board checks, after a preview, whether Herdr moved the keys to the agent. */
+export const POLL_MS = 25;
+
 /** The command that shows a session's agent: its pane, else (a parked agent has none) the agent itself. */
 export const focusCommand = (row) => (row.pane ? { name: "pane.focus", args: { pane: row.pane } } : { name: "agent.focus", args: { terminal: row.address } });
 

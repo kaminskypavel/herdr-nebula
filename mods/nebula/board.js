@@ -69,7 +69,7 @@ import {
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
 import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS, HIDDEN, FLASH, GOTO } from "./lib/shared.js";
-import { PREVIEW_MS, HOLD_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
+import { PREVIEW_MS, HOLD_MS, POLL_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
 import {
   makeFlash,
   liveFlash,
@@ -635,7 +635,7 @@ export class Board {
   }
 
   // Preview while moving: shows the highlighted agent in the main area (pane.focus selects its tab and
-  // marks it seen) and takes the keys straight back, again after each REFOCUS_MS unless Esc, Enter or
+  // marks it seen) and takes the keys straight back, polling every POLL_MS for a while unless Esc, Enter or
   // a click elsewhere has taken them (this.epoch). lib/preview.js has the reasoning.
   schedulePreview(cx) {
     if (!this.config().preview) return;
@@ -657,10 +657,20 @@ export class Board {
     const c = focusCommand(row);
     run(c.name, c.args);
     take();
-    for (const ms of REFOCUS_MS)
-      cx.timer.after(ms, () => {
-        if (epoch === this.epoch && refocusDue({ focused: focused(), row, has: this.handle.is_focused() })) take();
-      });
+    // Herdr hands the keys to the shown agent a frame or a few hundred ms later (measured: tab.select
+    // and pane.focus both do), so the board watches closely and takes them straight back each time.
+    // After the first take-back it watches only 300 ms more, so a click into the agent a moment later
+    // stays the user's.
+    let until = Date.now() + HOLD_MS + 500;
+    const poll = () => {
+      if (epoch !== this.epoch || Date.now() > until) return;
+      if (refocusDue({ focused: focused(), row, has: this.handle.is_focused() })) {
+        take();
+        until = Math.min(until, Date.now() + 300);
+      }
+      cx.timer.after(POLL_MS, poll);
+    };
+    cx.timer.after(POLL_MS, poll);
   }
 
   // Esc: the keys go back to the agent in the main area; the board stays shown.
