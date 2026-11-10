@@ -11,7 +11,7 @@ import { closing, endsLine, iconOf, tilde } from "./lib.js";
 const SIZE = 28;
 const SHOWN = 4; // agents listed before "+N more"
 
-function projectIcon(icon, t) {
+function projectIcon(icon) {
   if (!icon) return null;
   return icon.path
     ? image(icon.path).size(SIZE).rounded(6).flex_none()
@@ -61,7 +61,7 @@ export default class Confirm extends View {
         .on_click(onClick)
         .child(label);
     const title = c ? `Close ${c.name}?` : (p.title ?? "Are you sure?");
-    const icon = c ? projectIcon(iconOf(shared("nebula.icons"), c.folder), t) : null;
+    const icon = c ? projectIcon(iconOf(shared("nebula.icons"), c.folder)) : null;
     const head = h_flex()
       .items_center()
       .gap(10)
