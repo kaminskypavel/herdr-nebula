@@ -8,7 +8,7 @@ import { canResume } from "./resume.js";
 export const HELP_SIZE = { width: 560, height: 500 };
 
 const act = (action, def) => ({ action, def });
-const FOLD = act("nebula.focus", "⌃`");
+const FOLD = act("nebula.keys", "⌃`");
 const JUMP = act("nebula.jump", "⌘J");
 
 /**
@@ -40,7 +40,7 @@ export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
       return [
         [FOLD, "keys to the board"],
         [JUMP, "jump to an agent"],
-        ["click", "a row to open"],
+        ["click", "a row to show it"],
       ];
     case "filter":
       return [

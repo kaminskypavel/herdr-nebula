@@ -70,3 +70,16 @@ test("an agent alert becomes '<session> <event>' over '<project> · <reply or pr
   assert.equal(agentLines({ title: "Update ready" }, term, null), null);
   assert.equal(agentLines(p, null, null), null);
 });
+
+test("the popup's icon is the icon bar's for the project holding the agent's folder, longest root first", async () => {
+  const { iconOf, DOT_OF } = await import("../mods/toast/lib.js");
+  const a = { path: "mods/nebula/.icons/a.svg" },
+    b = { path: null, initials: "LM", color: "#7a5fc8" };
+  const icons = { "/r/libby": a, "/r/libby/libby-agent-monorepo": b };
+  assert.equal(iconOf(icons, "/r/libby/libby-agent-monorepo"), b);
+  assert.equal(iconOf(icons, "/r/libby/libby-agent-monorepo/apps/web"), b);
+  assert.equal(iconOf(icons, "/r/libby-worktrees/fix"), a);
+  assert.equal(iconOf(icons, "/r/libbyx"), null);
+  assert.equal(iconOf(undefined, "/r"), null);
+  assert.equal(DOT_OF["needs you"], "ansi1");
+});

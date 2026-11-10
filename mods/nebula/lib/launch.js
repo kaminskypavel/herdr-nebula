@@ -140,6 +140,10 @@ export function planLaunch(o) {
   return { steps, existing };
 }
 
+// What the box says when a project's folder is gone (moved or deleted), instead of the terminal's
+// "cannot start /bin/zsh: No such file or directory", which names the shell, not the folder.
+export const goneText = (name, path) => `${name} is not at ${path} anymore. Remove it in Projects (+), then add it from where it is now.`;
+
 export const bind = (steps, path) => JSON.parse(JSON.stringify(steps, (_k, v) => (v === WT ? path : v)));
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping the ESC of ANSI color codes is the point

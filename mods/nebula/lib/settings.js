@@ -113,7 +113,7 @@ const SHORTCUTS = [
     group: "Anywhere",
     col: 0,
     rows: [
-      { keys: [b("nebula.focus", "⌃`")], text: "board: take keys, fold" },
+      { keys: [b("nebula.keys", "⌃`")], text: "board: take keys, fold" },
       { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
       { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
       { keys: [b("nebula.jump", "⌘J")], text: "jump to any agent, any project" },
@@ -135,7 +135,8 @@ const SHORTCUTS = [
     col: 1,
     rows: [
       { keys: ["j", "k", "↑", "↓", "Tab", "⇧Tab"], text: "move" },
-      { keys: ["↩", "click"], text: "step in, resume if exited" },
+      { keys: ["click"], text: "show it, keys stay here" },
+      { keys: ["↩", "double click"], text: "step in, resume if exited" },
       { keys: ["Esc"], text: "keys back to the terminal" },
       { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },
       { keys: [".", ","], text: "next, previous needs-you" },

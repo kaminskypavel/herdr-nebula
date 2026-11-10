@@ -114,3 +114,20 @@ export function agentLines(p, term, reply) {
     body: [project, said].filter(Boolean).join(" · ") || p.body || "",
   };
 }
+
+// The project icon for a folder: the shared "nebula.icons" entry ({ path, initials, color }, keyed by
+// project root) of the project holding it (the root itself, a folder under it, or one of its
+// <root>-worktrees), the longest root winning. -> the entry, or null.
+export function iconOf(icons, cwd) {
+  const dir = String(cwd ?? "").replace(/\/+$/, "");
+  let best = null;
+  for (const [root, icon] of Object.entries(icons ?? {})) {
+    const holds = dir === root || dir.startsWith(`${root}/`) || dir.startsWith(`${root}-worktrees/`);
+    if (holds && (!best || root.length > best.root.length)) best = { root, icon };
+  }
+  return best?.icon ?? null;
+}
+
+// The status dot's color on the icon: the board's (lib/status.js COLOR), red for needs you, the
+// unseen color for finished.
+export const DOT_OF = { "needs you": "ansi1", finished: "ansi6" };

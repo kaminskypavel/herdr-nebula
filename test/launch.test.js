@@ -287,3 +287,11 @@ test("onStep sees each step before it runs", async () => {
   });
   assert.deepEqual(seen, ["wt", "do", "labels", "keys"]);
 });
+
+test("a project whose folder is gone gets a plain message naming the folder, not the shell", async () => {
+  const { goneText } = await import("../mods/nebula/lib/launch.js");
+  assert.equal(
+    goneText("little-adventures", "~/devl/good-muse-story/little-adventures"),
+    "little-adventures is not at ~/devl/good-muse-story/little-adventures anymore. Remove it in Projects (+), then add it from where it is now.",
+  );
+});

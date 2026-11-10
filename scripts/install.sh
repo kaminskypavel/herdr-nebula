@@ -48,6 +48,8 @@ const text = fs.existsSync(to) ? fs.readFileSync(to, "utf8") : null;
 let have;
 try { have = text === null ? {} : JSON.parse(text); } catch (e) { console.error(`keys: ${to} is not valid JSON (${e.message}); left alone`); process.exit(1); }
 let added = 0;
+// nebula.focus was renamed nebula.keys (Herdr sends a focusable mod a bare "focus" of its own).
+for (const binds of Object.values(have)) for (const [key, action] of Object.entries(binds ?? {})) if (action === "nebula.focus") { binds[key] = "nebula.keys"; added++; }
 for (const [section, binds] of Object.entries(want)) {
   have[section] ??= {};
   for (const [key, action] of Object.entries(binds)) {

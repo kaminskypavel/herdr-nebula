@@ -84,7 +84,7 @@ test("with no rebinds the groups show the built-in keys", () => {
 });
 
 test("a rebind of the focus key in keys() shows the new key", () => {
-  const groups = groupShortcuts([{ section: "layout:nebula", keys: "ctrl-j", action: "nebula.focus" }], true);
+  const groups = groupShortcuts([{ section: "layout:nebula", keys: "ctrl-j", action: "nebula.keys" }], true);
   assert.equal(rowOf(groups, "Anywhere", "board: take keys, fold").keys, "⌃J");
 });
 

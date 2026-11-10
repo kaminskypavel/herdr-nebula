@@ -33,6 +33,7 @@ import {
   withoutEnter,
   seedTask,
   draftOf,
+  goneText,
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
 
@@ -518,6 +519,11 @@ export class Launch {
   }
 
   async start(repo, task, cx) {
+    const there = await exec("/bin/sh", ["-c", 'test -d "$1"', "sh", repo.root]).catch(() => null);
+    if (there?.code !== 0) {
+      this.error = goneText(repo.name, tilde(repo.root, home()));
+      return null;
+    }
     await this.ensureList();
     const list = this.list(),
       branch = this.effective();

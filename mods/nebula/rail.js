@@ -86,7 +86,9 @@ export class Rail {
     cx.spawn(async (cx) => {
       for (;;) {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
-        if (c === "focus") this.send({ type: "chord" }, cx);
+        if (c === "keys") this.send({ type: "chord" }, cx);
+        else if (c === "focus")
+          run("pane.go", { direction: "right" }); // pane.go reached the icon bar: the board takes the keys
         else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
         else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9

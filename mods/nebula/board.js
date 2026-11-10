@@ -41,6 +41,7 @@ import {
   layout,
   notify,
   focused,
+  nextCommand,
   settings,
   hc,
   keys,
@@ -133,6 +134,7 @@ const rowActionOf = (k, m) => {
 const COLUMN_TYPES = ["project", "worktree", "session"];
 const DOUBLE_CLICK_MS = 400;
 const PORTS_EVERY = 5000; // how often the board looks for listening ports
+const KEEP_MS = 250; // after a click shows an agent, when the board asks for the keys back again
 const COMPACT_BELOW = 500;
 const REFRESH_EVERY = 60000;
 const MIN_GAP = 5000;
@@ -242,6 +244,14 @@ export class Board {
     if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
     this.findNebula(cx);
     cx.timer.every(100, (c) => this.watch(c));
+    // mod.json makes this mod focusable: Herdr's pane.go (left from the terminal) hands the board the keys.
+    cx.spawn(async (cx) => {
+      for (;;) {
+        if (String(await nextCommand()) !== "focus") continue;
+        this.handle.focus();
+        cx.notify();
+      }
+    });
     cx.timer.every(REFRESH_EVERY, (c) => {
       this.loadAll(c);
       this.loadNebula(c);
@@ -824,6 +834,17 @@ export class Board {
     run(c.name, c.args);
   }
 
+  // Shows the agent in the main area and keeps the keys on the board. Herdr hands the keys to the terminal
+  // it shows, a beat later, so the board asks for them back with Herdr's own pane.go, now and once more after
+  // that beat. A nebula row or an exited agent steps in instead: showing it starts or resumes something.
+  showKeep(row, cx) {
+    this.show(row, cx);
+    if (row.kind === "nebula" || canResume(row)) return;
+    const back = () => run("pane.go", { direction: "left" });
+    back();
+    cx.timer.after(KEEP_MS, back);
+  }
+
   place(key) {
     this.cursor = key;
     this.index = Math.max(0, this.stops.indexOf(key));
@@ -867,7 +888,9 @@ export class Board {
       this.col = 2;
       this.place(item.key);
       if (shift) this.pinRow(item.row);
-      else this.show(item.row, cx); // a click steps in, in every view (the user's call); j/k only highlight
+      else if (dbl)
+        this.show(item.row, cx); // a double click (or Enter) steps in
+      else this.showKeep(item.row, cx); // a click shows the agent; the keys stay on the board (the user's call)
     } else if (item.type === "vacant") this.place(item.key);
     else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {

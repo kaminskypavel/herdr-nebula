@@ -1,15 +1,42 @@
 // Herdr's notifications, from herdr-nebula. Same look and click as Herdr's own toast (anything can post
 // one with notify({ title, body, level, icon, action }); a click runs its action and dismisses it), but
 // Herdr's agent alerts ("Claude Code finished" over "space / tab") say which session and what it said:
-// "build-wizard finished" over "libby-agent-monorepo · <the agent's last reply>" (lib.js). The reply
-// comes from the conversation the prompt hook saved on the terminal; until it is read, or without one,
-// the second line holds the session's last prompt.
+// "build-wizard finished" over "libby-agent-monorepo · <the agent's last reply>" (lib.js), beside the
+// project's icon from the icon bar with the agent's status dot. The reply comes from the conversation
+// the prompt hook saved on the terminal; until it is read, or without one, the second line holds the
+// session's last prompt.
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, run, theme, terminals, exec } from "herdr";
-import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, gist } from "./lib.js";
+import { props, closeOverlay, run, theme, terminals, exec, shared } from "herdr";
+import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, gist, eventOf, iconOf, DOT_OF } from "./lib.js";
 
 const DOT = { error: "blocked", warning: "working", success: "done", info: "accent" };
+const SIZE = 28;
+
+// The project's icon (its picture, else initials on its color) with the agent's status dot at the
+// corner, as the icon bar draws it.
+function projectIcon(icon, dot, t) {
+  const face = icon.path
+    ? image(icon.path).size(SIZE).rounded(6)
+    : div()
+        .size(SIZE)
+        .rounded(6)
+        .flex()
+        .items_center()
+        .justify_center()
+        .bg(icon.color)
+        .text_size(12)
+        .font_semibold()
+        .text_color("#ffffff")
+        .child(icon.initials);
+  const badge = div().absolute().right(-3).bottom(-3).size(11).rounded_full().bg(t.popover).flex().items_center().justify_center();
+  return div()
+    .relative()
+    .size(SIZE)
+    .flex_none()
+    .child(face)
+    .child(badge.child(div().size(7).rounded_full().bg(t[dot])));
+}
 
 export default class Toast extends View {
   init(_props, cx) {
@@ -31,7 +58,19 @@ export default class Toast extends View {
   render(_cx) {
     const t = theme();
     const p = props() ?? {};
-    const lines = agentLines(p, terminalOf(p, terminals()), this.reply) ?? { title: p.title ?? "", body: p.body ?? "" };
+    const term = terminalOf(p, terminals()),
+      agent = agentLines(p, term, this.reply),
+      lines = agent ?? { title: p.title ?? "", body: p.body ?? "" },
+      icon = agent ? iconOf(shared("nebula.icons"), term.cwd) : null;
+    const lead = icon
+      ? projectIcon(icon, DOT_OF[eventOf(p.title)], t)
+      : p.icon
+        ? image(p.icon).w(18).h(18).flex_none()
+        : div()
+            .size(8)
+            .rounded(4)
+            .flex_none()
+            .bg(t[DOT[p.level] ?? "accent"]);
     return h_flex()
       .id("toast")
       .size_full()
@@ -45,15 +84,7 @@ export default class Toast extends View {
         if (p.action?.name) run(p.action.name, p.action.args ?? {});
         closeOverlay(p.overlay);
       })
-      .child(
-        p.icon
-          ? image(p.icon).w(18).h(18).flex_none()
-          : div()
-              .size(8)
-              .rounded(4)
-              .flex_none()
-              .bg(t[DOT[p.level] ?? "accent"]),
-      )
+      .child(lead)
       .child(
         v_flex()
           .flex_1()

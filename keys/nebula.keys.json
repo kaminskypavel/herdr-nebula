@@ -1,6 +1,6 @@
 {
   "layout:nebula": {
-    "ctrl-`": "nebula.focus",
+    "ctrl-`": "nebula.keys",
     "cmd-]": "nebula.next",
     "cmd-[": "nebula.prev",
     "cmd-k": "mod.open:nebula-box",
