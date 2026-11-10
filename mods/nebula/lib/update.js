@@ -52,3 +52,27 @@ export function parseCheck({ counts, status, branch, head, latest, log }) {
       .filter(Boolean),
   };
 }
+
+// Settings' Updates line for a report (or none yet).
+export function updateLine(report) {
+  if (!report) return "Not checked yet";
+  const state = updateState(report),
+    n = report.behind;
+  if (state === "current") return `Up to date (${report.head})`;
+  if (state === "local") return `${n} new on GitHub; your copy has its own changes, pull with git`;
+  return `${n} new change${n === 1 ? "" : "s"} (${report.head} to ${report.latest})`;
+}
+
+// The JSON report in a login shell's output, or null. Rc files and terminal integrations (iTerm's
+// shell-integration escapes) may print before it, even on the same line, so it starts at the first `{"`.
+export function reportIn(stdout) {
+  const line = String(stdout ?? "")
+    .split("\n")
+    .reverse()
+    .find((l) => l.includes('{"'));
+  try {
+    return line ? JSON.parse(line.slice(line.indexOf('{"'))) : null;
+  } catch {
+    return null;
+  }
+}

@@ -11,6 +11,7 @@ export const RESUMED = "nebula.resumed";
 export const HIDDEN = "nebula.hidden"; // nebula session ids hidden from the board
 export const PINNED = "nebula.pinned";
 export const OPEN = "nebula.open";
+export const UPDATE = "nebula.update"; // the last `herdr-nebula update --check` report (lib/update.js), for the gear dot and Settings
 export const PINNED_PROJECTS = "nebula.pinnedProjects"; // project roots pinned to the top of the icon bar, in pin order
 export const SUMMARY = "nebula.summary";
 export const ICONS = "nebula.icons";

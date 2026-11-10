@@ -1,10 +1,11 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents } from "herdr";
+import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run } from "herdr";
 import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
 import { VIEW_IDS, VIEW_TITLE, SIDES, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
-import { SETTINGS } from "./lib/shared.js";
+import { SETTINGS, UPDATE } from "./lib/shared.js";
+import { updateLine, updateState } from "./lib/update.js";
 import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
 import { button, dialogTitle, switchControl, segmented, dropdown, agentIcon } from "./ui.js";
 import { fs } from "./lib/scale.js";
@@ -68,7 +69,13 @@ export class Settings {
       "sleepAfter",
       "nebulaSessions",
       "import",
+      "update",
     ];
+  }
+
+  // Settings' Update button and Enter on its row: the icon bar runs it (nebula.update, or a check first).
+  updateNow() {
+    run(updateState(shared(UPDATE) ?? {}) === "available" ? "nebula.update" : "nebula.checkupdate", {});
   }
 
   // Closes this overlay first: it would otherwise save its older copy over the import.
@@ -192,6 +199,7 @@ export class Settings {
       if (row === "harness" && this.ids.length) this.openDd("harness", cx);
       else if (row.startsWith("h:")) this.openAgent(row.slice(2), m.shift ? "effort" : "model", cx);
       else if (row === "import") this.openImport();
+      else if (row === "update") this.updateNow();
       else this.change(row, 1);
     } else return;
     cx.stop_propagation();
@@ -406,6 +414,19 @@ export class Settings {
                 "Import from nebula",
                 "Projects and defaults from nebula's own files",
                 button(t, "st-import", "Import...", "plain", () => this.openImport()),
+              ),
+            ]),
+          )
+          .child(
+            this.group(t, "Updates", [
+              this.line(
+                t,
+                at("update"),
+                "herdr-nebula",
+                updateLine(shared(UPDATE)),
+                updateState(shared(UPDATE) ?? {}) === "available"
+                  ? button(t, "st-update", "Update", "primary", () => this.updateNow())
+                  : button(t, "st-check", "Check now", "plain", () => this.updateNow()),
               ),
             ]),
           ),

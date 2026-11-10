@@ -38,3 +38,14 @@ test("git's outputs become the report", () => {
     subjects: ["one", "two"],
   });
 });
+
+test("Settings says where the copy stands; the shell's JSON line is found among rc noise", async () => {
+  const { updateLine, reportIn } = await import("../mods/nebula/lib/update.js");
+  assert.equal(updateLine(null), "Not checked yet");
+  assert.equal(updateLine({ behind: 0, head: "aaa" }), "Up to date (aaa)");
+  assert.equal(updateLine({ behind: 2, head: "aaa", latest: "bbb" }), "2 new changes (aaa to bbb)");
+  assert.equal(updateLine({ behind: 1, dirty: true }), "1 new on GitHub; your copy has its own changes, pull with git");
+  assert.deepEqual(reportIn('welcome\n{"behind":1}\n'), { behind: 1 });
+  assert.deepEqual(reportIn('\u001b]1337;CurrentDir=/tmp\u0007{"behind":2}'), { behind: 2 });
+  assert.equal(reportIn("nothing"), null);
+});

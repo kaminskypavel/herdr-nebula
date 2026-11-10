@@ -5,6 +5,7 @@
     "cmd-[": "nebula.prev",
     "cmd-k": "nebula.new",
     "cmd-j": "nebula.jump",
+    "cmd-0": "nebula.tab0",
     "cmd-1": "nebula.tab1",
     "cmd-2": "nebula.tab2",
     "cmd-3": "nebula.tab3",

@@ -925,7 +925,7 @@ export class Board {
 
   openLaunch(extra = {}) {
     const prefill = this.launchTarget();
-    box(640, 520, { role: "launch", ...(prefill ? { prefill } : {}), ...extra });
+    box(640, 460, { role: "launch", ...(prefill ? { prefill } : {}), ...extra });
   }
 
   openPresets() {

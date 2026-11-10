@@ -11,8 +11,8 @@
 //   nebula.launched     a token the dialogs change after a launch from the board
 // It reads nebula.open, nebula.repo and nebula.icons (the board and the picker write them) and works
 // out each project's status itself, so the dots stay live while the board is folded.
-import { svg, div } from "gpui-kit";
-import { v_flex } from "gpui-base";
+import { svg, div, image } from "gpui-kit";
+import { v_flex, h_flex } from "gpui-base";
 import {
   theme,
   run,
@@ -47,10 +47,11 @@ import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
 import { setReduceMotion, animate, markerTops, FADE, SPRING } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
+import { CHECK_EVERY_MS, updateState, updateNotice, shouldNotify, reportIn } from "./lib/update.js";
 import { HELP_SIZE } from "./lib/hints.js";
 import { NOTHING_WAITING } from "./lib/flash.js";
 
@@ -98,13 +99,21 @@ export class Rail {
         } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
         else if (c === "new" && shared(BOARD_KEYS) !== true)
-          openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 640, height: 520 }); // ⌘K from an agent: its project (the board opens it when it has the keys)
-        else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
+          openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 640, height: 460 }); // ⌘K from an agent: its project (the board opens it when it has the keys)
+        else if (c === "tab0")
+          this.pickAll(); // ⌘0
+        else if (/^tab[1-9]$/.test(c))
+          this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
+        else if (c === "update")
+          this.runUpdate(cx); // the update popup's click, or Settings' Update
+        else if (c === "checkupdate") this.checkUpdate(cx, true); // Settings' Check now
         cx.notify();
       }
     });
     cx.timer.every(200, (cx) => this.watch(cx));
     cx.timer.every(10000, (cx) => this.refresh(cx));
+    cx.timer.every(CHECK_EVERY_MS, (cx) => this.checkUpdate(cx)); // and once now, below
+    this.checkUpdate(cx);
     // Sleeping idle agents lives here because the rail is always mounted (the board may be folded).
     // Never during render: one timer keeps the idle clocks, a slower one sweeps.
     this.idle = new Map();
@@ -321,6 +330,71 @@ export class Rail {
   }
 
   // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
+  // ⌘0: the All tab, with the same name flash as ⌘1 to ⌘9.
+  pickAll() {
+    setShared(REPO, ALL);
+    const id = openOverlay({
+      mod: "nebula-box",
+      kind: "window",
+      key: "nebula-hud",
+      frame: "none",
+      width: 300,
+      height: 60,
+      props: { role: "hud", root: null, name: "All projects", n: 0, at: Date.now() },
+    });
+    this.hud = { id, until: Date.now() + 900 };
+  }
+
+  // Updates (lib/update.js): asks `herdr-nebula update --check` in a login shell (so node and ~/.local/bin are
+  // on PATH), shares the report for the gear dot and Settings, and offers a new update once in a popup whose
+  // click runs nebula.update. A changed HEAD since the last check means an update landed: it says so once.
+  checkUpdate(cx, manual = false) {
+    if (this.checking) return;
+    this.checking = true;
+    cx.spawn(async (cx) => {
+      try {
+        const r = await exec("/bin/sh", ["-c", `"\${SHELL:-/bin/zsh}" -lic 'herdr-nebula update --check --json' 2>/dev/null`], { timeout: 90000 }).catch(
+          () => null,
+        );
+        const report = r?.code === 0 ? reportIn(r.stdout) : null;
+        if (!report) {
+          if (manual) notify({ title: "Could not check for herdr-nebula updates", body: "Is herdr-nebula installed and online?", level: "warning" });
+          return;
+        }
+        setShared(UPDATE, { ...report, checkedAt: Date.now() });
+        const head = localStorage.getItem("update.head");
+        if (head && head !== report.head) notify({ title: "herdr-nebula updated", body: `Now at ${report.head}`, level: "success" });
+        localStorage.setItem("update.head", report.head);
+        if (manual && updateState(report) === "current") notify({ title: "herdr-nebula is up to date", body: report.head, level: "success" });
+        else if (manual || shouldNotify(report, localStorage.getItem("update.seen"))) {
+          const n = updateNotice(report);
+          if (n) notify(n);
+          localStorage.setItem("update.seen", report.latest);
+        }
+      } finally {
+        this.checking = false;
+        cx.notify();
+      }
+    });
+  }
+
+  // Runs the update. Its reinstall reloads this mod, so success is told by the next check (a new HEAD).
+  runUpdate(cx) {
+    notify({ title: "Updating herdr-nebula", body: "Pulling and reinstalling", level: "info", timeout: 3000 });
+    cx.spawn(async () => {
+      const r = await exec("/bin/sh", ["-c", `"\${SHELL:-/bin/zsh}" -lic 'herdr-nebula update' 2>&1`], { timeout: 300000 }).catch(() => null);
+      if (r?.code !== 0)
+        notify({
+          title: "herdr-nebula update failed",
+          body: String(r?.stdout ?? "no reply")
+            .trim()
+            .split("\n")
+            .pop(),
+          level: "error",
+        });
+    });
+  }
+
   pickTab(n) {
     const p = this.tabs.items[n - 1];
     if (!p) return;
@@ -351,7 +425,7 @@ export class Rail {
   // One button. opts: { on (lit: the board is shown, or this tab is selected), dot (a red dot: something needs you),
   // mark (an accent bar on the bar's left edge while on; the project tabs use the marker instead), size (default 32), menu (a right-click handler),
   // num (the ⌘ number, on a small chip in the icon's top-left corner, opposite the status dot) }.
-  button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null, num = null } = {}) {
+  button(t, id, tip, action, child, { on = false, dot = false, dotColor = null, mark = false, size = 32, menu = null, num = null } = {}) {
     return div()
       .id(id)
       .relative()
@@ -400,7 +474,19 @@ export class Rail {
             .child(String(num)),
         ),
       )
-      .when(dot, (el) => el.child(div().absolute().top(5).right(5).size(7).rounded_full().bg(t.ansi1).border_1().border_color(t.chrome)));
+      .when(dot, (el) =>
+        el.child(
+          div()
+            .absolute()
+            .top(5)
+            .right(5)
+            .size(7)
+            .rounded_full()
+            .bg(dotColor ?? t.ansi1)
+            .border_1()
+            .border_color(t.chrome),
+        ),
+      );
   }
 
   projectMenu(p, open, selected) {
@@ -422,6 +508,30 @@ export class Rail {
       const last = p.pinned && tabs.items[i + 1] && !tabs.items[i + 1].pinned;
       return last ? [tab, div().flex_none().w(24).h(1).my(2).bg(t.border)] : [tab];
     });
+  }
+
+  // The All tab's face: the first four open projects as a 2x2 mosaic of their pictures or colors (12px cells:
+  // two plus the gap fit the 32px tile inside its border and padding).
+  allFace(t, tabs) {
+    const icons = shared(ICONS) ?? {};
+    const cell = (p) => {
+      const ic = iconFor(icons, p.root, p.name);
+      return ic.path ? image(ic.path).size(12).rounded(3).flex_none() : div().size(12).rounded(3).flex_none().bg(ic.color);
+    };
+    const cells = tabs.items.slice(0, 4).map(cell),
+      pair = (row) => h_flex().gap(2).children(row);
+    return v_flex()
+      .size(ICON)
+      .flex_none()
+      .rounded(7)
+      .bg(t.raised)
+      .border_1()
+      .border_color(t.border)
+      .items_center()
+      .justify_center()
+      .gap(2)
+      .child(pair(cells.slice(0, 2)))
+      .when(cells.length > 2, (el) => el.child(pair(cells.slice(2, 4))));
   }
 
   // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
@@ -526,7 +636,9 @@ export class Rail {
         .pb(10)
         .child(b("board", "Board (\u2303`)", (_e, cx) => this.toggleBoard(cx), "panel-left", { on: this.shown, dot: needs }))
         .when(tabs.items.length > 0, (el) =>
-          el.child(this.button(t, "all", "All projects (0)", () => setShared(REPO, ALL), svg(icon("layout-grid")).size(16), { on: tabs.all, mark: true })),
+          el.child(
+            this.button(t, "all", "All projects  \u23180", () => setShared(REPO, ALL), this.allFace(t, tabs), { on: tabs.all, mark: true, size: 42, num: 0 }),
+          ),
         )
         // The project list scrolls when it is taller than the room; the + and the bottom group stay pinned.
         .child(
@@ -546,7 +658,16 @@ export class Rail {
         .child(div().flex_1())
         .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
         .child(b("help", "Shortcuts", () => this.openBox("help", HELP_SIZE.width, HELP_SIZE.height), "circle-help"))
-        .child(this.button(t, "settings", "Settings", () => this.openBox("settings", 580, 660), svg("mods/workspace-chrome/settings.svg").size(16)))
+        .child(
+          this.button(
+            t,
+            "settings",
+            updateState(shared(UPDATE) ?? {}) === "available" ? "Settings · an update is ready" : "Settings",
+            () => this.openBox("settings", 580, 700),
+            svg("mods/workspace-chrome/settings.svg").size(16),
+            { dot: updateState(shared(UPDATE) ?? {}) === "available", dotColor: t.accent },
+          ),
+        )
     );
   }
 }
