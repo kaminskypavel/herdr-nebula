@@ -3,9 +3,9 @@
 // "launch"; Cmd+K opens it with no props, which is a launch from a terminal. A session's
 // launch label in props.prefill (shift-P) sets the starting choices. The choices become
 // ordered steps in lib/launch.js; this file only runs them.
-import { div, svg } from "gpui-kit";
+import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, TextareaState, Textarea } from "gpui-base";
-import { props, closeOverlay, theme, shared, setShared, exec, home, run, spaces, panes, focused, knownAgents } from "herdr";
+import { props, closeOverlay, theme, shared, setShared, exec, home, appHome, run, spaces, panes, focused, knownAgents } from "herdr";
 import { STORE, projectList, listCheckouts, commonDirOf, resolveAdd, tilde } from "./lib/repos.js";
 import { HARNESSES } from "./lib/harness.js";
 import { readPresets } from "./lib/presets.js";
@@ -38,6 +38,7 @@ import {
   goneText,
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
+import { PASTE_DIR, pasteName, stalePastes, clipScript, splitImages, taskWithImages, pasteFile } from "./lib/paste.js";
 
 const LEGEND = "⇧↩ new line · ⇧Tab presets";
 const BRANCH = "mods/nebula/icons/git-branch.svg";
@@ -64,6 +65,8 @@ export class Launch {
     this.handle = cx.focus_handle();
     this.ready = false;
     this.busy = null;
+    this.images = []; // absolute paths of the pasted images, under <appHome>/nebula-pastes
+    this.pasting = false;
     this.fading = false; // a launch worked: the box fades out, then closes
     this.queued = false; // Enter came before the box was ready: launch as soon as it is
     this.error = "";
@@ -107,6 +110,8 @@ export class Launch {
       this.syncBranch();
       cx.notify();
     });
+    // A paste that found no text (an image) in the task field: take the clipboard's image.
+    this.task.on("paste_other", (_e, cx) => this.pasteImage(cx));
     this.task.on("submit", (e, cx) => {
       if (!e.shift) this.go(cx);
     });
@@ -131,7 +136,8 @@ export class Launch {
     });
 
     if (this.newWt) this.syncBranch();
-    const seed = seedTask(props()?.prefill?.task, shared(DRAFT));
+    const { task: seed, paths } = splitImages(seedTask(props()?.prefill?.task, shared(DRAFT)));
+    this.images = paths;
     if (seed) {
       this.now = seed;
       this.task.set_value(seed);
@@ -141,6 +147,7 @@ export class Launch {
       if (!this.picker && !this.inBranch) this.task.focus();
     });
     cx.spawn(async (cx) => {
+      await this.cleanPastes().catch(() => {});
       try {
         await this.load();
       } catch (error) {
@@ -152,6 +159,41 @@ export class Launch {
         this.queued = false;
         this.go(cx);
       }
+    });
+  }
+
+  // Pastes older than a week go; a draft's image that went with them leaves the thumbnails.
+  async cleanPastes() {
+    const dir = `${appHome()}/${PASTE_DIR}`;
+    const ls = await exec("ls", ["-1", dir]);
+    if (ls.code !== 0) return;
+    const old = stalePastes(ls.stdout.split("\n"), Date.now());
+    if (!old.length) return;
+    await exec("rm", ["-f", ...old.map((n) => `${dir}/${n}`)]);
+    this.images = this.images.filter((p) => !old.includes(pasteFile(p)));
+  }
+
+  // The clipboard's PNG into <appHome>/nebula-pastes/<time>.png (macOS osascript; Herdr's own
+  // clipboard-image API is the feedback form's). A clipboard with no image says so in the error line.
+  pasteImage(cx) {
+    if (this.pasting || this.busy) return;
+    this.pasting = true;
+    this.error = "";
+    cx.notify();
+    cx.spawn(async (cx) => {
+      try {
+        const dir = `${appHome()}/${PASTE_DIR}`,
+          file = `${dir}/${pasteName(Date.now())}`;
+        await exec("mkdir", ["-p", dir]);
+        const r = await exec("osascript", clipScript(file));
+        if (r.code === 0 && r.stdout.trim() === "ok") this.images = [...this.images, file];
+        else this.error = r.code === 0 ? "No image on the clipboard." : words(r.stderr) || "Could not read the clipboard.";
+      } catch (error) {
+        this.error = words(error);
+      }
+      this.pasting = false;
+      this.task.focus();
+      alive(cx);
     });
   }
 
@@ -443,7 +485,7 @@ export class Launch {
     if (k === "escape") {
       if (this.inBranch) this.task.focus();
       else {
-        setShared(DRAFT, draftOf(this.task.value())); // the next open starts on it
+        setShared(DRAFT, draftOf(this.task.value(), this.images)); // the next open starts on it
         this.close();
       }
       cx.stop_propagation();
@@ -454,11 +496,14 @@ export class Launch {
           launch: props()?.overlay,
           newWorktree: this.wt(),
           branch: this.effective(),
-          task: this.task.value(),
+          task: taskWithImages(this.task.value(), this.images),
           checkout: this.checkout,
           root: this.repo()?.root,
         });
       else this.cycle("harness", 1, cx);
+      cx.stop_propagation();
+    } else if (m.platform && m.shift && !m.control && !m.alt && k.toLowerCase() === "v") {
+      this.pasteImage(cx);
       cx.stop_propagation();
     } else if (m.control && !m.platform && !m.alt) {
       const what = { p: "repo", t: "checkout", o: "preset", n: "worktree" }[k];
@@ -553,6 +598,7 @@ export class Launch {
       effort: this.effort,
       preset: this.preset,
       task,
+      images: this.images,
       from: this.from,
     });
     const r = await runSteps(plan.steps, exec, (step) => {
@@ -708,6 +754,58 @@ export class Launch {
       );
   }
 
+  // The pasted images as 48px thumbnails, each with a remove control.
+  thumbs(t, off) {
+    return h_flex()
+      .gap(8)
+      .pt(4)
+      .flex_none()
+      .opacity(off)
+      .children(
+        this.images.map((path, i) =>
+          div()
+            .id(`ln-im-${i}`)
+            .relative()
+            .size(48)
+            .flex_none()
+            .child(
+              image(`${PASTE_DIR}/${pasteFile(path)}`)
+                .size(48)
+                .rounded(6),
+            )
+            .child(
+              div()
+                .id(`ln-im-${i}-x`)
+                .absolute()
+                .top(-4)
+                .right(-4)
+                .size(16)
+                .rounded_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(t.raised)
+                .border_1()
+                .border_color(t.input)
+                .text_size(fs(11))
+                .text_color(t.muted)
+                .cursor_pointer()
+                .hover((s) => s.bg(t.hover))
+                .on_click((_e, cx) => {
+                  this.images = this.images.filter((_p, n) => n !== i);
+                  cx.notify();
+                })
+                .child("×"),
+            ),
+        ),
+      )
+      .when(this.pasting, (el) =>
+        el.child(
+          div().size(48).flex_none().rounded(6).bg(t.raised).flex().items_center().justify_center().text_color(t.muted).child(div().frames(SPINNER, 80)),
+        ),
+      );
+  }
+
   render() {
     const t = theme(),
       r = this.repo(),
@@ -736,6 +834,7 @@ export class Launch {
       .when(!this.picker, (el) =>
         el
           .child(heroCard(t, Textarea.new(this.task), this.taskFocus).opacity(off))
+          .when(this.images.length > 0 || this.pasting, (el) => el.child(this.thumbs(t, off)))
           .child(
             h_flex()
               .flex_wrap()
@@ -746,7 +845,25 @@ export class Launch {
               .child(this.chipOf(t, "checkout", "⌃T", { lead: svg(BRANCH).size(14).flex_none().text_color(t.muted) }))
               .child(this.chipOf(t, "harness", "Tab"))
               .child(this.chipOf(t, "preset", "⌃O", { prefix: "Preset" }))
-              .child(this.worktreeChip(t, busy)),
+              .child(this.worktreeChip(t, busy))
+              .child(
+                h_flex()
+                  .id("ln-img")
+                  .h(28)
+                  .px(10)
+                  .gap(6)
+                  .items_center()
+                  .rounded(14)
+                  .border_1()
+                  .border_color(t.input)
+                  .text_size(fs(12))
+                  .text_color(t.muted)
+                  .cursor_pointer()
+                  .hover((s) => s.bg(t.hover))
+                  .on_click((_e, cx) => this.pasteImage(cx))
+                  .child("Image")
+                  .child(keyHint(t, "⌘⇧V")),
+              ),
           )
           .when(this.wt(), (el) =>
             el.child(

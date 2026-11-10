@@ -12,6 +12,7 @@ import { composePrompt, harnessOf } from "./presets.js";
 import { inside, norm } from "./projects.js";
 import { slug } from "./branch.js";
 import { launchLabels } from "./labels.js";
+import { taskWithImages } from "./paste.js";
 
 export const WT = "@wt";
 export const WT_TIMEOUT = 600000;
@@ -22,8 +23,8 @@ export const branchOf = (typed, task, random) => typed?.trim() || slug(task) || 
 // (shared "nebula.draft"; anything but text is no draft).
 export const seedTask = (seed, draft) => (typeof seed === "string" && seed ? seed : typeof draft === "string" ? draft : "");
 
-// What Esc keeps: the task as typed, or nothing when it is blank.
-export const draftOf = (task) => (String(task ?? "").trim() ? String(task) : "");
+// What Esc keeps: the task as typed (and the pasted images' line), or nothing when both are blank.
+export const draftOf = (task, images = []) => (String(task ?? "").trim() || images.length ? taskWithImages(task, images) : "");
 
 export function withoutEnter(before, now) {
   for (let i = 0; i < now.length; i++) if (now[i] === "\n" && now.slice(0, i) + now.slice(i + 1) === before) return before;
@@ -104,6 +105,7 @@ function spaceFor(folder, checkouts, spaces) {
 // o: { repo: { root }, checkouts: [{ path, branch }], checkout (the chosen path),
 //   git (false for a plain folder: no worktree, newWorktree is ignored), newWorktree, branch, branchExists (a local branch of that name), spaces, harness,
 //   model, effort, preset (the chosen preset or null), task, from: "board" | "terminal",
+//   images (absolute paths of pasted images, named on the task's last line),
 //   argv (the whole command, instead of one built from harness, model, effort and task),
 //   name (names the new tab, so auto-title leaves it alone; without one the task's first words name it
 //   as a placeholder, launchName) }.
@@ -122,9 +124,10 @@ export function launchName(task, words = 5, max = 40) {
 }
 
 export function planLaunch(o) {
-  const task = o.preset ? composePrompt(o.preset, o.preset.skip_task ? "" : o.task) : String(o.task ?? "").trim();
-  const draft = o.name ? null : launchName(task),
+  const body = o.preset ? composePrompt(o.preset, o.preset.skip_task ? "" : o.task) : String(o.task ?? "").trim();
+  const draft = o.name ? null : launchName(body),
     name = o.name || draft;
+  const task = taskWithImages(body, o.images); // the pasted images' absolute paths, as the task's last line
   const argv = o.argv ?? buildArgv({ harness: o.harness, model: o.model, effort: o.effort, task });
   const steps = [];
   let folder = o.checkout,

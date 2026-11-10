@@ -211,6 +211,27 @@ test("Esc keeps a task as typed, and nothing for a blank one", () => {
   for (const blank of ["", "  \n ", undefined, null]) assert.equal(draftOf(blank), "");
 });
 
+test("Esc keeps the pasted images with the draft, even with no words", () => {
+  const imgs = ["/h/nebula-pastes/1.png"];
+  assert.equal(draftOf("fix it", imgs), "fix it\nImages: /h/nebula-pastes/1.png");
+  assert.equal(draftOf("", imgs), "Images: /h/nebula-pastes/1.png");
+  assert.equal(draftOf("  ", []), "");
+});
+
+test("pasted images end the launched task, after a preset's wrapping, and never name the tab", () => {
+  const imgs = ["/h/nebula-pastes/1.png", "/h/nebula-pastes/2.png"];
+  const line = "Images: /h/nebula-pastes/1.png /h/nebula-pastes/2.png";
+  const p = plan({ images: imgs });
+  assert.deepEqual(launchStep(p).args.argv, ["claude", `Fix X\n${line}`]);
+  assert.equal(launchStep(p).args.tab, "Fix X");
+  const wrapped = plan({ images: imgs, preset: { name: "p", prefix: "Be brief.", postfix: "Run tests." } });
+  assert.deepEqual(launchStep(wrapped).args.argv, ["claude", `Be brief.\n\nFix X\n\nRun tests.\n${line}`]);
+  const only = plan({ task: "", images: imgs });
+  assert.deepEqual(launchStep(only).args.argv, ["claude", line]);
+  assert.equal(launchStep(only).args.tab, undefined);
+  assert.deepEqual(launchStep(plan({})).args.argv, ["claude", "Fix X"]);
+});
+
 test("an Enter that came before the box was ready leaves no line break in the queued task", () => {
   // the field held "fix it", then Enter made it "fix it\n" before submit fired
   assert.equal(withoutEnter("fix it", "fix it\n"), "fix it");
