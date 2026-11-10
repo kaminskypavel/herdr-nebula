@@ -253,20 +253,22 @@ function projectsBody(b, t) {
         ),
       ),
     )
-    .child(
-      column(
-        1 - at,
-        "WORKTREES",
-        pc.worktrees.map((w) => navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)),
-        "No sessions",
-        col === 1,
-        t,
+    .when(!pc.single, (el) =>
+      el.child(
+        column(
+          1 - at,
+          "WORKTREES",
+          pc.worktrees.map((w) => navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)),
+          "No sessions",
+          col === 1,
+          t,
+        ),
       ),
     )
     .child(
       column(
-        2 - at,
-        "SESSIONS",
+        2 - at - (pc.single ? 1 : 0),
+        pc.single && pc.worktrees[0] ? `SESSIONS · ${pc.worktrees[0].label}` : "SESSIONS",
         pc.sessions.map((r) =>
           sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing, b.enters?.get(r.id)),
         ),

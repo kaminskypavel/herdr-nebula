@@ -924,3 +924,22 @@ test("buildBoard marks, per project, the rows that run something other than the 
   const beta = board.repos.find((r) => r.root === "/r/beta");
   assert.ok(beta.rows.every((r) => r.metaOdd === false));
 });
+
+test("projectColumns marks a project with one worktree as single, so the WORKTREES column is left out", () => {
+  const one = { repos: [{ root: "/r/a", name: "a", rows: [], bands: [{ path: "/r/a", label: "", rows: [] }] }] };
+  const two = {
+    repos: [
+      {
+        root: "/r/a",
+        name: "a",
+        rows: [],
+        bands: [
+          { path: "/r/a", label: "", rows: [] },
+          { path: "/r/a-worktrees/x", label: "x", rows: [] },
+        ],
+      },
+    ],
+  };
+  assert.equal(projectColumns(one, {}, "/r/a").single, true);
+  assert.equal(projectColumns(two, {}, "/r/a").single, false);
+});

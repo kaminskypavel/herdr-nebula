@@ -1084,9 +1084,11 @@ export class Board {
       const stops = this.items.filter((i) => i.type === COLUMN_TYPES[this.col]).map((i) => i.key);
       this.choose(stepCursor(stops, this.cursor, dir));
     } else if (k === "h" || k === "left") {
-      if (this.col > (this.pc.scoped ? 1 : 0)) this.enterColumn(this.col - 1);
+      // With one worktree its column is left out: from SESSIONS, h goes to PROJECTS.
+      const to = this.col === 2 && this.pc.single ? 0 : this.col - 1;
+      if (to >= (this.pc.scoped ? 1 : 0) && to !== this.col) this.enterColumn(this.pc.single && to === 1 ? this.col : to);
     } else if (k === "l" || k === "right" || (k === "enter" && this.col < 2)) {
-      if (this.col < 2) this.enterColumn(this.col + 1);
+      if (this.col < 2) this.enterColumn(this.pc.single ? 2 : this.col + 1);
     } else return false;
     return true;
   }
@@ -1094,6 +1096,7 @@ export class Board {
   // After a refresh: keep the cursor in the focused column, on that column's selection.
   fitColumn() {
     this.col = Math.max(this.col, this.pc.scoped ? 1 : 0); // a project tab has no PROJECTS column
+    if (this.pc.single && this.col === 1) this.col = 2; // nor a WORKTREES column with one worktree
     if (this.col === 2 && !this.pc.sessions.length) this.col = 1;
     const sel = this.pc.sel;
     const key =

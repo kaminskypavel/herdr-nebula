@@ -300,6 +300,8 @@ export function projectColumns(model, sel = {}, rail = null, scoped = false) {
     sessions: band?.rows ?? [],
     sel: { project: repo?.root ?? null, worktree: band?.path ?? null },
     scoped,
+    // One worktree (or none): the WORKTREES column is left out and SESSIONS names the branch.
+    single: (repo?.bands ?? []).length <= 1,
   };
 }
 

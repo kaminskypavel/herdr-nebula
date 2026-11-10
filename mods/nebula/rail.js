@@ -629,7 +629,6 @@ export class Rail {
         .pt(6)
         .pb(10)
         .child(this.button(t, "logo", "About herdr-nebula", () => this.openBox("about", 380, 400), image(LOGO).size(30).rounded(8), { size: 42 }))
-        .child(b("board", "Board (\u2303`)", (_e, cx) => this.toggleBoard(cx), "panel-left", { on: this.shown, dot: needs }))
         .when(tabs.items.length > 0, (el) =>
           el.child(
             this.button(t, "all", "All projects  \u23180", () => setShared(REPO, ALL), this.tile(t, "layout-grid"), {
@@ -656,6 +655,8 @@ export class Rail {
         )
         .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), this.tile(t, "plus", 16), { dot: tabs.plus, size: 42 }))
         .child(div().flex_1())
+        // Show or fold the board (also ⌃`): at the bottom with the other window controls.
+        .child(b("board", "Board (\u2303`)", (_e, cx) => this.toggleBoard(cx), "panel-left", { on: this.shown, dot: needs }))
         .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
         .child(b("help", "Shortcuts", () => this.openBox("help", HELP_SIZE.width, HELP_SIZE.height), "circle-help"))
         .child(
