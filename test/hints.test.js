@@ -28,8 +28,8 @@ test("Columns in Projects mode has hints for its project and worktree columns, r
 });
 
 test("a row says what Enter does, and that Esc hands the keys back", () => {
-  assert.equal(hintLine(hintPairs("row"), mac), "↩ step in · Esc to terminal · r rename · a archive · d delete · / jump · ? keys");
-  assert.match(hintLine(hintPairs("row", { preview: false }), mac), /^↩ show /);
+  assert.equal(hintLine(hintPairs("row"), mac), "↩ open · Esc to terminal · r rename · a archive · d delete · / jump · ? keys");
+  assert.match(hintLine(hintPairs("row", { preview: true }), mac), /^↩ step in /);
 });
 
 test("an empty worktree offers a new session, and delete only where the board may remove it", () => {
@@ -52,7 +52,7 @@ test("an archived row offers unarchive, a nebula row hide, an exited row resume"
 });
 
 test("with the keys elsewhere, the hint says how to get them, from the live keymap", () => {
-  assert.equal(hintLine(hintPairs("away"), mac), "⌃` keys to the board · ⌘J jump to an agent · click a row to look");
+  assert.equal(hintLine(hintPairs("away"), mac), "⌃` keys to the board · ⌘J jump to an agent · click a row, ↩ to open");
   const rebound = shortcutLabel(
     [
       { section: "layout:nebula", keys: "ctrl-space", action: "nebula.focus" },

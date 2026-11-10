@@ -40,7 +40,7 @@ export const DEFAULTS = {
   nebulaSessions: true,
   promptLine: true,
   showEmptyWorktrees: true,
-  preview: true,
+  preview: false,
   sleepAfter: SLEEP_DEFAULT,
 };
 

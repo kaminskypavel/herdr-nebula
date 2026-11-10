@@ -109,9 +109,9 @@ test("the prompt line and empty worktrees are on by default, and only a boolean 
 });
 
 test("Preview while moving is on by default, and only a boolean turns it off", () => {
-  assert.equal(mergeSettings({}).preview, true);
+  assert.equal(mergeSettings({}).preview, false);
   assert.equal(mergeSettings({ preview: false }).preview, false);
-  assert.equal(mergeSettings({ preview: "no" }).preview, true);
+  assert.equal(mergeSettings({ preview: "no" }).preview, false);
 });
 
 test("Help lists the jump palette, Esc, / f ? and moving shows the agent", () => {

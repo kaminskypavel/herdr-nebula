@@ -839,9 +839,9 @@ export class Board {
       this.col = 2;
       this.place(item.key);
       if (shift) this.pinRow(item.row);
-      else if (dbl || !this.config().preview)
-        this.show(item.row, cx); // a double click steps in; the first click only looks
-      else {
+      else if (dbl)
+        this.show(item.row, cx); // a double click (or Enter) steps in; a single click only highlights
+      else if (this.config().preview) {
         this.previewToken++;
         this.preview(cx, true);
       }

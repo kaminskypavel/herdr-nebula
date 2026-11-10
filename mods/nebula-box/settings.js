@@ -20,7 +20,7 @@ const TOGGLES = {
   confirmArchive: ["Confirm archive", "Ask before hiding a session"],
   promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
-  preview: ["Preview while moving", "Show the highlighted agent in the main area as you move; Enter steps in"],
+  preview: ["Preview while moving", "Show the agent as you move or click; Herdr moves the keys there. Off: only Enter opens"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));

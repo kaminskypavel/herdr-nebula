@@ -33,14 +33,14 @@ export function hintContext({ has, filtering, item, pc, col }) {
 }
 
 /** The [key, text] pairs for a place. `preview`: the setting, which changes what Enter is said to do. */
-export function hintPairs(ctx, { preview = true, deletable = false } = {}) {
-  const enter = preview ? "step in" : "show";
+export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
+  const enter = preview ? "step in" : "open";
   switch (ctx) {
     case "away":
       return [
         [FOLD, "keys to the board"],
         [JUMP, "jump to an agent"],
-        ["click", "a row to look"],
+        ["click", preview ? "a row to look" : "a row, ↩ to open"],
       ];
     case "filter":
       return [
