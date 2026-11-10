@@ -3,7 +3,7 @@
 // "launch"; Cmd+K opens it with no props, which is a launch from a terminal. A session's
 // launch label in props.prefill (shift-P) sets the starting choices. The choices become
 // ordered steps in lib/launch.js; this file only runs them.
-import { div } from "gpui-kit";
+import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, TextareaState, Textarea } from "gpui-base";
 import { props, closeOverlay, theme, shared, setShared, exec, home, run, spaces, panes, focused, knownAgents } from "herdr";
 import { STORE, projectList, listCheckouts, commonDirOf, resolveAdd, tilde } from "./lib/repos.js";
@@ -14,9 +14,11 @@ import { REFOCUS_MS } from "./lib/focus.js";
 import { branchName } from "./lib/branch.js";
 import { startedFlash, flashValue } from "./lib/flash.js";
 import { mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
-import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT, FLASH } from "./lib/shared.js";
+import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT, FLASH, ICONS } from "./lib/shared.js";
 import { openList, readPresetFile } from "./presets.js";
-import { button, dialogTitle, dropdown, agentIcon, inputBox, textCard, worktreeRow } from "./ui.js";
+import { iconFor } from "./lib/icons.js";
+import { projectIcon } from "./lib/icon-view.js";
+import { button, dialogTitle, dropdown, agentIcon, keyHint, heroCard, accentButton, soft } from "./ui.js";
 import {
   planLaunch,
   runSteps,
@@ -37,10 +39,10 @@ import {
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
 
-// Two field triggers per row inside the dialog's 22px side padding (640 - 44 = 596 = 2 * 293 + 10).
-const FIELD_W = 293;
-const LEGEND = "Enter launch · Shift+Enter new line · Shift+Tab presets";
+const LEGEND = "⇧↩ new line · ⇧Tab presets";
+const BRANCH = "mods/nebula/icons/git-branch.svg";
 const QUEUED = "Launching when ready…";
+const LAUNCHING = "Launching…";
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 function place(s, all) {
@@ -496,7 +498,7 @@ export class Launch {
     }
     const task = this.currentTask();
     this.where = startedFlash(repo.name, this.wt() ? this.effective() : this.list().find((c) => c.path === this.checkout)?.branch);
-    this.busy = "Launching…";
+    this.busy = LAUNCHING;
     cx.notify();
     // owner: null, so closing the box (Cmd+K again) does not cancel the launch half way.
     cx.spawn(
@@ -552,7 +554,7 @@ export class Launch {
       from: this.from,
     });
     const r = await runSteps(plan.steps, exec, (step) => {
-      this.busy = step.type === "wt" ? `Creating worktree ${branch}…` : "Launching…";
+      this.busy = step.type === "wt" ? `Creating worktree ${branch}…` : LAUNCHING;
       alive(cx);
     });
     this.error = r.error;
@@ -617,6 +619,84 @@ export class Launch {
       );
   }
 
+  // One choice as a pill: the same dropdown as ever, a lead picture and its key.
+  chipOf(t, key, hint, o = {}) {
+    return dropdown(t, {
+      id: `ln-${key}`,
+      items: this.ddItems(key),
+      value: this.ddValue(key),
+      open: this.dd?.key === key,
+      hi: this.dd?.hi ?? 0,
+      maxW: 260,
+      hint,
+      h: 28,
+      rounded: 14,
+      chevron: false,
+      disabled: Boolean(this.busy),
+      onToggle: (cx) => this.openDd(key, cx),
+      onClose: (cx) => this.closeDd(key, cx),
+      onPick: (v, cx) => this.pickDd(key, v, cx),
+      ...o,
+    });
+  }
+
+  // The worktree pill: dashed when off, the branch input inline when on.
+  worktreeChip(t, busy) {
+    const toggle = (_e, cx) => this.cycle("worktree", 1, cx);
+    if (!this.git()) return h_flex().h(28).px(10).items_center().text_size(fs(12)).text_color(t.dim).child("New worktree · Not a git repo");
+    const label = (text) =>
+      div()
+        .id("ln-wt-lb")
+        .flex_none()
+        .cursor_pointer()
+        .text_color(this.wt() ? t.foreground : t.muted)
+        .on_click(toggle)
+        .child(text);
+    if (!this.wt())
+      return h_flex()
+        .id("ln-wt")
+        .h(28)
+        .px(10)
+        .gap(6)
+        .items_center()
+        .rounded(14)
+        .border_1()
+        .border_dashed()
+        .border_color(t.input)
+        .text_size(fs(12))
+        .cursor_pointer()
+        .hover((s) => s.bg(t.hover))
+        .on_click(toggle)
+        .child(div().text_color(t.muted).child("+ New worktree"))
+        .child(keyHint(t, "⌃N"));
+    return h_flex()
+      .id("ln-wt")
+      .h(28)
+      .pl(10)
+      .pr(3)
+      .gap(6)
+      .items_center()
+      .rounded(14)
+      .border_1()
+      .border_color(soft(t.accent, "80"))
+      .bg(soft(t.accent, "1a"))
+      .text_size(fs(12))
+      .child(label("New worktree"))
+      .child(keyHint(t, "⌃N"))
+      .child(
+        Input.new(this.branch)
+          .w(180)
+          .h(22)
+          .px(8)
+          .rounded(11)
+          .border_1()
+          .border_color(this.inBranch ? t.accent : t.input)
+          .bg(t.background)
+          .text_size(fs(12))
+          .disabled(busy),
+      );
+  }
+
   render() {
     const t = theme(),
       r = this.repo(),
@@ -624,24 +704,8 @@ export class Launch {
     const branch = this.effective(),
       have = r ? worktreeOf(this.list(), branch) : null;
     const off = busy ? 0.5 : 1;
-    const trigger = (key, label, hint) =>
-      dropdown(t, {
-        id: `ln-${key}`,
-        items: this.ddItems(key),
-        value: this.ddValue(key),
-        open: this.dd?.key === key,
-        hi: this.dd?.hi ?? 0,
-        width: FIELD_W,
-        prefix: label,
-        prefixW: 62,
-        hint,
-        h: 30,
-        rounded: 7,
-        disabled: busy,
-        onToggle: (cx) => this.openDd(key, cx),
-        onClose: (cx) => this.closeDd(key, cx),
-        onPick: (v, cx) => this.pickDd(key, v, cx),
-      });
+    const agent = HARNESSES[this.harness]?.label;
+    const status = this.busy && this.busy !== LAUNCHING ? this.busy : this.queued ? QUEUED : LEGEND;
     return v_flex()
       .id("launch")
       .track_focus(this.handle)
@@ -650,7 +714,7 @@ export class Launch {
       .px(22)
       .pt(20)
       .pb(16)
-      .gap(14)
+      .gap(12)
       .bg(t.popover)
       .text_color(t.foreground)
       .text_size(fs(13))
@@ -658,54 +722,31 @@ export class Launch {
       .when(Boolean(this.picker), (el) => el.child(this.pickerView(t)))
       .when(!this.picker, (el) =>
         el
+          .child(heroCard(t, Textarea.new(this.task), this.taskFocus).opacity(off))
           .child(
-            v_flex()
+            h_flex()
+              .flex_wrap()
               .gap(8)
               .flex_none()
-              .child(
-                h_flex()
-                  .gap(10)
-                  .child(trigger("repo", "Project", "^P"))
-                  .child(trigger("checkout", "Checkout", "^T")),
-              )
-              .child(
-                h_flex()
-                  .gap(10)
-                  .child(trigger("harness", "Agent", "Tab"))
-                  .child(trigger("preset", "Preset", "^O")),
-              ),
-          )
-          .child(textCard(t, Textarea.new(this.task), this.taskFocus).opacity(off).disabled(busy))
-          .child(
-            v_flex()
-              .gap(2)
-              .flex_none()
               .opacity(off)
-              .child(
-                worktreeRow(t, {
-                  id: "ln-wt",
-                  on: this.wt(),
-                  disabled: !this.git(),
-                  note: "Not a git repo",
-                  hint: "^N",
-                  onToggle: (cx) => this.cycle("worktree", 1, cx),
-                  branch: this.wt() ? inputBox(t, Input.new(this.branch), this.inBranch).w_full().disabled(busy) : null,
-                }),
-              )
-              .when(this.wt(), (el) =>
-                el.child(
-                  div()
-                    .pl(54)
-                    .truncate()
-                    .text_size(fs(12))
-                    .text_color(t.muted)
-                    .child(have ? "Existing worktree" : r ? tilde(worktreePath(r.root, branch), home()) : ""),
-                ),
-              ),
+              .child(this.chipOf(t, "repo", "⌃P", { lead: r ? projectIcon({ icon: iconFor(shared(ICONS), r.root, r.name), size: 16 }) : null }))
+              .child(this.chipOf(t, "checkout", "⌃T", { lead: svg(BRANCH).size(14).flex_none().text_color(t.muted) }))
+              .child(this.chipOf(t, "harness", "Tab"))
+              .child(this.chipOf(t, "preset", "⌃O", { prefix: "Preset" }))
+              .child(this.worktreeChip(t, busy)),
+          )
+          .when(this.wt(), (el) =>
+            el.child(
+              div()
+                .truncate()
+                .flex_none()
+                .text_size(fs(12))
+                .text_color(t.muted)
+                .child(have ? "Existing worktree" : r ? tilde(worktreePath(r.root, branch), home()) : ""),
+            ),
           ),
       )
       .when(Boolean(this.error), (el) => el.child(div().text_size(fs(12)).text_color(t.blocked).child(this.error)))
-      .child(div().flex_1())
       .child(
         h_flex()
           .gap(8)
@@ -719,19 +760,20 @@ export class Launch {
               .items_center()
               .text_size(fs(12))
               .text_color(t.muted)
-              .when(busy || !this.ready, (el) => el.child(div().frames(SPINNER, 90)))
-              .child(
-                div()
-                  .truncate()
-                  .child(this.busy ?? (this.queued ? QUEUED : LEGEND)),
-              ),
+              .when(!this.ready && !busy, (el) => el.child(div().frames(SPINNER, 90)))
+              .child(div().truncate().child(status)),
           )
           .child(
             button(t, "ln-cancel", "Cancel", "plain", () => {
               if (!this.busy) this.close();
             }),
           )
-          .child(button(t, "ln-go", busy ? "Launching…" : "Launch", "primary", (_e, cx) => this.go(cx))),
+          .child(
+            accentButton(t, "ln-go", (_e, cx) => this.go(cx))
+              .when(busy, (el) => el.opacity(0.7))
+              .child(div().child(agent ? `Launch ${agent}` : "Launch"))
+              .child(div().opacity(0.75).child("↩")),
+          ),
       );
   }
 }

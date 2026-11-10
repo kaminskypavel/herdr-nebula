@@ -1,7 +1,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, Switch, Select, Popup } from "gpui-base";
 import { closeOverlay, exec } from "herdr";
-import { fs } from "./lib/scale.js";
+import { fs, rh } from "./lib/scale.js";
 
 const BUTTON = {
   plain: (t) => [t.input, t.raised, t.foreground],
@@ -156,15 +156,18 @@ export const segmented = (t, id, options, current, pick) =>
     );
 
 // A dropdown: Select + Popup. o: { id, items: [{ value, label, icon? }], value, open, hi,
-// width, prefix?, prefixW?, hint? (a key hint at the right), h? (28), rounded? (6),
-// disabled?, onToggle(cx), onClose(cx), onPick(value, cx) }. The caller moves `hi` with
+// width? (without one the trigger is as wide as its text, up to maxW), prefix?, prefixW?,
+// lead? (an element before the label, in place of the item's icon), chevron? (false: none),
+// hint? (a key hint at the right), h? (28), rounded? (6), disabled?, onToggle(cx), onClose(cx),
+// onPick(value, cx) }. The caller moves `hi` with
 // the keyboard; a press outside reports through onClose.
 export function dropdown(t, o) {
   const cur = o.items.find((i) => i.value === o.value) ?? o.items[0];
   const dim = o.disabled || cur?.value == null;
   const trigger = h_flex()
     .id(`${o.id}-t`)
-    .w(o.width)
+    .when(o.width != null, (el) => el.w(o.width))
+    .when(o.maxW != null, (el) => el.max_w(o.maxW))
     .h(o.h ?? 28)
     .px(10)
     .gap(7)
@@ -195,7 +198,8 @@ export function dropdown(t, o) {
           .child(o.prefix),
       ),
     )
-    .when(Boolean(cur?.icon), (el) => el.child(svg(cur.icon).size(14).flex_none().text_color(t.foreground)))
+    .when(Boolean(o.lead), (el) => el.child(o.lead))
+    .when(!o.lead && Boolean(cur?.icon), (el) => el.child(svg(cur.icon).size(14).flex_none().text_color(t.foreground)))
     .child(
       div()
         .flex_1()
@@ -205,10 +209,10 @@ export function dropdown(t, o) {
         .child(cur?.label ?? ""),
     )
     .when(Boolean(o.hint), (el) => el.child(keyHint(t, o.hint)))
-    .child(svg(CHEVRON).size(12).flex_none().text_color(t.dim));
+    .when(o.chevron !== false, (el) => el.child(svg(CHEVRON).size(12).flex_none().text_color(t.dim)));
   const list = v_flex()
     .id(`${o.id}-l`)
-    .min_w(o.width)
+    .min_w(o.width ?? 200)
     .max_w(280)
     .p(4)
     .gap(1)
@@ -289,6 +293,52 @@ export const textCard = (t, el, focused) =>
     .bg(t.background)
     .text_color(t.foreground)
     .text_size(fs(13));
+
+// A theme color with an alpha byte ("40"), for a soft ring. Anything but #rrggbb is kept as it is.
+export const soft = (c, alpha) => (/^#[0-9a-f]{6}$/i.test(c) ? c + alpha : c);
+
+// The new-session box's hero field: a Textarea that takes all the free height, an accent border when
+// focused, and a soft accent ring around it (the ring's color is the box's own when not focused, so
+// nothing shifts).
+export const heroCard = (t, el, focused) =>
+  v_flex()
+    .flex_1()
+    .min_h(rh(110))
+    .p(2)
+    .rounded(12)
+    .border_1()
+    .border_color(focused ? soft(t.accent, "40") : t.popover)
+    .child(
+      el
+        .flex_1()
+        .w_full()
+        .px(14)
+        .py(12)
+        .rounded(10)
+        .border_1()
+        .border_color(focused ? t.accent : t.input)
+        .bg(t.background)
+        .text_color(t.foreground)
+        .text_size(fs(15)),
+    );
+
+// The filled primary button of the new-session box: accent with its own ink. Add children (text, spinner).
+export const accentButton = (t, id, action) =>
+  h_flex()
+    .id(id)
+    .h(32)
+    .px(16)
+    .gap(8)
+    .flex_none()
+    .items_center()
+    .rounded(8)
+    .bg(t.accent)
+    .text_color(t.accent_foreground)
+    .text_size(fs(12))
+    .font_semibold()
+    .cursor_pointer()
+    .hover((s) => s.opacity(0.9))
+    .on_click(action);
 
 // The "New worktree" row: a switch, its label and key hint, then either a dim note (when
 // the switch is disabled) or, when on, the branch input element passed as o.branch.
