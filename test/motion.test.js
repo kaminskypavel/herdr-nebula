@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB } from "../mods/nebula/lib/motion.js";
+import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP } from "../mods/nebula/lib/motion.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 // A stand-in element: records the calls made on it.
@@ -47,4 +47,10 @@ test("the working spinner is Claude Code's six stars, one frame about every 110 
 
 test("the agent icon bobs 2px up over 800 ms", () => {
   assert.deepEqual(BOB, { from: 0, to: -2, period: 800 });
+});
+
+test("springs settle in about 300 ms without wobble", () => {
+  assert.equal(SPRING.response, 300);
+  assert.ok(SPRING.damping >= 0.95 && SPRING.damping <= 1);
+  assert.ok(POP > 8, "a done dot pops bigger than its 8px");
 });

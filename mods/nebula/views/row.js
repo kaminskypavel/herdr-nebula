@@ -8,8 +8,8 @@ import { COLOR } from "../lib/status.js";
 import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "../lib/viewmodel.js";
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
-import { pulseOf, nudging } from "../lib/attention.js";
-import { animate, reduced, BOB, BREATHE, NUDGE, STAR, STAR_MS } from "../lib/motion.js";
+import { pulseOf, nudging, popping } from "../lib/attention.js";
+import { animate, reduced, BOB, BREATHE, NUDGE, POP, SPRING, STAR, STAR_MS } from "../lib/motion.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
@@ -39,10 +39,25 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
   return pulse ? animate(b, (el) => el.loop("opacity", pulse)) : b;
 }
 
-// A working row's dot: Claude Code's star spinner in the working color, in the same box as the dot. Still
-// (the plain dot) when the row is archived or motion is reduced.
+// A session row's dot. Working: Claude Code's star spinner in the working color, in the same box as the dot.
+// Done, unseen and fresh: the dot is drawn big for its first moments and springs back to size (it renders once
+// big, then small, so the spring has a start and a target). Still (the plain dot) when the row is archived or
+// motion is reduced.
 export function rowDot(row, t, size = 8) {
-  if (row.status !== "working" || row.archived || reduced()) return ball(row.status, t, size, row.archived, row.fresh);
+  if (row.archived || reduced()) return ball(row.status, t, size, row.archived, row.fresh);
+  if (row.status === "unseen" && row.fresh) {
+    const side = popping(row, Date.now()) ? POP : size,
+      pulse = pulseOf("unseen", true);
+    const dot = div().id(`pop-${row.id}`).w(side).h(side).flex_none().rounded_full().bg(tone(row.status, t)).spring("width", SPRING).spring("height", SPRING);
+    return div()
+      .size(size)
+      .flex_none()
+      .flex()
+      .items_center()
+      .justify_center()
+      .child(pulse ? dot.loop("opacity", pulse) : dot);
+  }
+  if (row.status !== "working") return ball(row.status, t, size, row.archived, row.fresh);
   return div().size(size).flex_none().flex().items_center().justify_center().text_size(fs(11)).line_height(1).text_color(t.ansi3).frames(STAR, STAR_MS);
 }
 

@@ -27,3 +27,7 @@ export const BOB = { from: 0, to: -2, period: 800 };
 // for as long as it needs you and nobody is looking at it.
 export const NUDGE = { from: 0, to: 3, period: 140 };
 export const BREATHE = { from: 0.45, to: 1, period: 1200 };
+
+// Springs settle in about 300 ms and do not overshoot. A done dot is drawn POP px for its first moments, then springs back.
+export const SPRING = { response: 300, damping: 1 };
+export const POP = 12;

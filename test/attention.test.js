@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FRESH_MS, NUDGE_MS, freshState, trackStates, pulseOf, nudging } from "../mods/nebula/lib/attention.js";
+import { FRESH_MS, NUDGE_MS, POP_MS, freshState, trackStates, pulseOf, nudging, popping } from "../mods/nebula/lib/attention.js";
 
 // Mirrors nebula's a_fresh_unread_finish_keeps_the_sweep_ticking_for_a_few_seconds
 // (crates/nebula-tui/src/event_loop/tests/mod.rs) and app::fresh_done.
@@ -90,4 +90,15 @@ test("a row nudges only in the first moments after it began needing you", () => 
   for (const status of ["working", "unseen", "seen", "exited"]) assert.equal(nudging(row({ status }), NOW), false, status);
   assert.equal(nudging(row({ archived: true }), NOW), false);
   assert.equal(nudging(row({ exited: true }), NOW), false);
+});
+
+test("a done dot is drawn big only for its first moments after the finish", () => {
+  const row = (over) => ({ status: "unseen", stateSince: NOW, ...over });
+  assert.equal(popping(row(), NOW), true);
+  assert.equal(popping(row(), NOW + POP_MS - 1), true);
+  assert.equal(popping(row(), NOW + POP_MS), false, "back to size");
+  assert.equal(popping(row({ stateSince: 0 }), NOW), false, "finished before we looked");
+  for (const status of ["needs", "working", "seen", "exited"]) assert.equal(popping(row({ status }), NOW), false, status);
+  assert.equal(popping(row({ archived: true }), NOW), false);
+  assert.ok(POP_MS < NUDGE_MS);
 });

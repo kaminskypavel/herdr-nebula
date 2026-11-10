@@ -91,7 +91,7 @@ import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
-import { trackStates, freshState, nudging } from "./lib/attention.js";
+import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
 import { attentionStrip, stripParts } from "./lib/strip.js";
@@ -526,7 +526,7 @@ export class Board {
     const key = JSON.stringify([
       u.at,
       rows.filter((r) => freshState(r.status, r.archived, r.stateSince, now)).map((r) => r.id),
-      rows.filter((r) => nudging(r, now)).map((r) => r.id),
+      rows.filter((r) => nudging(r, now) || popping(r, now)).map((r) => r.id),
       [...this.viewing],
       cfg.promptLine,
       cfg.showEmptyWorktrees,
