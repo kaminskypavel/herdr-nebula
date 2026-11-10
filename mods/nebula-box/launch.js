@@ -40,7 +40,7 @@ import {
 import { fs } from "./lib/scale.js";
 import { PASTE_DIR, pasteName, stalePastes, clipScript, splitImages, taskWithImages, pasteFile } from "./lib/paste.js";
 
-const LEGEND = "⇧↩ new line · ⇧Tab presets";
+const LEGEND = "↩ new line · ⇧Tab presets";
 const BRANCH = "mods/nebula/icons/git-branch.svg";
 const QUEUED = "Launching when ready…";
 const LAUNCHING = "Launching…";
@@ -113,8 +113,9 @@ export class Launch {
     });
     // A paste that found no text (an image) in the task field: take the clipboard's image.
     this.task.on("paste_other", (_e, cx) => this.pasteImage(cx));
+    // ⌘↩ launches; a plain ↩ (or ⇧↩) is a new line, so a long task is easy to write.
     this.task.on("submit", (e, cx) => {
-      if (!e.shift) this.go(cx);
+      if (e.secondary) this.go(cx);
     });
     this.branch = InputState.new({ placeholder: "branch" });
     this.branch.on("change", (_e, cx) => {
@@ -464,6 +465,11 @@ export class Launch {
       k = e.key;
     if (this.busy) {
       if (k === "escape") cx.stop_propagation();
+      return;
+    }
+    if (k === "enter" && m.platform && !this.picker && !this.dd) {
+      this.go(cx); // ⌘↩ from anywhere in the box (the task field's own submit covers it there too)
+      cx.stop_propagation();
       return;
     }
     if (this.dd) {
@@ -903,7 +909,7 @@ export class Launch {
             accentButton(t, "ln-go", (_e, cx) => this.go(cx))
               .when(busy, (el) => el.opacity(0.7))
               .when(busy, (el) => el.child(div().flex_none().frames(SPINNER, 80)).child(div().child(agent ? `Launching ${agent}` : "Launching")))
-              .when(!busy, (el) => el.child(div().child(agent ? `Launch ${agent}` : "Launch")).child(div().opacity(0.75).child("↩"))),
+              .when(!busy, (el) => el.child(div().child(agent ? `Launch ${agent}` : "Launch")).child(div().opacity(0.75).child("⌘↩"))),
           ),
       );
   }
