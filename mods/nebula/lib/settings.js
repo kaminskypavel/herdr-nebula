@@ -20,10 +20,12 @@
 //   preview         moving the highlight shows that agent in the main area while the board keeps
 //                   the keys; Enter or a click steps in (lib/preview.js)
 //   reduceMotion    every animation off, a static look (lib/motion.js animate())
+//   textSize        the panels' text, in percent of the terminal's text size (lib/scale.js TEXT_SIZES)
 //   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
 //                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
 import { HARNESSES } from "./harness.js";
 import { SLEEP_CHOICES, SLEEP_DEFAULT } from "./sleep.js";
+import { TEXT_SIZES } from "./scale.js";
 
 export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
 export const VIEW_IDS = Object.keys(VIEW_TITLE);
@@ -43,6 +45,7 @@ export const DEFAULTS = {
   showEmptyWorktrees: true,
   preview: false,
   reduceMotion: false,
+  textSize: 100,
   sleepAfter: SLEEP_DEFAULT,
 };
 
@@ -75,6 +78,7 @@ export function mergeSettings(stored) {
     showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
     preview: typeof s.preview === "boolean" ? s.preview : DEFAULTS.preview,
     reduceMotion: typeof s.reduceMotion === "boolean" ? s.reduceMotion : DEFAULTS.reduceMotion,
+    textSize: TEXT_SIZES.includes(s.textSize) ? s.textSize : DEFAULTS.textSize,
     sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
   };
 }

@@ -8,7 +8,7 @@ import { SETTINGS, UPDATE } from "./lib/shared.js";
 import { updateLine, updateState } from "./lib/update.js";
 import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
 import { button, dialogTitle, switchControl, segmented, dropdown, agentIcon } from "./ui.js";
-import { fs } from "./lib/scale.js";
+import { fs, TEXT_SIZES, textSizeLabel } from "./lib/scale.js";
 
 const VIEW_OPTIONS = VIEW_IDS.map((v) => ({ value: v, label: VIEW_TITLE[v], icon: `mods/nebula/icons/${v}.svg` }));
 const SIDE_OPTIONS = [
@@ -26,6 +26,7 @@ const TOGGLES = {
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
+const TEXT_OPTIONS = TEXT_SIZES.map((p) => ({ value: p, label: textSizeLabel(p) }));
 const PICK_W = 150;
 
 export class Settings {
@@ -63,6 +64,7 @@ export class Settings {
       "preview",
       "presetSide",
       "editor",
+      "textSize",
       "reduceMotion",
       "harness",
       ...this.ids.map((id) => `h:${id}`),
@@ -118,6 +120,7 @@ export class Settings {
     else if (row === "harness" && this.ids.length) this.save({ harness: cycleOf(this.ids, defaultHarness(this.s, this.ids), dir) });
     else if (row === "presetSide") this.save({ presetSide: cycleOf(SIDES, this.s.presetSide, dir) });
     else if (row === "sleepAfter") this.save({ sleepAfter: cycleOf(SLEEP_CHOICES, this.s.sleepAfter, dir) });
+    else if (row === "textSize") this.save({ textSize: cycleOf(TEXT_SIZES, this.s.textSize, dir) });
     else if (row in TOGGLES) this.save({ [row]: !this.s[row] });
     else if (row.startsWith("h:")) {
       const id = row.slice(2),
@@ -377,7 +380,21 @@ export class Settings {
               ),
             ]),
           )
-          .child(this.group(t, "Look", [toggle("reduceMotion")]))
+          .child(
+            this.group(t, "Look", [
+              this.line(
+                t,
+                at("textSize"),
+                "Text size",
+                "The panels' text, next to the terminal's size in Herdr's settings",
+                segmented(t, "textSize", TEXT_OPTIONS, s.textSize, (v, cx) => {
+                  this.go(at("textSize"), cx);
+                  this.save({ textSize: v });
+                }),
+              ),
+              toggle("reduceMotion"),
+            ]),
+          )
           .child(
             this.group(t, "Agents", [
               this.line(

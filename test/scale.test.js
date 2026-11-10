@@ -31,3 +31,12 @@ test("every fs() literal in the board and the box is on the type scale", async (
     for (const m of src.matchAll(/\bfs\((\d+(?:\.\d+)?)\)/g)) assert.ok([11, 12, 13, 15].includes(Number(m[1])), `${name}: fs(${m[1]}) is off the scale`);
   }
 });
+
+test("the Text size setting multiplies the terminal's size; an unknown value means 100%", async () => {
+  const { setTextScale, fs } = await import("../mods/nebula/lib/scale.js");
+  setTextScale({ font_size: 13 }, 125);
+  assert.equal(fs(12), 15);
+  setTextScale({ font_size: 13 }, 7);
+  assert.equal(fs(12), 12);
+  setTextScale({ font_size: 13 });
+});

@@ -81,7 +81,7 @@ export class Help {
           .min_h(0)
           .gap(16)
           .items_start()
-          .child(v_flex().flex_1().min_w(0).child(column(0)).child(legend))
+          .child(v_flex().flex_1().min_w(0).child(column(0))) // column 0 already ends with the color legend
           .child(column(1)),
       )
       .child(

@@ -59,6 +59,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 const RAIL_W = 76;
 const REPICK_MS = 250; // after a project pick, when the bar shows its agent once more (see pick)
 const PIN_ICON = "mods/nebula/icons/pin.svg";
+const LOGO = "mods/nebula/icons/nebula-logo.png"; // assets/nebula-logo.svg, rendered at 256px
 const ICON = 32; // a project icon's size inside its 42px button
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
@@ -510,28 +511,19 @@ export class Rail {
     });
   }
 
-  // The All tab's face: the first four open projects as a 2x2 mosaic of their pictures or colors (12px cells:
-  // two plus the gap fit the 32px tile inside its border and padding).
-  allFace(t, tabs) {
-    const icons = shared(ICONS) ?? {};
-    const cell = (p) => {
-      const ic = iconFor(icons, p.root, p.name);
-      return ic.path ? image(ic.path).size(12).rounded(3).flex_none() : div().size(12).rounded(3).flex_none().bg(ic.color);
-    };
-    const cells = tabs.items.slice(0, 4).map(cell),
-      pair = (row) => h_flex().gap(2).children(row);
-    return v_flex()
+  // A tile the size of a project icon around a glyph: the All tab's four squares, the + of the picker.
+  tile(t, name, size = 18) {
+    return div()
       .size(ICON)
       .flex_none()
       .rounded(7)
       .bg(t.raised)
       .border_1()
       .border_color(t.border)
+      .flex()
       .items_center()
       .justify_center()
-      .gap(2)
-      .child(pair(cells.slice(0, 2)))
-      .when(cells.length > 2, (el) => el.child(pair(cells.slice(2, 4))));
+      .child(svg(icon(name)).size(size));
   }
 
   // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
@@ -619,7 +611,7 @@ export class Rail {
   }
 
   render() {
-    setTextScale(settings());
+    setTextScale(settings(), mergeSettings(shared(SETTINGS)).textSize);
     setReduceMotion(this.reduceMotion());
     const t = theme();
     const needs = flatten(groupSessions(terminals(), this.repos())).some((x) => statusOf(x) === "needs");
@@ -634,10 +626,16 @@ export class Rail {
         .gap(4)
         .pt(6)
         .pb(10)
+        .child(this.button(t, "logo", "About herdr-nebula", () => this.openBox("about", 380, 400), image(LOGO).size(30).rounded(8), { size: 42 }))
         .child(b("board", "Board (\u2303`)", (_e, cx) => this.toggleBoard(cx), "panel-left", { on: this.shown, dot: needs }))
         .when(tabs.items.length > 0, (el) =>
           el.child(
-            this.button(t, "all", "All projects  \u23180", () => setShared(REPO, ALL), this.allFace(t, tabs), { on: tabs.all, mark: true, size: 42, num: 0 }),
+            this.button(t, "all", "All projects  \u23180", () => setShared(REPO, ALL), this.tile(t, "layout-grid"), {
+              on: tabs.all,
+              mark: true,
+              size: 42,
+              num: 0,
+            }),
           ),
         )
         // The project list scrolls when it is taller than the room; the + and the bottom group stay pinned.
@@ -654,7 +652,7 @@ export class Rail {
             .children(this.pinTray(t, tabs, selected))
             .child(this.marker(t, tabs)),
         )
-        .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
+        .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), this.tile(t, "plus", 16), { dot: tabs.plus, size: 42 }))
         .child(div().flex_1())
         .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
         .child(b("help", "Shortcuts", () => this.openBox("help", HELP_SIZE.width, HELP_SIZE.height), "circle-help"))

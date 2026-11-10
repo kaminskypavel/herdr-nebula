@@ -1624,7 +1624,7 @@ export class Board {
   }
 
   render() {
-    setTextScale(settings());
+    setTextScale(settings(), mergeSettings(shared(SETTINGS)).textSize);
     setReduceMotion(this.config().reduceMotion);
     const t = theme();
     this.sync();

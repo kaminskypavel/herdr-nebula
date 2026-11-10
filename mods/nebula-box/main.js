@@ -2,7 +2,9 @@
 // apart from the rail and board so a letter bound to the board never reaches a text
 // field here.
 import { View, div } from "gpui-kit";
-import { props, theme, settings } from "herdr";
+import { props, theme, settings, shared } from "herdr";
+import { mergeSettings } from "./lib/settings.js";
+import { SETTINGS } from "./lib/shared.js";
 import { setTextScale } from "./lib/scale.js";
 import { AddRepo } from "./add-repo.js";
 import { Launch } from "./launch.js";
@@ -20,6 +22,7 @@ import { Projects } from "./projects.js";
 import { ProjectMenu } from "./project-menu.js";
 import { Hud } from "./hud.js";
 import { Jump } from "./jump.js";
+import { About } from "./about.js";
 
 const PARTS = {
   add: AddRepo,
@@ -38,6 +41,7 @@ const PARTS = {
   "project-menu": ProjectMenu,
   hud: Hud,
   jump: Jump,
+  about: About,
 };
 
 export default class NebulaBox extends View {
@@ -49,7 +53,7 @@ export default class NebulaBox extends View {
   }
 
   render(cx) {
-    setTextScale(settings());
+    setTextScale(settings(), mergeSettings(shared(SETTINGS)).textSize);
     if (this.part) return this.part.render(cx);
     return div().size_full().bg(theme().chrome);
   }
