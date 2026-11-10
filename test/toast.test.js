@@ -60,15 +60,37 @@ test("the gist is the reply's first prose line without markdown, cut to length",
   assert.equal(gist(""), null);
 });
 
-test("an agent alert becomes '<session> <event>' over '<project> · <reply or prompt>'; other toasts stay", () => {
+test("an agent alert becomes '<session> [done|needs you]' over '<project> · <reply or prompt>'; other toasts stay", () => {
   const p = { title: "Claude Code finished", body: "libby-agent-monorepo / build-wizard", action: { args: { terminal: "t20" } } };
   assert.deepEqual(agentLines(p, term, "The wizard runs at localhost:5173."), {
-    title: "build-wizard finished",
+    name: "build-wizard",
+    tag: "done",
+    tone: "ansi6",
     body: "libby-agent-monorepo · The wizard runs at localhost:5173.",
   });
-  assert.deepEqual(agentLines(p, term, null), { title: "build-wizard finished", body: "libby-agent-monorepo · › make sure the wizard is running" });
+  assert.equal(agentLines(p, term, null).body, "libby-agent-monorepo · › make sure the wizard is running");
+  const needs = agentLines({ ...p, title: "Claude Code needs you" }, term, null);
+  assert.equal(needs.tag, "needs you");
+  assert.equal(needs.tone, "ansi1");
   assert.equal(agentLines({ title: "Update ready" }, term, null), null);
   assert.equal(agentLines(p, null, null), null);
+});
+
+test("an untitled session is named by its last prompt, else by the app", () => {
+  const untitled = { ...term, labels: { ...term.labels, where: "libby-agent-monorepo / 1" } };
+  assert.equal(agentLines({ title: "Claude Code finished", body: "x" }, untitled, null).name, "› make sure the wizard is running");
+  const bare = { ...term, labels: { where: "libby-agent-monorepo / 1" } };
+  assert.equal(agentLines({ title: "Claude Code finished", body: "x" }, bare, null).name, "Claude Code");
+});
+
+test("needs you quotes the question the agent asked; done quotes its first line", async () => {
+  const { question, replyLine } = await import("../mods/toast/lib.js");
+  const reply = "I updated slide 5.\n\nThe headline now reads differently. **Commit it after the meeting?**\n\n```sh\ngit status?\n```";
+  assert.equal(question(reply), "Commit it after the meeting?");
+  assert.equal(replyLine(reply, "needs you"), "Commit it after the meeting?");
+  assert.equal(replyLine(reply, "finished"), "I updated slide 5.");
+  assert.equal(replyLine("No question here.", "needs you"), "No question here.");
+  assert.equal(question("Is it A? Or is it B? It is C."), "Or is it B?");
 });
 
 test("the popup's icon is the icon bar's for the project holding the agent's folder, longest root first", async () => {

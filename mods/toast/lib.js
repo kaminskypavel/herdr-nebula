@@ -82,36 +82,64 @@ function lastText(content, kind) {
   return texts.at(-1) ?? null;
 }
 
-// One line from a reply: its first line that is prose (not in a code block, not a table row, rule or
-// separator), without markdown marks, at most `max` characters.
-export function gist(reply, max = 140) {
-  const line = String(reply ?? "")
+// A reply's prose lines: code blocks dropped, and no table rows, rules or separators.
+function proseLines(reply) {
+  return String(reply ?? "")
     .replace(/```[\s\S]*?(```|$)/g, "")
     .split("\n")
     .map((l) => l.trim())
-    .find((l) => l && !/^(```|\||[-*_]{3,}$|[┈┄─╼━]{3})/.test(l));
-  if (!line) return null;
-  const plain = line
+    .filter((l) => l && !/^(\||[-*_]{3,}$|[┈┄─╼━]{3})/.test(l));
+}
+
+// A line without markdown marks, at most `max` characters.
+function plain(line, max) {
+  const text = line
     .replace(/^#+\s*|^>\s*|^[-*]\s+|^\d+\.\s+/, "")
     .replace(/\*\*|__|`/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
-  return plain.length > max ? `${plain.slice(0, max - 1).trimEnd()}…` : plain || null;
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text || null;
 }
 
-// The two lines: { title, body }, or null when the toast is not about an agent (it is drawn as posted).
-// `reply` is the gist of the agent's last reply, when read.
-export function agentLines(p, term, reply) {
+// One line from a reply: its first prose line, without markdown marks, at most `max` characters.
+export function gist(reply, max = 140) {
+  const line = proseLines(reply)[0];
+  return line ? plain(line, max) : null;
+}
+
+// The question an agent that needs you asked: the last sentence ending in "?" in its reply, or null.
+export function question(reply, max = 140) {
+  const line = proseLines(reply)
+    .reverse()
+    .find((l) => l.includes("?"));
+  if (!line) return null;
+  const asked = plain(line, 1000)
+    ?.split(/(?<=[.!?])\s+/)
+    .reverse()
+    .find((x) => x.endsWith("?"));
+  return asked ? plain(asked, max) : null;
+}
+
+// The line the popup quotes: for needs you the question asked (else the first prose line), for done the first prose line.
+export const replyLine = (reply, event) => (event === "needs you" ? (question(reply) ?? gist(reply)) : gist(reply));
+
+// The popup's parts: { name, tag, tone, body }, or null when the toast is not about an agent (it is drawn as
+// posted). name: the session, else the start of its last prompt, else the app ("Claude Code"); tag: "needs you"
+// or "done", drawn whole beside the name (tone: the theme color); body: "<project> · <what it said>".
+// `said` is the line from the agent's last reply (replyLine), when read; until then the last prompt.
+export function agentLines(p, term, said) {
   const event = eventOf(p?.title);
   if (!event || !term) return null;
-  const labels = term.labels ?? {};
-  const name = sessionName(labels.where ?? p.body) ?? (labels["nebula.prompt"] ? "New session" : null);
-  const project = projectOf(term.cwd);
-  const said = reply ?? (labels["nebula.prompt"] ? `› ${labels["nebula.prompt"]}` : null);
+  const labels = term.labels ?? {},
+    prompt = labels["nebula.prompt"] ?? null;
+  const name = sessionName(labels.where ?? p.body) ?? (prompt ? plain(`› ${prompt}`, 48) : String(p.title).slice(0, -event.length).trim());
+  const line = said ?? (prompt ? `› ${prompt}` : null);
   return {
-    title: name ? `${name} ${event}` : p.title,
-    body: [project, said].filter(Boolean).join(" · ") || p.body || "",
+    name,
+    tag: event === "needs you" ? "needs you" : "done",
+    tone: DOT_OF[event],
+    body: [projectOf(term.cwd), line].filter(Boolean).join(" · ") || p.body || "",
   };
 }
 

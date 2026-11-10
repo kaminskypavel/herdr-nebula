@@ -1,14 +1,14 @@
 // Herdr's notifications, from herdr-nebula. Same look and click as Herdr's own toast (anything can post
 // one with notify({ title, body, level, icon, action }); a click runs its action and dismisses it), but
-// Herdr's agent alerts ("Claude Code finished" over "space / tab") say which session and what it said:
-// "build-wizard finished" over "libby-agent-monorepo · <the agent's last reply>" (lib.js), beside the
-// project's icon from the icon bar with the agent's status dot. The reply comes from the conversation
-// the prompt hook saved on the terminal; until it is read, or without one, the second line holds the
-// session's last prompt.
+// Herdr's agent alerts ("Claude Code finished" over "space / tab") say which session, what happened and
+// what it said: "build-wizard [done]" over "libby-agent-monorepo · <the agent's last reply>" (lib.js), or
+// "[needs you]" over the question it asked, beside the project's icon from the icon bar with the status
+// dot. The reply comes from the conversation the prompt hook saved on the terminal; until it is read, or
+// without one, the second line holds the session's last prompt.
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, run, theme, terminals, exec, shared } from "herdr";
-import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, gist, eventOf, iconOf, DOT_OF } from "./lib.js";
+import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, replyLine, eventOf, iconOf, DOT_OF } from "./lib.js";
 
 const DOT = { error: "blocked", warning: "working", success: "done", info: "accent" };
 const SIZE = 28;
@@ -47,7 +47,7 @@ export default class Toast extends View {
     if (!s) return;
     cx.spawn(async (cx) => {
       const r = await exec("/bin/sh", ["-c", TRANSCRIPT[s.app], "sh", s.id], { timeout: 5000 }).catch(() => null);
-      const said = r?.code === 0 ? gist(lastReply(r.stdout)) : null;
+      const said = r?.code === 0 ? replyLine(lastReply(r.stdout), eventOf(p.title)) : null;
       if (said) {
         this.reply = said;
         cx.notify();
@@ -60,7 +60,7 @@ export default class Toast extends View {
     const p = props() ?? {};
     const term = terminalOf(p, terminals()),
       agent = agentLines(p, term, this.reply),
-      lines = agent ?? { title: p.title ?? "", body: p.body ?? "" },
+      lines = agent ?? { name: p.title ?? "", tag: null, tone: null, body: p.body ?? "" },
       icon = agent ? iconOf(shared("nebula.icons"), term.cwd) : null;
     const lead = icon
       ? projectIcon(icon, DOT_OF[eventOf(p.title)], t)
@@ -90,7 +90,27 @@ export default class Toast extends View {
           .flex_1()
           .min_w(0)
           .overflow_hidden()
-          .child(div().truncate().font_semibold().text_size(13).text_color(t.foreground).child(lines.title))
+          .child(
+            h_flex()
+              .min_w(0)
+              .gap(8)
+              .items_center()
+              .child(div().min_w(0).truncate().font_semibold().text_size(13).text_color(t.foreground).child(lines.name))
+              .when(Boolean(lines.tag), (el) =>
+                el.child(
+                  div()
+                    .flex_none()
+                    .px(5)
+                    .rounded(4)
+                    .border_1()
+                    .border_color(t[lines.tone])
+                    .text_size(11)
+                    .font_semibold()
+                    .text_color(t[lines.tone])
+                    .child(lines.tag),
+                ),
+              ),
+          )
           .when(Boolean(lines.body), (el) => el.child(div().truncate().text_size(12).text_color(t.muted).child(lines.body))),
       );
   }
