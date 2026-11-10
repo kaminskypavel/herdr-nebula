@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setReduceMotion, reduced, animate, STAR, STAR_MS } from "../mods/nebula/lib/motion.js";
+import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB } from "../mods/nebula/lib/motion.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 // A stand-in element: records the calls made on it.
@@ -43,4 +43,8 @@ test("animate applies an animation unless motion is reduced", () => {
 test("the working spinner is Claude Code's six stars, one frame about every 110 ms", () => {
   assert.deepEqual(STAR, ["·", "✢", "✳", "✶", "✻", "✽"]);
   assert.equal(STAR_MS, 110);
+});
+
+test("the agent icon bobs 2px up over 800 ms", () => {
+  assert.deepEqual(BOB, { from: 0, to: -2, period: 800 });
 });

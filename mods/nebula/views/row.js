@@ -9,7 +9,7 @@ import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "..
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
 import { pulseOf } from "../lib/attention.js";
-import { animate, reduced, STAR, STAR_MS } from "../lib/motion.js";
+import { animate, reduced, BOB, STAR, STAR_MS } from "../lib/motion.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
@@ -61,6 +61,13 @@ const age = (text, color, moon = false, bold = false) =>
     .when(moon, (el) => el.child(svg("mods/nebula/icons/moon.svg").size(11).flex_none()))
     .child(text);
 
+// The agent's icon; while the row works it bobs 2px up and down, on a wrapper so the line does not move.
+const agentGlyph = (row, icon, t) => {
+  const glyph = svg(icon).size(12).flex_none().text_color(t.muted);
+  if (row.status !== "working" || row.archived) return glyph;
+  return animate(div().relative().size(12).flex_none().child(glyph), (el) => el.loop("top", BOB));
+};
+
 // The agent's icon (12px, muted like the text) and its model and effort; null when there is nothing to say,
 // and when the row is neither selected nor running something other than its project's usual agent and
 // model (lib/rowmeta.js stampOdd): the common case stays quiet. The text shrinks and truncates, so a long
@@ -75,7 +82,7 @@ export function metaLine(row, t, size = 12, selected = false) {
     .gap(5)
     .text_size(fs(size))
     .text_color(t.muted)
-    .when(Boolean(icon), (el) => el.child(svg(icon).size(12).flex_none().text_color(t.muted)))
+    .when(Boolean(icon), (el) => el.child(agentGlyph(row, icon, t)))
     .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
 }
 

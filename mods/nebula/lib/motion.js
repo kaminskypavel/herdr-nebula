@@ -19,3 +19,6 @@ export const animate = (el, fn) => (off ? el : fn(el));
 // Claude Code's own star spinner, shown in place of a working row's dot.
 export const STAR = ["·", "✢", "✳", "✶", "✻", "✽"];
 export const STAR_MS = 110;
+
+// The agent icon's bob while its row works.
+export const BOB = { from: 0, to: -2, period: 800 };
