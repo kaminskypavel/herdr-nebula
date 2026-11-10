@@ -117,7 +117,7 @@ import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
-import { setReduceMotion, animate, SPRING } from "./lib/motion.js";
+import { setReduceMotion, animate, stripHeight, FADE, SPRING } from "./lib/motion.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -243,6 +243,7 @@ export class Board {
     this.resuming = new Set();
     this.stateTrack = new Map(); // when each row entered its state, for tabs with no change time (lib/attention.js)
     this.changeAt = {};
+    this.stripLast = null; // the attention strip's last content, kept while it slides shut
     this.viewing = new Set(); // the terminals the user is looking at: a row that needs you stops breathing there
     this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
@@ -1383,65 +1384,80 @@ export class Board {
       );
   }
 
-  // Under the toolbar (render draws it only when something needs you or finished unseen in the shown tab): the counts, the
-  // key to go to the next one, and up to three rows to click (the agent shows, the keys stay here).
+  // Under the toolbar, open while something needs you or finished unseen in the shown tab and shut (height 0) otherwise:
+  // the counts, the key to go to the next one, and up to three rows to click (the agent shows, the keys stay here).
   strip(t) {
-    const a = this.attn;
+    const live = this.attn.needs + this.attn.unseen > 0;
+    if (live) this.stripLast = this.attn;
+    const a = this.stripLast; // the last content, kept while the strip collapses
     const next = shortcutLabel(keys(), window()?.platform === "macos")({ action: "nebula.next", def: "⌘]" });
-    return v_flex()
-      .id("attention-strip")
-      .flex_none()
-      .px(20)
-      .py(6)
-      .gap(2)
-      .border_b(1)
-      .border_color(t.border)
-      .child(this.partsRow(t, stripParts(a, [`${next} next`])).h(rh(20)))
-      .children(
-        a.items.map(({ row, project }) =>
-          h_flex()
-            .id(`attn-${row.id}`)
-            .h(rh(22))
-            .items_center()
-            .gap(8)
-            .px(6)
-            .rounded(6)
-            .text_size(fs(12))
-            .cursor_pointer()
-            .hover((s) => s.bg(t.hover))
-            .tooltip(row.prompt || row.title)
-            .on_click((_e, cx) => {
-              this.handle.focus();
-              this.showKeep(row, cx);
-              cx.notify();
-            })
-            .child(ball(row.status, t, 6, false, row.fresh))
-            .child(
-              div()
-                .flex_1()
-                .min_w(0)
-                .flex()
-                .child(rowTitle({ ...row, title: rowText(row, false).title }, t)),
-            )
-            .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(project)),
-        ),
-      )
-      .when(a.more > 0, (el) =>
-        el.child(
-          h_flex()
-            .id("attn-more")
-            .h(rh(20))
-            .items_center()
-            .px(6)
-            .rounded(6)
-            .text_size(fs(11))
-            .text_color(t.muted)
-            .cursor_pointer()
-            .hover((s) => s.bg(t.hover))
-            .on_click(() => this.openJump())
-            .child(`+${a.more} more`),
-        ),
-      );
+    const body = a
+      ? v_flex()
+          .flex_none()
+          .px(20)
+          .py(6)
+          .gap(2)
+          .border_b(1)
+          .border_color(t.border)
+          .child(this.partsRow(t, stripParts(a, [`${next} next`])).h(rh(20)))
+          .children(
+            a.items.map(({ row, project }) =>
+              h_flex()
+                .id(`attn-${row.id}`)
+                .h(rh(22))
+                .items_center()
+                .gap(8)
+                .px(6)
+                .rounded(6)
+                .text_size(fs(12))
+                .cursor_pointer()
+                .hover((s) => s.bg(t.hover))
+                .tooltip(row.prompt || row.title)
+                .on_click((_e, cx) => {
+                  this.handle.focus();
+                  this.showKeep(row, cx);
+                  cx.notify();
+                })
+                .child(ball(row.status, t, 6, false, row.fresh))
+                .child(
+                  div()
+                    .flex_1()
+                    .min_w(0)
+                    .flex()
+                    .child(rowTitle({ ...row, title: rowText(row, false).title }, t)),
+                )
+                .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(project)),
+            ),
+          )
+          .when(a.more > 0, (el) =>
+            el.child(
+              h_flex()
+                .id("attn-more")
+                .h(rh(20))
+                .items_center()
+                .px(6)
+                .rounded(6)
+                .text_size(fs(11))
+                .text_color(t.muted)
+                .cursor_pointer()
+                .hover((s) => s.bg(t.hover))
+                .on_click(() => this.openJump())
+                .child(`+${a.more} more`),
+            ),
+          )
+      : null;
+    // Always mounted: its height springs between 0 and the content's, so it slides open and shut. The padding and rule
+    // sit on the inner box, which a 0 height would otherwise leave 13 px tall.
+    return animate(
+      v_flex()
+        .id("attention-strip")
+        .flex_none()
+        .overflow_hidden()
+        .h(live ? stripHeight(a) : 0)
+        .opacity(live ? 1 : 0)
+        .when(Boolean(body), (el) => el.child(body)),
+      (el) => el.spring("height", SPRING).transition("opacity", FADE),
+    );
   }
 
   // At the left of the status line: KEYS (accent) while the board has the keyboard, so a stray letter is never a
@@ -1622,7 +1638,7 @@ export class Board {
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(this.base.repos.length > 0 && this.open.length > 0 && this.attn.needs + this.attn.unseen > 0, (el) => el.child(this.strip(t)))
+      .when(this.base.repos.length > 0 && this.open.length > 0, (el) => el.child(this.strip(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
       .child(this.statusLine(t));

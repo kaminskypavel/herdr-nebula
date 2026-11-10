@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP, markerTops } from "../mods/nebula/lib/motion.js";
+import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP, markerTops, stripHeight } from "../mods/nebula/lib/motion.js";
+import { setTextScale } from "../mods/nebula/lib/scale.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 // A stand-in element: records the calls made on it.
@@ -61,4 +62,14 @@ test("the marker sits at each tab's middle, 46 px apart, with the pinned divider
   assert.deepEqual(markerTops([{ pinned: true }, { pinned: true }, { pinned: false }, { pinned: false }]), [13, 59, 114, 160]);
   assert.deepEqual(markerTops([{ pinned: true }, { pinned: true }]), [13, 59], "all pinned: no divider");
   assert.deepEqual(markerTops([{ pinned: false }, { pinned: true }]), [13, 59], "a divider only after the last pin");
+});
+
+test("the strip's height is its padding, rule, count line, rows and more line", () => {
+  setTextScale({ font_size: 13 });
+  assert.equal(stripHeight({ items: [], more: 0 }), 33, "13 + the 20 px count line");
+  assert.equal(stripHeight({ items: [1, 2, 3], more: 0 }), 33 + 3 * 24);
+  assert.equal(stripHeight({ items: [1, 2, 3], more: 4 }), 33 + 3 * 24 + 22);
+  setTextScale({ font_size: 26 });
+  assert.equal(stripHeight({ items: [1], more: 0 }), 13 + 40 + 2 + 44, "rows scale with the text size");
+  setTextScale(undefined);
 });

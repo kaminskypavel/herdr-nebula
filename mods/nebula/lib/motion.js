@@ -2,6 +2,8 @@
 // sets it at the top of its render from the stored settings (setReduceMotion), and every animation is added
 // through animate(), so a still look is one place. No herdr imports, so node can test it.
 
+import { rh } from "./scale.js";
+
 let off = false;
 
 /** Sets the switch (the Reduce motion setting); returns it. Anything but `true` is motion on. */
@@ -55,3 +57,10 @@ export function markerTops(items) {
 }
 
 export const FADE = { duration: 180, easing: "ease-out" };
+
+/**
+ * The attention strip's height for what it shows (lib/strip.js: `items` rows and `more` the rest): 6 px of padding
+ * above and below, the 1 px rule, the count line (20), each row (22), the "+N more" line (20), 2 px between lines.
+ * The board springs the strip's height to this, or to 0 when nothing needs attention.
+ */
+export const stripHeight = ({ items, more }) => 13 + rh(20) + items.length * (2 + rh(22)) + (more > 0 ? 2 + rh(20) : 0);
