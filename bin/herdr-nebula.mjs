@@ -6,6 +6,7 @@
 //   herdr-nebula hook subagent claude start|stop  the SubagentStart / SubagentStop hooks (stdin: the hook JSON)
 //   herdr-nebula install-hooks                  merge the hooks into Claude and Codex settings
 //   herdr-nebula window                         open a second Herdr window on the same core
+//   herdr-nebula update [--check [--json]]      pull the latest herdr-nebula and reinstall (or only report)
 // The hook prints nothing and exits 0 on every path that is not a reply to the agent.
 
 import fs from "node:fs";
@@ -17,6 +18,7 @@ import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION } from "../
 import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
 import { SUB_PREFIX } from "../mods/nebula/lib/subagents.js";
+import { parseCheck, updateState } from "../mods/nebula/lib/update.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOOKS_DIR = path.join(HERE, "..", "hooks");
@@ -414,6 +416,55 @@ function openWindow() {
   console.log("Opened a second window.");
 }
 
+// The copy of herdr-nebula this command belongs to (the one-line installer's ~/.local/share/herdr-nebula,
+// or a developer checkout), and what GitHub's main has that it does not (lib/update.js).
+const REPO = path.join(HERE, "..");
+const git = (args, timeout = 20000) => execFileSync("git", ["-C", REPO, ...args], { encoding: "utf8", timeout, stdio: ["ignore", "pipe", "pipe"] });
+function checkReport() {
+  git(["fetch", "--quiet", "origin", "main"], 30000);
+  return parseCheck({
+    counts: git(["rev-list", "--left-right", "--count", "origin/main...HEAD"]),
+    status: git(["status", "--porcelain", "--untracked-files=no"]),
+    branch: git(["rev-parse", "--abbrev-ref", "HEAD"]),
+    head: git(["rev-parse", "--short", "HEAD"]),
+    latest: git(["rev-parse", "--short", "origin/main"]),
+    log: git(["log", "--format=%s", "-n", "20", "HEAD..origin/main"]),
+  });
+}
+
+function update(args) {
+  const r = checkReport(),
+    state = updateState(r);
+  if (args.includes("--check")) {
+    if (args.includes("--json")) console.log(JSON.stringify({ ...r, state }));
+    else
+      console.log(
+        state === "current"
+          ? `herdr-nebula is up to date (${r.head}).`
+          : `${r.behind} change(s) on GitHub (${r.head} -> ${r.latest}): ${r.subjects.join("; ")}`,
+      );
+    return;
+  }
+  if (state === "current") return console.log(`herdr-nebula is up to date (${r.head}).`);
+  if (state === "local") {
+    console.log(`herdr-nebula in ${REPO} has its own changes (or is not on main), so it is left alone: pull it with git.`);
+    process.exitCode = 3;
+    return;
+  }
+  git(["pull", "--ff-only", "--quiet", "origin", "main"], 120000);
+  // The main Herdr home, then every other one that has the layout (the second window's).
+  const installer = path.join(REPO, "scripts", "install.sh");
+  execFileSync("sh", [installer], { stdio: ["ignore", "ignore", "inherit"], timeout: 180000 });
+  const base = path.join(os.homedir(), ".config");
+  for (const n of fs.readdirSync(base).filter((x) => /^herdr-app-\d+$/.test(x))) {
+    if (fs.existsSync(path.join(base, n, "mods", "nebula")))
+      execFileSync("sh", [installer, path.join(base, n)], { stdio: ["ignore", "ignore", "inherit"], timeout: 180000 });
+  }
+  console.log(
+    `Updated herdr-nebula to ${git(["rev-parse", "--short", "HEAD"]).trim()}: ${r.subjects.slice(0, 3).join("; ")}${r.subjects.length > 3 ? "; ..." : ""}`,
+  );
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 try {
   if (cmd === "hook" && rest[0] === "prompt" && (rest[1] === "claude" || rest[1] === "codex")) {
@@ -427,8 +478,11 @@ try {
   } else if (cmd === "title") title(rest);
   else if (cmd === "install-hooks") installHooks();
   else if (cmd === "window") openWindow();
+  else if (cmd === "update") update(rest);
   else {
-    console.error("usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | install-hooks | window");
+    console.error(
+      "usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | install-hooks | window | update [--check [--json]]",
+    );
     process.exitCode = 2;
   }
 } catch (e) {
