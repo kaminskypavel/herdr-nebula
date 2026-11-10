@@ -13,7 +13,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { AUTOTITLE, CLAUDETITLE, PROMPT } from "../mods/nebula/lib/labels.js";
+import { ASLEEP, AUTOTITLE, CLAUDETITLE, PROMPT, SESSION } from "../mods/nebula/lib/labels.js";
+import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
 import { SUB_PREFIX } from "../mods/nebula/lib/subagents.js";
 
@@ -103,7 +104,14 @@ function hookPrompt(app) {
   const labels = hcLabels(term);
   const tabId = labels["herdr.tab"];
   const prompt = condense(input.prompt);
-  if (prompt && prompt !== labels[PROMPT]) setLabel(term, PROMPT, prompt);
+  // One call for every label this prompt changes: the last prompt, the CLI's conversation id (so
+  // the board can resume it after an exit, a crash or a reboot; lib/resume.js) and the end of a sleep.
+  const pairs = [];
+  if (prompt && prompt !== labels[PROMPT]) pairs.push(`${PROMPT}=${prompt}`);
+  const session = nextSession(app, labels[SESSION], input.session_id);
+  if (session) pairs.push(`${SESSION}=${session}`);
+  if (labels[ASLEEP]) pairs.push(`${ASLEEP}=`);
+  if (pairs.length) run("hc", ["label", term, ...pairs]);
   const auto = autoTitleOn();
   if (app === "codex" && !auto) return;
 

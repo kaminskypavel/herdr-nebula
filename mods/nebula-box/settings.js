@@ -5,6 +5,7 @@ import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
 import { VIEW_IDS, VIEW_TITLE, SIDES, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
 import { SETTINGS } from "./lib/shared.js";
+import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
 import { button, dialogTitle, switchControl, segmented, dropdown, agentIcon } from "./ui.js";
 import { fs } from "./lib/scale.js";
 
@@ -21,6 +22,7 @@ const TOGGLES = {
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
+const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
 const PICK_W = 150;
 
 export class Settings {
@@ -59,6 +61,7 @@ export class Settings {
       "editor",
       "harness",
       ...this.ids.map((id) => `h:${id}`),
+      "sleepAfter",
       "nebulaSessions",
       "import",
     ];
@@ -103,6 +106,7 @@ export class Settings {
     if (row === "view") this.save({ view: cycleOf(VIEW_IDS, this.s.view, dir) });
     else if (row === "harness" && this.ids.length) this.save({ harness: cycleOf(this.ids, defaultHarness(this.s, this.ids), dir) });
     else if (row === "presetSide") this.save({ presetSide: cycleOf(SIDES, this.s.presetSide, dir) });
+    else if (row === "sleepAfter") this.save({ sleepAfter: cycleOf(SLEEP_CHOICES, this.s.sleepAfter, dir) });
     else if (row in TOGGLES) this.save({ [row]: !this.s[row] });
     else if (row.startsWith("h:")) {
       const id = row.slice(2),
@@ -375,6 +379,16 @@ export class Settings {
                       .child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026"),
               ),
               ...this.ids.map(agent),
+              this.line(
+                t,
+                at("sleepAfter"),
+                "Sleep idle agents after",
+                "Frees memory; Enter resumes it",
+                segmented(t, "sleepAfter", SLEEP_OPTIONS, s.sleepAfter, (v, cx) => {
+                  this.go(at("sleepAfter"), cx);
+                  this.save({ sleepAfter: v });
+                }),
+              ),
             ]),
           )
           .child(

@@ -34,7 +34,16 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
   return pulse ? b.loop("opacity", pulse) : b;
 }
 
-const age = (text, color) => div().flex_none().text_size(fs(12)).text_color(color).child(text);
+// The right-hand words of a row; `moon` puts a small moon before them (an asleep agent).
+const age = (text, color, moon = false) =>
+  h_flex()
+    .flex_none()
+    .items_center()
+    .gap(4)
+    .text_size(fs(12))
+    .text_color(color)
+    .when(moon, (el) => el.child(svg("mods/nebula/icons/moon.svg").size(11).flex_none()))
+    .child(text);
 
 // The agent's icon (12px, dim like the text) and its model and effort; null when there is nothing to say.
 // The text shrinks and truncates, so a long value never pushes the age off.
@@ -104,7 +113,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         )
         .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(text.sub))),
     )
-    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim));
+    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim, !pinned && row.asleep));
 }
 
 // The line under a band with no session: it can hold the cursor, `p` and `d` act on it.

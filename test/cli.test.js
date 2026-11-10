@@ -161,6 +161,36 @@ test("a short prompt is stored condensed", () => {
   assert.equal(w.state().labels["nebula.prompt"], "fix the login redirect");
 });
 
+test("the hook stores the CLI's session id as a label, per app", () => {
+  const w = world();
+  w.run(["hook", "prompt", "claude"], payload({ session_id: "11111111-2222-3333-4444-555555555555" }));
+  assert.equal(w.state().labels["nebula.session"], "claude:11111111-2222-3333-4444-555555555555");
+  const c = world();
+  c.run(["hook", "prompt", "codex"], payload({ session_id: "019a-abc" }));
+  assert.equal(c.state().labels["nebula.session"], "codex:019a-abc");
+});
+
+test("the same session id is not written again, a replaced one (/clear) is", () => {
+  const w = world({ labels: { "nebula.session": "claude:s1", "nebula.prompt": "fix the login redirect" } });
+  w.run(["hook", "prompt", "claude"], payload({ session_id: "s1" }));
+  assert.equal(w.state().calls.filter((c) => c[1] === "label").length, 0);
+  w.run(["hook", "prompt", "claude"], payload({ session_id: "s2" }));
+  assert.equal(w.state().labels["nebula.session"], "claude:s2");
+});
+
+test("a payload without a usable session id leaves the label alone", () => {
+  const w = world({ labels: { "nebula.session": "claude:s1" } });
+  for (const session_id of [undefined, "", "  ", "a b", "x;rm -rf ~", 7]) w.run(["hook", "prompt", "claude"], payload({ session_id }));
+  assert.equal(w.state().labels["nebula.session"], "claude:s1");
+});
+
+test("a prompt on a sleeping agent clears the asleep mark", () => {
+  const w = world({ labels: { "nebula.asleep": "1", "nebula.session": "claude:s1" } });
+  w.run(["hook", "prompt", "claude"], payload({ session_id: "s1" }));
+  assert.equal("nebula.asleep" in w.state().labels, false);
+  assert.equal(w.state().labels["nebula.session"], "claude:s1");
+});
+
 test("a prompt starting with <task-notification is not stored", () => {
   const w = world({ labels: { "nebula.prompt": "earlier prompt" } });
   w.run(["hook", "prompt", "claude"], payload({ prompt: "<task-notification>done</task-notification>" }));

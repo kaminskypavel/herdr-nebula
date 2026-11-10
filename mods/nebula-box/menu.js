@@ -1,5 +1,6 @@
 // The right-click menu on a session row, a pointer popup: the row actions with their keys.
-// props: { id (the session), archived, tab, launch (it has a launch label to repeat) }.
+// props: { id (the session), archived, tab, launch (it has a launch label to repeat), exited, session
+// (its conversation id is known: it can resume) }.
 // A choice goes to the board through the shared value nebula.rowAction ({ id, action, n }),
 // so the board does the work in one place whether a key or the menu asked.
 import { div } from "gpui-kit";
@@ -18,7 +19,10 @@ export class Menu {
 
   items() {
     const p = props() ?? {};
-    return actionsFor({ kind: p.kind, archived: Boolean(p.archived), tab: p.tab ?? null }, Boolean(p.launch));
+    return actionsFor(
+      { kind: p.kind, archived: Boolean(p.archived), tab: p.tab ?? null, address: p.id, exited: Boolean(p.exited), session: p.session ?? null },
+      Boolean(p.launch),
+    );
   }
 
   choose(i) {

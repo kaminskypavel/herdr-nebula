@@ -37,7 +37,12 @@ import {
   notify,
   focused,
   settings,
+  hc,
 } from "herdr";
+import { putToSleep, hasExited } from "./sleeper.js";
+import { canResume, resumeCommand } from "./lib/resume.js";
+import { sleepVerdict } from "./lib/sleep.js";
+import { ASLEEP } from "./lib/labels.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode } from "./lib/focus.js";
 import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
@@ -93,10 +98,11 @@ const VIEWS = [
 ];
 const viewOf = (id) => VIEWS.find((v) => v.id === id) ?? VIEWS[0];
 
-const ROW_KEYS = { r: "rename", a: "archive", u: "unarchive", d: "delete" };
+const ROW_KEYS = { r: "rename", a: "archive", u: "unarchive", d: "delete", z: "sleep" };
 const rowActionOf = (k, m) => {
   if (k === "enter") return m.shift ? "folder" : null;
   if (k === "P" || (k === "p" && m.shift)) return "relaunch";
+  if (k === "R" || (k === "r" && m.shift)) return "resume";
   return m.shift ? null : (ROW_KEYS[k] ?? null);
 };
 
@@ -618,12 +624,48 @@ export class Board {
     if (pinnable(row)) this.setPin(togglePin(shared(PINNED), row.address));
   }
 
-  // Shows the agent in the terminal (a parked one has no pane); a nebula row resumes.
+  // Types the resume command into the row's own terminal, whose shell is left at a prompt after
+  // the agent exited (a crash, `/exit`, a reboot or a sleep), and clears the asleep mark. The
+  // terminal is looked at again first, so a stale row never types into a running agent.
+  resumeHere(row, cx) {
+    const cmd = resumeCommand(row.session, row.launch);
+    if (!cmd || !hasExited(row.address) || this.resuming.has(row.address)) return;
+    this.resuming.add(row.address);
+    cx.spawn(async (cx) => {
+      const r = await hc(["send", row.address, cmd]).catch(() => null);
+      this.resuming.delete(row.address);
+      if (r?.code !== 0) {
+        notify({ title: "Could not resume", body: row.title, level: "error", timeout: 4000 });
+        return;
+      }
+      if (row.asleep) await hc(["label", row.address, `${ASLEEP}=`]).catch(() => null);
+      cx.notify();
+    });
+  }
+
+  // `z`: the agent's CLI exits (its shell stays) and Enter later resumes the conversation. Only
+  // an agent that is done, with a conversation to resume; otherwise a toast says why.
+  sleep(row, cx) {
+    const why = sleepVerdict(row);
+    if (why) {
+      notify({ title: "Cannot sleep this agent", body: why, level: "info", timeout: 4500 });
+      return;
+    }
+    cx.spawn(async (cx) => {
+      if ((await putToSleep(row.address, cx)) === "stuck")
+        notify({ title: "Could not stop the agent", body: `${row.title} is still running.`, level: "error", timeout: 5000 });
+      cx.notify();
+    });
+  }
+
+  // Shows the agent in the terminal (a parked one has no pane); a nebula row resumes, and so
+  // does an exited or asleep agent with a known conversation, in its own terminal.
   show(row, cx) {
     if (row.kind === "nebula") {
       this.resume(row, cx);
       return;
     }
+    if (canResume(row)) this.resumeHere(row, cx);
     if (row.pane) run("pane.focus", { pane: row.pane });
     else run("agent.focus", { terminal: row.address });
   }
@@ -741,8 +783,13 @@ export class Board {
   act(action, row, cx) {
     const launch = row.launch;
     action = rowAction(row, action);
+    if (action === "sleep") {
+      this.sleep(row, cx);
+      return;
+    }
     if (!actionsFor(row, Boolean(launch)).some((a) => a.id === action)) return;
     if (action === "hide") setShared(HIDDEN, withHidden(shared(HIDDEN), row.nebula.id));
+    else if (action === "resume") this.show(row, cx);
     else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : row.title });
     else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive) box(440, 190, { role: "archive-confirm", tab: row.tab, title: row.title });
     else if (action === "archive" || action === "unarchive") {
@@ -779,7 +826,16 @@ export class Board {
       at: "pointer",
       width: 270,
       height,
-      props: { role: "menu", id: row.id, kind: row.kind, archived: row.archived, tab: row.tab, launch: list.some((a) => a.id === "relaunch") },
+      props: {
+        role: "menu",
+        id: row.id,
+        kind: row.kind,
+        archived: row.archived,
+        tab: row.tab,
+        launch: list.some((a) => a.id === "relaunch"),
+        exited: row.exited,
+        session: row.session,
+      },
     });
     cx.notify();
   }

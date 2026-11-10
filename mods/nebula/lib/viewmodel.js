@@ -7,6 +7,7 @@ import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
 import { byName, rowGroup } from "./arrange.js";
 import { freshDone } from "./attention.js";
 import { isLinked } from "./actions.js";
+import { parseSession, resumeHint } from "./resume.js";
 
 export const OTHER = "other:";
 
@@ -70,6 +71,9 @@ function sessionRow(t, where, ctx) {
   // When it turned unseen: the tab's change time, else the board's own note of seeing it turn (ctx.unseenAt).
   const unseenSince = status === "unseen" ? (tab?.changed_at > 0 ? tab.changed_at : (ctx.unseenAt[t.address] ?? 0)) : 0;
   const archived = Boolean(tab?.settled);
+  // The CLI's conversation, if the prompt hook has seen one; asleep means the board stopped the CLI itself.
+  const session = parseSession(labels.session) ? labels.session : null;
+  const resume = { exited, session, address: t.address, asleep: exited && labels.asleep };
   return {
     id: t.address,
     address: t.address,
@@ -88,7 +92,10 @@ function sessionRow(t, where, ctx) {
     effort: labels.launch?.effort ?? "",
     launch: labels.launch,
     prompt: labels.prompt,
-    age: tab?.settled ? "archived" : exited ? "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
+    session,
+    asleep: resume.asleep,
+    changedAt: tab?.changed_at > 0 ? tab.changed_at : 0,
+    age: tab?.settled ? "archived" : exited ? resumeHint(resume) || "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
   };
 }

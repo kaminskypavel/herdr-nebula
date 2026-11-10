@@ -1,6 +1,11 @@
 import { inside, norm } from "./projects.js";
+import { canResume } from "./resume.js";
 
+// resume: only where the agent has left and its conversation is known (Enter does the same);
+// live: only on an agent still running (it sleeps: its CLI stops, Enter resumes it).
 const ALL = [
+  { id: "resume", label: "Resume", key: "⇧R", resume: true },
+  { id: "sleep", label: "Sleep", key: "z", live: true },
   { id: "rename", label: "Rename", key: "r", tab: true },
   { id: "relaunch", label: "Relaunch with same setup", key: "⇧P", launch: true },
   { id: "folder", label: "Open folder in editor", key: "⇧↩" },
@@ -18,7 +23,15 @@ export const rowAction = (row, action) => (row.kind === "nebula" && (action === 
 export const actionsFor = (row, hasLaunch) =>
   row.kind === "nebula"
     ? HIDE
-    : ALL.filter((a) => (!a.tab || row.tab) && (!a.launch || hasLaunch) && (a.id !== "archive" || !row.archived) && (a.id !== "unarchive" || row.archived));
+    : ALL.filter(
+        (a) =>
+          (!a.tab || row.tab) &&
+          (!a.launch || hasLaunch) &&
+          (!a.resume || canResume(row)) &&
+          (!a.live || (row.address && !row.exited)) &&
+          (a.id !== "archive" || !row.archived) &&
+          (a.id !== "unarchive" || row.archived),
+      );
 
 export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
 

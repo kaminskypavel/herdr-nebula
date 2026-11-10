@@ -107,3 +107,9 @@ test("the prompt line and empty worktrees are on by default, and only a boolean 
   assert.equal(mergeSettings({ promptLine: "no", showEmptyWorktrees: 0 }).promptLine, true);
   assert.equal(mergeSettings({ promptLine: "no", showEmptyWorktrees: 0 }).showEmptyWorktrees, true);
 });
+
+test("Help lists Resume and Sleep on the board", () => {
+  const rows = groupShortcuts([], true).find((g) => g.group === "Board").rows;
+  assert.ok(rows.some((r) => r.keys === "⇧R" && /resume/i.test(r.text)));
+  assert.ok(rows.some((r) => r.keys === "z" && /sleep/i.test(r.text)));
+});

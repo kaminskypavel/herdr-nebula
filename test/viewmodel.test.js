@@ -159,6 +159,48 @@ test("an archived session is hidden until show archived is on", () => {
   assert.equal(shown.repos.flatMap((r) => r.bands.flatMap((b) => b.rows)).find((r) => r.id === "t5").archived, true);
 });
 
+function exitedRow(labels) {
+  const f = fleet();
+  f.terminals.push({
+    address: "t99",
+    cwd: "/r/alpha",
+    state: "live",
+    program: { key: "shell", name: "zsh", shell: true },
+    labels: { "nebula.board": "1", ...labels },
+  });
+  return buildBoard(f)
+    .repos[0].bands.flatMap((b) => b.rows)
+    .find((r) => r.id === "t99");
+}
+
+test("an exited row with a known conversation says Enter resumes; a sleeping one says asleep", () => {
+  const exited = exitedRow({ "nebula.session": "claude:s1" });
+  assert.equal(exited.session, "claude:s1");
+  assert.equal(exited.asleep, false);
+  assert.equal(exited.age, "exited · Enter resumes");
+  const asleep = exitedRow({ "nebula.session": "claude:s1", "nebula.asleep": "1" });
+  assert.equal(asleep.asleep, true);
+  assert.equal(asleep.age, "asleep · Enter resumes");
+});
+
+test("an unreadable session label is no session; an asleep mark without a conversation resumes nothing", () => {
+  assert.equal(exitedRow({ "nebula.session": "claude:a b; rm" }).session, null);
+  assert.equal(exitedRow({ "nebula.session": "claude:a b; rm" }).age, "exited");
+  assert.equal(exitedRow({ "nebula.asleep": "1" }).age, "exited");
+});
+
+test("a running agent is never asleep, even with a stale asleep mark, and carries its tab's change time", () => {
+  const f = fleet();
+  f.terminals[8].labels = { "nebula.session": "claude:s9", "nebula.asleep": "1" };
+  const row = buildBoard(f)
+    .repos.flatMap((r) => r.rows)
+    .find((r) => r.id === "t9");
+  assert.equal(row.asleep, false);
+  assert.equal(row.session, "claude:s9");
+  assert.equal(row.exited, false);
+  assert.equal(row.changedAt, NOW - 60_000 * 9);
+});
+
 test("an exited board-launched session yields a grey row offering relaunch and delete", () => {
   const f = fleet();
   f.terminals.push({

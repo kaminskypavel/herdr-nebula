@@ -31,6 +31,9 @@ import {
   notify,
   settings,
 } from "herdr";
+import { putToSleep } from "./sleeper.js";
+import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
+import { mergeSettings } from "./lib/settings.js";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
 import { statusOf } from "./lib/status.js";
@@ -42,7 +45,7 @@ import { railTabs, tabHint, pillText } from "./lib/rail.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL } from "./lib/shared.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
 
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
@@ -73,7 +76,60 @@ export class Rail {
     });
     cx.timer.every(200, (cx) => this.watch(cx));
     cx.timer.every(10000, (cx) => this.refresh(cx));
+    // Sleeping idle agents lives here because the rail is always mounted (the board may be folded).
+    // Never during render: one timer keeps the idle clocks, a slower one sweeps.
+    this.idle = new Map();
+    this.since = {};
+    cx.timer.every(TRACK_MS, () => this.trackIdle());
+    cx.timer.every(SWEEP_MS, (cx) => this.sweepSleep(cx));
     this.refresh(cx);
+  }
+
+  // What the idle clock needs: every session row, and the terminals the user can see now
+  // (the focused tab's, the focused one, the board's pin, Herdr's own pins).
+  sleepView() {
+    const model = buildBoard({ terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos() });
+    const rows = model.repos.flatMap((r) => r.rows);
+    const f = focused(),
+      inView = new Set([
+        f?.terminal,
+        f?.shown,
+        f?.agent,
+        shared(PINNED),
+        ...agents()
+          .filter((a) => a.pinned)
+          .map((a) => a.address),
+      ]);
+    for (const p of panes()) if (f && p.tab === f.tab && p.terminal) inView.add(p.terminal);
+    return { rows, inView };
+  }
+
+  trackIdle() {
+    const view = this.sleepView();
+    const r = trackIdle(this.idle, view.rows, view.inView, Date.now());
+    this.idle = r.state;
+    this.since = r.since;
+    return view;
+  }
+
+  // Stops the CLI of every agent that has been done, seen and out of view for the setting's minutes.
+  sweepSleep(cx) {
+    const minutes = mergeSettings(shared(SETTINGS)).sleepAfter;
+    if (!(minutes > 0)) return;
+    const { rows, inView } = this.trackIdle();
+    const due = sleepDue(rows, { minutes, now: Date.now(), inView, pinned: shared(PINNED), since: this.since });
+    if (!due.length) return;
+    cx.spawn(async (cx) => {
+      let n = 0;
+      for (const id of due) if ((await putToSleep(id, cx)) === "asleep") n++;
+      if (n)
+        notify({
+          title: n === 1 ? "Put 1 idle agent to sleep" : `Put ${n} idle agents to sleep`,
+          body: "Enter on its row resumes it.",
+          level: "info",
+          timeout: 4000,
+        });
+    });
   }
 
   repos() {

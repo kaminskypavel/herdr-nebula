@@ -17,7 +17,10 @@
 //   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
 //   promptLine      Tree and List rows carry a dim second line with the last prompt
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
+//   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
+//                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
 import { HARNESSES } from "./harness.js";
+import { SLEEP_CHOICES, SLEEP_DEFAULT } from "./sleep.js";
 
 export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
 export const VIEW_IDS = Object.keys(VIEW_TITLE);
@@ -35,6 +38,7 @@ export const DEFAULTS = {
   nebulaSessions: true,
   promptLine: true,
   showEmptyWorktrees: true,
+  sleepAfter: SLEEP_DEFAULT,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -64,6 +68,7 @@ export function mergeSettings(stored) {
     nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
     promptLine: typeof s.promptLine === "boolean" ? s.promptLine : DEFAULTS.promptLine,
     showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
+    sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
   };
 }
 
@@ -125,13 +130,15 @@ const SHORTCUTS = [
     col: 1,
     rows: [
       { keys: ["j", "k", "↑", "↓"], text: "move highlight" },
-      { keys: ["↩", "click"], text: "show agent" },
+      { keys: ["↩", "click"], text: "show, resume if exited" },
       { keys: [".", ","], text: "next, previous needs-you" },
       { keys: ["p", "e", "v"], text: "new, presets, view" },
       { keys: ["p", "d"], text: "on an empty worktree: new, delete" },
       { keys: ["s"], text: "pin beside, again to unpin" },
       { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
       { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
+      { keys: ["⇧R"], text: "resume exited or asleep" },
+      { keys: ["z"], text: "sleep agent now" },
       { keys: ["0", "1 to 9"], text: "All tab, project tab" },
     ],
   },

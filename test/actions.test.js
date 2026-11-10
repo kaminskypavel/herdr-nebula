@@ -179,6 +179,22 @@ test("an exited board launch offers relaunch and delete (and the rest)", () => {
   assert.ok(ids.includes("relaunch") && ids.includes("delete"));
 });
 
+test("Resume is offered only where the agent left and its conversation is known; Sleep only on a running agent", () => {
+  const ids = (row) => actionsFor(row, false).map((a) => a.id);
+  const live = { archived: false, tab: "x", address: "t1", exited: false, session: "claude:s1" };
+  assert.ok(ids(live).includes("sleep") && !ids(live).includes("resume"));
+  const gone = { ...live, exited: true };
+  assert.ok(ids(gone).includes("resume") && !ids(gone).includes("sleep"));
+  assert.ok(!ids({ ...gone, session: null }).includes("resume"));
+  const keys = Object.fromEntries(
+    actionsFor(gone, false)
+      .concat(actionsFor(live, false))
+      .map((a) => [a.id, a.key]),
+  );
+  assert.equal(keys.resume, "⇧R");
+  assert.equal(keys.sleep, "z");
+});
+
 test("the editor command defaults to open and takes the path last", () => {
   assert.deepEqual(editorCommand(undefined, "/w/a b"), { cmd: "open", args: ["/w/a b"] });
   assert.deepEqual(editorCommand("", "/p"), { cmd: "open", args: ["/p"] });

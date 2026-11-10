@@ -37,6 +37,8 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **One-click import from nebula.** Your projects and per-agent defaults, straight from nebula's own files.
 - **Sessions that name themselves.** Claude Code and Codex title their tab after the first prompt. A name you give always wins.
 - **Row actions.** Rename, archive, relaunch with the same setup, open the folder, or delete. Delete offers to remove the worktree and shows uncommitted files and unpushed commits first.
+- **Resume after an exit, a crash or a reboot.** The prompt hook saves each Claude Code and Codex conversation id on its terminal (the `nebula.session` label). When the agent has left the shell, its row reads "exited · Enter resumes", and <kbd>↩</kbd>, a click or <kbd>⇧R</kbd> types `claude --resume <id>` (or `codex resume <id>`, with the row's model and effort) into the same terminal. After a reboot or a core restart Herdr gives each lost terminal a shell in its last folder, so the same row picks the conversation back up.
+- **Idle agents sleep.** An agent that is done and seen, has a conversation to resume, and has been out of view (not in the shown tab, not pinned) for 15 minutes gets its CLI stopped to free memory: the terminal stays as a shell, and the row reads "asleep · Enter resumes". Settings, Agents: Sleep idle agents after (Off, 5, 15, 30 or 60 minutes). <kbd>z</kbd> (or the right-click menu) sleeps the highlighted agent now; one that is working, needs you or has no conversation id yet is left alone, with a note saying why.
 - **A second window.** The New window button on the icon bar opens another Herdr window on the same agents, for two boards side by side.
 - **Keyboard first.** <kbd>⌃`</kbd> hands the keys to the board and back. <kbd>⌘]</kbd> jumps to the next agent that needs you, from anywhere.
 
@@ -82,6 +84,8 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 | Board    | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click  | Move, show the agent                                 |
 | Board    | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd>              | New session, presets, next view                      |
 | Board    | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete                   |
+| Board    | <kbd>⇧R</kbd>, or <kbd>↩</kbd> on an exited row     | Resume an exited or asleep agent's conversation      |
+| Board    | <kbd>z</kbd>                                        | Sleep the agent now (stops its CLI; <kbd>↩</kbd> resumes) |
 | Board    | <kbd>s</kbd>, or shift-click                        | Pin the agent beside the active one (again to unpin) |
 | Board    | <kbd>0</kbd>, <kbd>1</kbd> to <kbd>9</kbd>          | Select the All tab, or an open project tab           |
 

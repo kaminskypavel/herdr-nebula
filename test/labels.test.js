@@ -5,8 +5,15 @@ import { readLabels, launchLabels, isBoardLaunched } from "../mods/nebula/lib/la
 const launch = { harness: "claude", model: "opus", effort: "high", preset: "reviewer", checkout: "/Users/dev/devl/acme-web" };
 
 test("launch labels read back as written", () => {
-  const out = readLabels({ ...launchLabels(launch), "nebula.prompt": "fix login", "nebula.autotitle": "Fix login", "nebula.claudetitle": "Fix login" });
-  assert.deepEqual(out, { board: true, launch, prompt: "fix login", autotitle: "Fix login", claudetitle: "Fix login" });
+  const out = readLabels({
+    ...launchLabels(launch),
+    "nebula.prompt": "fix login",
+    "nebula.autotitle": "Fix login",
+    "nebula.claudetitle": "Fix login",
+    "nebula.session": "claude:s1",
+    "nebula.asleep": "1",
+  });
+  assert.deepEqual(out, { board: true, launch, prompt: "fix login", autotitle: "Fix login", claudetitle: "Fix login", session: "claude:s1", asleep: true });
 });
 
 test("label values that are not valid JSON are ignored", () => {
@@ -23,5 +30,5 @@ test("terminals without labels are not board launched", () => {
   assert.equal(isBoardLaunched(undefined), false);
   assert.equal(isBoardLaunched({}), false);
   assert.equal(isBoardLaunched(launchLabels(launch)), true);
-  assert.deepEqual(readLabels(null), { board: false, launch: null, prompt: "", autotitle: "", claudetitle: "" });
+  assert.deepEqual(readLabels(null), { board: false, launch: null, prompt: "", autotitle: "", claudetitle: "", session: "", asleep: false });
 });
