@@ -1,10 +1,14 @@
-// Preview as you move: the highlighted agent is shown in the main area while the keyboard stays on
-// the board; Enter or a double click steps in. The mechanism is `pane.focus` (it selects the agent's
-// space and tab, and marks an unseen finish seen, as opening it does) followed at once by the board
-// taking its keys back, and again after REFOCUS_MS in case Herdr hands them over late
-// (lib/focus.js). `terminal.peek` was not used: it is an overlay drawer over the tab, not the main
-// area; a preview block would mean rewriting the layout on every keypress. No herdr imports, so
-// node can test it.
+// Preview as you move (the setting, OFF by default): the highlighted agent is shown in the main area
+// and the board tries to keep the keyboard; Enter or a double click steps in.
+// Why it is off: Herdr gives the keyboard to whatever it shows. Measured on 2026-11-10, both
+// `pane.focus` and `tab.select` (with or without `space.select`) move the keys into the shown
+// terminal a beat after the command, so a mod cannot show an agent without taking the keys off the
+// board. The board takes them back (polling every POLL_MS, board.js preview()), but a quick j or k
+// still landed in the agent, and the user ruled: j, k and a click only highlight; only Enter (or a
+// double click) opens an agent. Do not turn preview back on by default without a Herdr API that shows
+// a terminal without focusing it. `terminal.peek` was not used: it is an overlay drawer over the tab,
+// not the main area; a preview block would mean rewriting the layout on every keypress. No herdr
+// imports, so node can test it.
 
 /** How long the cursor must rest on a row before it is shown. */
 export const PREVIEW_MS = 150;
