@@ -117,6 +117,7 @@ import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
+import { setReduceMotion } from "./lib/motion.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -524,6 +525,7 @@ export class Board {
       rows.filter((r) => freshState(r.status, r.archived, r.stateSince, now)).map((r) => r.id),
       cfg.promptLine,
       cfg.showEmptyWorktrees,
+      cfg.reduceMotion,
     ]);
     if (key !== this.motionKey) {
       this.motionKey = key;
@@ -1571,6 +1573,7 @@ export class Board {
 
   render() {
     setTextScale(settings());
+    setReduceMotion(this.config().reduceMotion);
     const t = theme();
     this.sync();
     return v_flex()

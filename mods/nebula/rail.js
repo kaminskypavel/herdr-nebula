@@ -49,6 +49,7 @@ import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
 import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
+import { setReduceMotion } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
 import { HELP_SIZE } from "./lib/hints.js";
 import { NOTHING_WAITING } from "./lib/flash.js";
@@ -85,7 +86,7 @@ export class Rail {
     this.pinsKey = JSON.stringify(shared(PINNED_PROJECTS));
     this.lastIn = {}; // { [project root]: the terminal last focused there }, so picking the project goes back to it
     this.tabs = this.tabsNow();
-    this.tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
+    this.tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion()]);
     cx.spawn(async (cx) => {
       for (;;) {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
@@ -164,6 +165,10 @@ export class Rail {
     return reposWith(store(), this.checkouts);
   }
 
+  reduceMotion() {
+    return mergeSettings(shared(SETTINGS)).reduceMotion;
+  }
+
   refresh(cx) {
     if (this.busy) return;
     this.busy = true;
@@ -221,7 +226,7 @@ export class Rail {
       term = f?.terminal ?? f?.agent ?? null,
       root = term ? rootOf(this.model, term) : null;
     if (root) this.lastIn[root] = term;
-    const tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
+    const tabsKey = JSON.stringify([this.tabs, shared(ICONS), this.reduceMotion()]);
     if (tabsKey !== this.tabsKey) {
       this.tabsKey = tabsKey;
       cx.notify();
@@ -485,6 +490,7 @@ export class Rail {
 
   render() {
     setTextScale(settings());
+    setReduceMotion(this.reduceMotion());
     const t = theme();
     const needs = flatten(groupSessions(terminals(), this.repos())).some((x) => statusOf(x) === "needs");
     const tabs = this.tabs,

@@ -22,6 +22,7 @@ const TOGGLES = {
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   preview: ["Preview while moving", "Show the agent as you move the highlight; Herdr moves the keys there. Off: only Enter or a click opens"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
+  reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
 const PICK_W = 150;
@@ -61,6 +62,7 @@ export class Settings {
       "preview",
       "presetSide",
       "editor",
+      "reduceMotion",
       "harness",
       ...this.ids.map((id) => `h:${id}`),
       "sleepAfter",
@@ -367,6 +369,7 @@ export class Settings {
               ),
             ]),
           )
+          .child(this.group(t, "Look", [toggle("reduceMotion")]))
           .child(
             this.group(t, "Agents", [
               this.line(

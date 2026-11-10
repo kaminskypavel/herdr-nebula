@@ -19,6 +19,7 @@
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
 //   preview         moving the highlight shows that agent in the main area while the board keeps
 //                   the keys; Enter or a click steps in (lib/preview.js)
+//   reduceMotion    every animation off, a static look (lib/motion.js animate())
 //   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
 //                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
 import { HARNESSES } from "./harness.js";
@@ -41,6 +42,7 @@ export const DEFAULTS = {
   promptLine: true,
   showEmptyWorktrees: true,
   preview: false,
+  reduceMotion: false,
   sleepAfter: SLEEP_DEFAULT,
 };
 
@@ -72,6 +74,7 @@ export function mergeSettings(stored) {
     promptLine: typeof s.promptLine === "boolean" ? s.promptLine : DEFAULTS.promptLine,
     showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
     preview: typeof s.preview === "boolean" ? s.preview : DEFAULTS.preview,
+    reduceMotion: typeof s.reduceMotion === "boolean" ? s.reduceMotion : DEFAULTS.reduceMotion,
     sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
   };
 }
