@@ -28,3 +28,11 @@ test("forward and backward walks wrap around the board order", () => {
 test("a walk that starts on nothing in the list begins at the top", () => {
   assert.equal(nextAttention([row("a", "needs"), row("b", "needs")], null), "a");
 });
+
+test("a walk can be narrowed to finished agents that were not looked at", () => {
+  const rows = [row("n", "needs"), row("a", "working"), row("u1", "unseen"), row("u2", "unseen")];
+  assert.equal(nextAttention(rows, "n", 1, ["unseen"]), "u1");
+  assert.equal(nextAttention(rows, "u1", 1, ["unseen"]), "u2");
+  assert.equal(nextAttention(rows, "u2", 1, ["unseen"]), "u1", "wraps; needs-you rows are skipped");
+  assert.equal(nextAttention([row("n", "needs")], null, 1, ["unseen"]), null);
+});

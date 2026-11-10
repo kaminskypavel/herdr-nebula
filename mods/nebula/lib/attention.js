@@ -1,30 +1,33 @@
-// Motion that means something: a session needing you pulses red, a working one pulses
-// gently, and a session that has just finished unseen pulses for a few seconds, then holds
-// still ("motion means live, or just changed"; nebula's one-shot sweep, app::fresh_done).
-// Pure; no herdr imports, so node can test it.
+// Motion that means something: a status dot pulses only for a few seconds after its state changed (a session
+// started needing you, started working, or finished unseen), then holds still ("motion means just changed";
+// nebula's one-shot sweep, app::fresh_done). A forever-pulsing dot taught the eye to ignore it. Pure; no herdr
+// imports, so node can test it.
 
-// How long a fresh unseen finish pulses.
+// How long a dot pulses after its state changed.
 export const FRESH_MS = 5000;
 
-/**
- * Whether a finish `since` ms-epoch is still fresh at `now`. `since` is when the row
- * became unseen (0 or missing: unknown). The window is taken either side of `since`, so a
- * clock a little off pulses a little off-time, never for an hour.
- */
-export const freshDone = (status, archived, since, now) => status === "unseen" && !archived && since > 0 && Math.abs(now - since) < FRESH_MS;
+// The states that pulse when they are new.
+const PULSING = new Set(["needs", "working", "unseen"]);
 
 /**
- * Remembers when each row turned unseen, for rows whose tab has no change time. `state` is
- * the previous call's state (an empty Map the first time); `rows` are { id, status }.
- * -> { state, at } where `at` is { [id]: ms } for the unseen rows seen to turn unseen. A row
- * unseen at first sight has no time (it finished before we looked, so it is not fresh).
+ * Whether a state that began `since` ms-epoch is still fresh at `now`: needs you, working or an unseen finish
+ * (anything else never pulses). `since` is when the row entered its state (0 or missing: unknown, so not fresh).
+ * The window is taken either side of `since`, so a clock a little off pulses a little off-time, never for an hour.
  */
-export function trackUnseen(state, rows, now) {
+export const freshState = (status, archived, since, now) => PULSING.has(status) && !archived && since > 0 && Math.abs(now - since) < FRESH_MS;
+
+/**
+ * Remembers when each row entered its state, for rows whose tab has no change time. `state` is the previous
+ * call's state (an empty Map the first time); `rows` are { id, status }.
+ * -> { state, at } where `at` is { [id]: ms } for the needs-you, working and unseen rows seen to enter that state.
+ * A row in a state at first sight has no time (it got there before we looked, so it is not fresh).
+ */
+export function trackStates(state, rows, now) {
   const next = new Map(),
     at = {};
   for (const r of rows) {
     const prev = state.get(r.id);
-    const since = r.status === "unseen" ? (prev?.status === "unseen" ? prev.since : prev ? now : 0) : 0;
+    const since = PULSING.has(r.status) ? (prev?.status === r.status ? prev.since : prev ? now : 0) : 0;
     next.set(r.id, { status: r.status, since });
     if (since > 0) at[r.id] = since;
   }
@@ -32,13 +35,13 @@ export function trackUnseen(state, rows, now) {
 }
 
 /**
- * The opacity pulse of a status dot, { from, to, period } for `loop("opacity", ...)`, or
- * null for a still one. Needs-you is the loudest, working keeps a subtler pulse, and an
- * unseen finish pulses only while `fresh`.
+ * The opacity pulse of a status dot, { from, to, period } for `loop("opacity", ...)`, or null for a still one.
+ * Only a `fresh` dot pulses (lib/attention.js freshState): needs-you the loudest, working the gentlest.
  */
 export function pulseOf(status, fresh = false) {
+  if (!fresh) return null;
   if (status === "needs") return { from: 0.25, to: 1, period: 900 };
   if (status === "working") return { from: 0.55, to: 1, period: 1600 };
-  if (status === "unseen" && fresh) return { from: 0.3, to: 1, period: 700 };
+  if (status === "unseen") return { from: 0.3, to: 1, period: 700 };
   return null;
 }

@@ -140,7 +140,10 @@ const SHORTCUTS = [
       { keys: ["Esc"], text: "keys back to the terminal" },
       { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },
       { keys: [".", ","], text: "next, previous needs-you" },
+      { keys: [";"], text: "next done, not seen yet" },
       { keys: ["p", "e", "v"], text: "new, presets, view" },
+      { keys: ["o", "m"], text: "sort, Columns by status or project" },
+      { keys: ["-", "="], text: "fold all, expand all" },
       { keys: ["p", "d"], text: "on an empty worktree: new, delete" },
       { keys: ["s"], text: "pin beside, again to unpin" },
       { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive (or undo), delete" },
@@ -159,6 +162,15 @@ export const shortcutLabel = (binds, mac) => (k) => {
   const hit = (binds ?? []).find((e) => e.action === k.action && String(e.keys ?? "").trim());
   return hit ? strokeLabel(hit.keys, mac) : k.def;
 };
+
+// The colors of the status dots and titles, for the Help sheet: status (lib/status.js COLOR gives its color) and
+// what the row looks like. The same words the board uses.
+export const LEGEND = [
+  { status: "needs", label: "needs you", text: "red title, bar and dot" },
+  { status: "working", label: "working", text: "yellow dot" },
+  { status: "unseen", label: "done, not seen", text: "bold title, cyan age" },
+  { status: "seen", label: "done, seen", text: "muted title, green dot" },
+];
 
 export function groupShortcuts(binds, mac) {
   const label = shortcutLabel(binds, mac);

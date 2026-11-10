@@ -80,6 +80,7 @@ import {
   asleepFlash,
   resumingFlash,
   NOTHING_WAITING,
+  NOTHING_DONE,
   NOTHING_TO_UNARCHIVE,
   HIDDEN_TEXT,
 } from "./lib/flash.js";
@@ -90,7 +91,7 @@ import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
-import { trackUnseen, freshDone } from "./lib/attention.js";
+import { trackStates, freshState } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
 import { attentionStrip, stripParts } from "./lib/strip.js";
@@ -239,8 +240,8 @@ export class Board {
     this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
     this.visible = findNode(layout(), "board")?.hidden !== true;
     this.resuming = new Set();
-    this.unseenState = new Map(); // when each row turned unseen, for tabs with no change time (lib/attention.js)
-    this.unseenAt = {};
+    this.stateTrack = new Map(); // when each row entered its state, for tabs with no change time (lib/attention.js)
+    this.changeAt = {};
     this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
     if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
@@ -501,23 +502,23 @@ export class Board {
     }
   }
 
-  // A just-finished row pulses for a few seconds and then holds still, so the board redraws when a row
-  // enters or leaves that window. A tab with no change time gets the moment the board saw its row turn
-  // unseen. Also redraws when a setting that changes the rows is flipped.
+  // A row whose state just changed (needs you, working, finished unseen) pulses for a few seconds and then holds
+  // still, so the board redraws when a row enters or leaves that window. A tab with no change time gets the moment
+  // the board saw its row change. Also redraws when a setting that changes the rows is flipped.
   watchMotion(cx) {
     const now = Date.now(),
       rows = this.all.repos.flatMap((r) => r.rows).filter((r) => r.kind !== "nebula");
-    const u = trackUnseen(
-      this.unseenState,
+    const u = trackStates(
+      this.stateTrack,
       rows.map((r) => ({ id: r.id, status: r.status })),
       now,
     );
-    this.unseenState = u.state;
-    this.unseenAt = u.at;
+    this.stateTrack = u.state;
+    this.changeAt = u.at;
     const cfg = this.config();
     const key = JSON.stringify([
       u.at,
-      rows.filter((r) => freshDone(r.status, r.archived, r.unseenSince, now)).map((r) => r.id),
+      rows.filter((r) => freshState(r.status, r.archived, r.stateSince, now)).map((r) => r.id),
       cfg.promptLine,
       cfg.showEmptyWorktrees,
     ]);
@@ -1119,6 +1120,16 @@ export class Board {
       const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
       if (id) this.goTo(id, cx);
       else this.say(NOTHING_WAITING, undefined, cx);
+    } else if (k === ";") {
+      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, 1, ["unseen"]);
+      if (id) this.goTo(id, cx);
+      else this.say(NOTHING_DONE, undefined, cx);
+    } else if (k === "o") {
+      this.setSort(cycleOf(SORTS, this.sort, 1), cx);
+    } else if (k === "m") {
+      if (this.view === "columns") this.setMode(this.colMode === "status" ? "projects" : "status", cx);
+    } else if (k === "-" || k === "=") {
+      if (this.canFoldAll()) this.foldAll(k === "-");
     } else if (k === "s") {
       if (item?.type === "session") this.pinRow(item.row);
     } else if (k === "v") {
@@ -1150,7 +1161,7 @@ export class Board {
       now: Date.now(),
       showArchived,
       showEmpty: this.config().showEmptyWorktrees,
-      unseenAt: this.unseenAt,
+      changeAt: this.changeAt,
       nebula: this.nebulaOn ? shownSessions(this.nebula, shared(HIDDEN)) : [],
       resumed: shared(RESUMED) ?? {},
       ports: this.ports,
@@ -1301,7 +1312,7 @@ export class Board {
       .text_color(t.muted)
       .cursor_pointer()
       .hover((s) => s.bg(t.hover).text_color(t.foreground))
-      .tooltip(SORT_TIP[this.sort])
+      .tooltip(`${SORT_TIP[this.sort]} · o`)
       .on_mouse_down("left", (_e, cx) => {
         cx.stop_propagation();
         this.handle.focus();

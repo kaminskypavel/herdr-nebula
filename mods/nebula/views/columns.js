@@ -83,6 +83,7 @@ function modeSwitch(b, t) {
               .text_color(on ? t.foreground : t.muted)
               .when(on, (el) => el.bg(t.selected))
               .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+              .tooltip(`${m.title} · m`)
               .on_mouse_down("left", (_e, cx) => {
                 cx.stop_propagation();
                 b.handle.focus();

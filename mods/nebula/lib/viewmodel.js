@@ -5,7 +5,7 @@ import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subR
 import { nextAttention } from "./order.js";
 import { visibleSessions, nebulaRow } from "./nebula-sessions.js";
 import { byName, rowGroup } from "./arrange.js";
-import { freshDone } from "./attention.js";
+import { freshState } from "./attention.js";
 import { isLinked } from "./actions.js";
 import { parseSession, resumeHint } from "./resume.js";
 import { stampOdd } from "./rowmeta.js";
@@ -69,8 +69,10 @@ function sessionRow(t, where, ctx) {
     labels = readLabels(t.labels);
   const since = status === "working" ? (tab?.working_since ?? tab?.changed_at) : tab?.changed_at;
   const exited = status === "exited";
-  // When it turned unseen: the tab's change time, else the board's own note of seeing it turn (ctx.unseenAt).
-  const unseenSince = status === "unseen" ? (tab?.changed_at > 0 ? tab.changed_at : (ctx.unseenAt[t.address] ?? 0)) : 0;
+  // When it entered its state: the tab's change time (working: when it began working), else the board's own note
+  // of seeing it change (ctx.changeAt). A dot pulses only while that is fresh (lib/attention.js).
+  const stateSince = since > 0 ? since : (ctx.changeAt[t.address] ?? 0);
+  const unseenSince = status === "unseen" ? stateSince : 0;
   const archived = Boolean(tab?.settled);
   // The CLI's conversation, if the prompt hook has seen one; asleep means the board stopped the CLI itself.
   const session = parseSession(labels.session) ? labels.session : null;
@@ -85,8 +87,9 @@ function sessionRow(t, where, ctx) {
     exited,
     offers: exited ? ["relaunch", "delete"] : [],
     archived,
-    fresh: freshDone(status, archived, unseenSince, ctx.now),
+    fresh: freshState(status, archived, stateSince, ctx.now),
     unseenSince,
+    stateSince,
     title: tab?.named && tab.name ? tab.name : NEW_SESSION,
     program: programName(t),
     model: labels.launch?.model ?? "",
@@ -122,7 +125,7 @@ const canDelete = (root, branch, path, git) => Boolean(branch) && isLinked(root,
 const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 };
 
 // `showEmpty` keeps the bands with no session (a checkout of its own with nothing running);
-// `unseenAt` is { [terminal]: ms } the board noted for tabs that carry no change time (lib/attention.js).
+// `changeAt` is { [terminal]: ms } the board noted for tabs that carry no change time (lib/attention.js).
 // `ports` is { [terminal]: [port] }, the TCP ports each terminal's programs listen on (lib/ports.js).
 // `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
 // shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
@@ -139,7 +142,7 @@ export function buildBoard({
   nebula = [],
   resumed = {},
   showEmpty = false,
-  unseenAt = {},
+  changeAt = {},
   ports = {},
 }) {
   const where = tabLookup(agents, panes, spaces);
@@ -147,7 +150,7 @@ export function buildBoard({
     terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),
     repos,
   );
-  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, unseenAt, ports };
+  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, changeAt, ports };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
   const mine = new Map(),
     strays = [];
@@ -327,11 +330,13 @@ export function stepCursor(stops, cursor, delta) {
 const isLive = (r) => r.kind !== "nebula";
 const live = (model) => model.repos.flatMap((r) => r.rows).filter(isLive);
 
-export const attentionTarget = (model, from, dir) =>
+// `statuses` narrows the walk: ["unseen"] is the next finished agent that has not been looked at (lib/order.js).
+export const attentionTarget = (model, from, dir, statuses) =>
   nextAttention(
     live(model).map((r) => ({ id: r.id, status: r.status })),
     from,
     dir,
+    statuses,
   );
 
 // The model is what the board shows (the selected tab). opts: { mode: "projects", sel } puts Columns' selected project first, in worktree order.

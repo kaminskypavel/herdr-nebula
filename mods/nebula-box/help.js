@@ -1,7 +1,8 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, theme, keys, window, exec } from "herdr";
-import { groupShortcuts } from "./lib/settings.js";
+import { groupShortcuts, LEGEND } from "./lib/settings.js";
+import { COLOR } from "./lib/status.js";
 import { escapeKey } from "./ui.js";
 import { fs } from "./lib/scale.js";
 
@@ -17,13 +18,31 @@ export class Help {
   render() {
     const t = theme(),
       groups = groupShortcuts(keys(), window()?.platform === "macos");
+    // What the dots and titles mean, under the first column's keys.
+    const legend = v_flex()
+      .gap(1)
+      .pb(6)
+      .child(div().px(8).pt(6).pb(2).text_size(fs(12)).font_semibold().text_color(t.accent).child("Colors"))
+      .children(
+        LEGEND.map((l) =>
+          h_flex()
+            .px(8)
+            .h(24)
+            .gap(8)
+            .items_center()
+            .child(div().size(8).flex_none().rounded_full().bg(t[COLOR[l.status]]))
+            .child(div().flex_none().font_semibold().text_size(fs(12)).text_color(t[COLOR[l.status]]).child(l.label))
+            .child(div().flex_1())
+            .child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(l.text)),
+        ),
+      );
     const column = (n) =>
       v_flex()
         .flex_1()
         .min_w(0)
         .gap(1)
-        .children(
-          groups
+        .children([
+          ...groups
             .filter((g) => g.col === n)
             .map((g) =>
               v_flex()
@@ -43,7 +62,8 @@ export class Help {
                   ),
                 ),
             ),
-        );
+          ...(n === 0 ? [legend] : []),
+        ]);
     return v_flex()
       .id("help")
       .track_focus(this.handle)
@@ -55,7 +75,15 @@ export class Help {
       .text_color(t.foreground)
       .text_size(fs(13))
       .child(div().font_semibold().text_size(fs(15)).child("Shortcuts"))
-      .child(h_flex().flex_1().min_h(0).gap(16).items_start().child(column(0)).child(column(1)))
+      .child(
+        h_flex()
+          .flex_1()
+          .min_h(0)
+          .gap(16)
+          .items_start()
+          .child(v_flex().flex_1().min_w(0).child(column(0)).child(legend))
+          .child(column(1)),
+      )
       .child(
         h_flex()
           .items_center()

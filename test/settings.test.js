@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULTS, mergeSettings, defaultHarness, harnessChoice, cycleOf, groupShortcuts, strokeLabel } from "../mods/nebula/lib/settings.js";
+import { DEFAULTS, mergeSettings, defaultHarness, harnessChoice, cycleOf, groupShortcuts, strokeLabel, LEGEND } from "../mods/nebula/lib/settings.js";
 
 test("an empty store yields Tree, claude and auto-title on", () => {
   for (const empty of [undefined, null, {}, "junk", []]) {
@@ -132,4 +132,18 @@ test("Help lists Resume and Sleep on the board", () => {
   const rows = groupShortcuts([], true).find((g) => g.group === "Board").rows;
   assert.ok(rows.some((r) => r.keys === "⇧R" && /resume/i.test(r.text)));
   assert.ok(rows.some((r) => r.keys === "z" && /sleep/i.test(r.text)));
+});
+
+test("the board's keys include presets, the sort, Columns mode, fold all and the next finished agent", () => {
+  const board = groupShortcuts([], true).find((g) => g.group === "Board");
+  const keys = board.rows.map((r) => r.keys);
+  for (const k of ["p e v", "o m", "- =", ";"]) assert.ok(keys.includes(k), k);
+});
+
+test("the color legend names the four states with the board's words and no em dash", () => {
+  assert.deepEqual(
+    LEGEND.map((l) => l.status),
+    ["needs", "working", "unseen", "seen"],
+  );
+  for (const l of LEGEND) assert.ok(l.label && l.text && !`${l.label}${l.text}`.includes(String.fromCharCode(0x2014)));
 });

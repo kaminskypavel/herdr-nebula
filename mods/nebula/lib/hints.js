@@ -7,7 +7,7 @@ import { canResume } from "./resume.js";
 import { stripParts } from "./strip.js";
 
 /** The Help dialog's size, for the rail's button and the board's `?`. */
-export const HELP_SIZE = { width: 560, height: 500 };
+export const HELP_SIZE = { width: 560, height: 640 };
 
 const act = (action, def) => ({ action, def });
 const FOLD = act("nebula.keys", "⌃`");

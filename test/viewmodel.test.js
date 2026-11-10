@@ -878,8 +878,8 @@ test("a row carries when it turned unseen and whether that is fresh", () => {
 test("a tab with no change time falls back to the time the board noted", () => {
   const f = fleet();
   const tabs = f.spaces[0].tabs.map((t) => (t.id === "tab7" ? { ...t, changed_at: null } : t));
-  const row = (unseenAt) =>
-    buildBoard({ ...f, spaces: [{ id: "sp", tabs }], unseenAt })
+  const row = (changeAt) =>
+    buildBoard({ ...f, spaces: [{ id: "sp", tabs }], changeAt })
       .repos.flatMap((r) => r.rows)
       .find((r) => r.id === "t7");
   assert.equal(row({}).fresh, false);
@@ -888,9 +888,28 @@ test("a tab with no change time falls back to the time the board noted", () => {
   assert.equal(row({ t7: NOW - 60_000 }).fresh, false);
 });
 
-test("only an unseen row is ever fresh", () => {
+test("only a needs-you, working or unseen row is ever fresh, and only while its state is new", () => {
   const rows = buildBoard({ ...fleet(), now: NOW }).repos.flatMap((r) => r.rows);
-  for (const r of rows) if (r.status !== "unseen") assert.equal(r.fresh, false, r.status);
+  assert.ok(
+    rows.every((r) => r.fresh === false),
+    "every state in the fleet is minutes old",
+  );
+  const f = fleet();
+  const fresh = (id, tab) =>
+    buildBoard({
+      ...f,
+      spaces: [
+        { id: "sp", tabs: f.spaces[0].tabs.map((t) => (t.id === tab ? { ...t, changed_at: NOW - 1000, working_since: t.working_since && NOW - 1000 } : t)) },
+      ],
+    })
+      .repos.flatMap((r) => r.rows)
+      .find((r) => r.id === id);
+  assert.equal(fresh("t1", "tab1").status, "needs");
+  assert.equal(fresh("t1", "tab1").fresh, true, "just began needing you");
+  assert.equal(fresh("t3", "tab3").status, "working");
+  assert.equal(fresh("t3", "tab3").fresh, true, "just began working");
+  assert.equal(fresh("t9", "tab9").status, "seen");
+  assert.equal(fresh("t9", "tab9").fresh, false, "a seen row never pulses");
 });
 
 test("buildBoard marks, per project, the rows that run something other than the project's usual agent", () => {

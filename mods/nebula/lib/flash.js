@@ -6,6 +6,7 @@
 
 export const FLASH_MS = 3000;
 export const NOTHING_WAITING = "Nothing waiting";
+export const NOTHING_DONE = "No finished agent waiting";
 export const HIDDEN_TEXT = "Hidden from board";
 export const NOTHING_TO_UNARCHIVE = "Nothing to unarchive";
 export const RENAMED = "Renamed";
