@@ -1,6 +1,6 @@
 // About herdr-nebula, opened by the nebula logo at the top of the icon bar (role "about"): the logo, what it
-// is, the installed version and its update state (shared "nebula.update", lib/update.js), the repo link,
-// Check for updates, and the credit to nebula. Esc closes it.
+// is, the installed version and its update state (shared "nebula.update", lib/update.js), the repo link
+// and Check for updates. Esc closes it.
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { props, theme, shared, exec, run, window, closeOverlay } from "herdr";
@@ -10,7 +10,6 @@ import { button, escapeKey } from "./ui.js";
 import { fs } from "./lib/scale.js";
 
 const REPO_URL = "https://github.com/kaminskypavel/herdr-nebula";
-const NEBULA_URL = "https://github.com/AgentSystemLabs/nebula";
 export const LOGO = "mods/nebula/icons/nebula-logo.png";
 
 const open = (url, cx) =>
@@ -82,15 +81,7 @@ export class About {
           .items_center()
           .gap(6)
           .text_size(fs(12))
-          .child(link("ab-repo", "kaminskypavel/herdr-nebula", REPO_URL, "icons/gh.svg"))
-          .child(
-            h_flex()
-              .gap(4)
-              .text_color(t.muted)
-              .child("Built on")
-              .child(link("ab-nebula", "nebula", NEBULA_URL, null))
-              .child("by Cody Seibert (MIT)"),
-          ),
+          .child(link("ab-repo", "kaminskypavel/herdr-nebula", REPO_URL, "icons/gh.svg")),
       );
   }
 }

@@ -359,14 +359,15 @@ export class Rail {
         );
         const report = r?.code === 0 ? reportIn(r.stdout) : null;
         if (!report) {
-          if (manual) notify({ title: "Could not check for herdr-nebula updates", body: "Is herdr-nebula installed and online?", level: "warning" });
+          if (manual)
+            notify({ icon: LOGO, title: "Could not check for herdr-nebula updates", body: "Is herdr-nebula installed and online?", level: "warning" });
           return;
         }
         setShared(UPDATE, { ...report, checkedAt: Date.now() });
         const head = localStorage.getItem("update.head");
-        if (head && head !== report.head) notify({ title: "herdr-nebula updated", body: `Now at ${report.head}`, level: "success" });
+        if (head && head !== report.head) notify({ icon: LOGO, title: "herdr-nebula updated", body: `Now at ${report.head}`, level: "success" });
         localStorage.setItem("update.head", report.head);
-        if (manual && updateState(report) === "current") notify({ title: "herdr-nebula is up to date", body: report.head, level: "success" });
+        if (manual && updateState(report) === "current") notify({ icon: LOGO, title: "herdr-nebula is up to date", body: report.head, level: "success" });
         else if (manual || shouldNotify(report, localStorage.getItem("update.seen"))) {
           const n = updateNotice(report);
           if (n) notify(n);
@@ -381,11 +382,12 @@ export class Rail {
 
   // Runs the update. Its reinstall reloads this mod, so success is told by the next check (a new HEAD).
   runUpdate(cx) {
-    notify({ title: "Updating herdr-nebula", body: "Pulling and reinstalling", level: "info", timeout: 3000 });
+    notify({ icon: LOGO, title: "Updating herdr-nebula", body: "Pulling and reinstalling", level: "info", timeout: 3000 });
     cx.spawn(async () => {
       const r = await exec("/bin/sh", ["-c", `"\${SHELL:-/bin/zsh}" -lic 'herdr-nebula update' 2>&1`], { timeout: 300000 }).catch(() => null);
       if (r?.code !== 0)
         notify({
+          icon: LOGO,
           title: "herdr-nebula update failed",
           body: String(r?.stdout ?? "no reply")
             .trim()

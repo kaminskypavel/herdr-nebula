@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/nebula-logo.svg" width="96" height="96" alt="herdr-nebula logo">
+
 # herdr-nebula
 
 **[nebula](https://github.com/AgentSystemLabs/nebula)'s mission control, inside [Herdr](https://herdr.dev).**
@@ -44,6 +46,7 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **Closing says what closes.** Herdr's "Close space?" becomes "Close little-adventures?" with the project's icon, its folder, and the agents it would end with their state (herdr-nebula replaces Herdr's `confirm` mod; the original is kept in `~/.config/herdr-app/backups/confirm-herdr`).
 - **Updates.** The icon bar checks GitHub on start and once a day; a new version comes as a popup ("herdr-nebula update · 3 changes · click to update") and a dot on the Settings gear. A click, Settings' Update, or `herdr-nebula update` pulls it and reinstalls into every Herdr window; `herdr-nebula update --check` only reports. A copy with its own commits or edits is never updated for you.
 - **Text size.** The panels' text follows the terminal's size in Herdr's settings; Settings, Look, Text size scales it further (90% to 140%).
+- **Open in your editor.** A session's right-click menu offers every editor installed on the Mac (Open in Zed, Cursor, VS Code, Windsurf, Sublime Text, WebStorm, Xcode) and Reveal in Finder; <kbd>⇧↩</kbd> opens the first, or the command set in Settings.
 - **Ports.** A session shows the TCP ports its programs listen on (`:3000 :5173`), a dev server its agent started included, like cmux's sidebar. Click one (at the right end of the row, or on the card) to open `localhost:<port>` in the browser; the row's right-click menu has **Open localhost:3000** too. The board looks every 5 seconds while it is shown (`lsof`, matched to the terminal by the `HC_TERMINAL_ID` each program inherits).
 - **Motion that means something.** A working row shows Claude Code's star spinner (`· ✢ ✳ ✶ ✻ ✽`) in place of its dot, and its agent icon bobs. A session that starts needing you nudges once, then its red bar breathes until you look at it; a dot that turns done pops once; a new session row fades in and rises. The icon bar's accent marker and the view switcher's pill spring to the pick, the attention strip slides open and shut, and the toast and the ⌘1 to ⌘9 flash fade in. Everything runs natively (no timers), settles in a fraction of a second and stops when nothing changes, except the spinner and the needs-you breathing. **Reduce motion** in Settings (Look) turns all of it off.
 - **Idle agents sleep.** An agent that is done and seen, has a conversation to resume, and has been out of view (not in the shown tab, not pinned) for 15 minutes gets its CLI stopped to free memory: the terminal stays as a shell, and the row reads "asleep · Enter resumes". Settings, Agents: Sleep idle agents after (Off, 5, 15, 30 or 60 minutes). <kbd>z</kbd> (or the right-click menu) sleeps the highlighted agent now; one that is working, needs you or has no conversation id yet is left alone, with a note saying why.

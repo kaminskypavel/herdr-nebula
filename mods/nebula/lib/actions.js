@@ -1,5 +1,6 @@
 import { inside, norm } from "./projects.js";
 import { canResume } from "./resume.js";
+import { editorItems } from "./editors.js";
 
 // resume: only where the agent has left and its conversation is known (Enter does the same);
 // live: only on an agent still running (it sleeps: its CLI stops, Enter resumes it).
@@ -38,7 +39,7 @@ const rowActions = (row, hasLaunch) =>
       (!a.live || (row.address && !row.exited)) &&
       (a.id !== "archive" || !row.archived) &&
       (a.id !== "unarchive" || row.archived),
-  );
+  ).flatMap((a) => (a.id === "folder" && row.editors ? editorItems(row.editors) : [a])); // one item per installed editor (lib/editors.js)
 
 export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
 

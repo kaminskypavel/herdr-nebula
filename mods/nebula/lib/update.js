@@ -4,6 +4,8 @@
 // changes (a developer checkout) is never updated automatically. Pure, so node can test it. No herdr imports.
 
 export const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
+// The nebula logo, on every herdr-nebula update popup.
+export const LOGO = "mods/nebula/icons/nebula-logo.png";
 
 // { behind, ahead, dirty, branch } (from git) -> "current" | "available" | "local".
 // local: commits or edits of its own, or not on main; the update is left to git.
@@ -19,12 +21,13 @@ export function updateNotice(report) {
   const n = report.behind,
     changes = `${n} change${n === 1 ? "" : "s"}`;
   if (state === "local")
-    return { title: "herdr-nebula has updates", body: `${changes} on GitHub; your copy has its own changes, so pull with git`, level: "info" };
+    return { title: "herdr-nebula has updates", body: `${changes} on GitHub; your copy has its own changes, so pull with git`, level: "info", icon: LOGO };
   const first = (report.subjects ?? [])[0];
   return {
     title: "herdr-nebula update",
     body: first ? `${changes} · ${first} · click to update` : `${changes} · click to update`,
     level: "info",
+    icon: LOGO,
     action: { name: "nebula.update", args: {} },
   };
 }

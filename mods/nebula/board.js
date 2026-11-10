@@ -90,9 +90,10 @@ import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
-import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
+import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, whereIs } from "./lib/actions.js";
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
+import { LIST_APPS, installedEditors, openIn, defaultOpen } from "./lib/editors.js";
 import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
 import { attentionStrip, stripParts } from "./lib/strip.js";
 import { rowText } from "./lib/prompt.js";
@@ -251,6 +252,8 @@ export class Board {
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
     if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
     this.findNebula(cx);
+    this.editors = null; // set by findEditors
+    this.findEditors(cx);
     cx.timer.every(100, (c) => this.watch(c));
     // mod.json makes this mod focusable: Herdr's pane.go (left from the terminal) hands the board the keys.
     cx.spawn(async (cx) => {
@@ -958,6 +961,10 @@ export class Board {
   act(action, row, cx) {
     const launch = row.launch;
     action = rowAction(row, action);
+    if (action.startsWith("editor:")) {
+      this.openFolder(openIn(action.slice(7), whereIs(this.model, row.id)?.band.path || row.cwd), cx);
+      return;
+    }
     if (action === "sleep") {
       this.sleep(row, cx);
       return;
@@ -984,12 +991,7 @@ export class Board {
       const root = whereIs(this.model, row.id)?.repo.root;
       this.openLaunch({ prefill: { ...launch, ...(root && root !== OTHER ? { root } : {}) } });
     } else if (action.startsWith("port:")) this.openUrl(portUrl(action.slice(5)), cx);
-    else if (action === "folder") {
-      const { cmd, args } = editorCommand(shared(SETTINGS)?.editor, whereIs(this.model, row.id)?.band.path || row.cwd);
-      cx.spawn(async () => {
-        await exec(cmd, args).catch(() => null);
-      });
-    }
+    else if (action === "folder") this.openFolder(defaultOpen(shared(SETTINGS)?.editor, this.editors, whereIs(this.model, row.id)?.band.path || row.cwd), cx);
     cx.notify();
   }
 
@@ -1002,6 +1004,22 @@ export class Board {
     if (!port) return false;
     this.openPort(port, cx);
     return true;
+  }
+
+  openFolder(c, cx) {
+    if (!c) return;
+    cx.spawn(async () => {
+      await exec(c.cmd, c.args).catch(() => null);
+    });
+  }
+
+  // The editors installed on this Mac, for the row menu's Open in items (lib/editors.js).
+  findEditors(cx) {
+    cx.spawn(async (cx) => {
+      const r = await exec("/bin/sh", ["-c", LIST_APPS]).catch(() => null);
+      this.editors = installedEditors(r?.stdout ?? "");
+      cx.notify();
+    });
   }
 
   openUrl(url, cx) {
@@ -1018,7 +1036,7 @@ export class Board {
     this.col = 2;
     this.place(item.key);
     const row = item.row,
-      list = actionsFor(row, Boolean(row.launch));
+      list = actionsFor({ ...row, editors: this.editors }, Boolean(row.launch));
     const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
     openOverlay({
       mod: "nebula-box",
@@ -1036,6 +1054,7 @@ export class Board {
         exited: row.exited,
         session: row.session,
         ports: row.ports,
+        editors: this.editors,
       },
     });
     cx.notify();
