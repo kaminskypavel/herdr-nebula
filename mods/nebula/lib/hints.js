@@ -1,8 +1,10 @@
 // The one-line strip at the bottom of the board lists the keys for where you are, after nebula's
-// footer. `hintContext` names the place, `hintPairs` the [key, text] pairs for it, `hintLine` draws
-// them. A key is a literal or { action, def }, drawn as the key bound to the action in keys()
+// footer: at most four pairs and "? more" while the board has the keys, and while the terminal has them
+// (`awayParts`) what waits for you and the keys that go there. `hintContext` names the place,
+// `hintPairs` the [key, text] pairs for it, `hintLine` draws them. A key is a literal or { action, def }, drawn as the key bound to the action in keys()
 // (lib/settings.js shortcutLabel), so a rebind shows. No herdr imports, so node can test it.
 import { canResume } from "./resume.js";
+import { stripParts } from "./strip.js";
 
 /** The Help dialog's size, for the rail's button and the board's `?`. */
 export const HELP_SIZE = { width: 560, height: 500 };
@@ -10,6 +12,8 @@ export const HELP_SIZE = { width: 560, height: 500 };
 const act = (action, def) => ({ action, def });
 const FOLD = act("nebula.keys", "⌃`");
 const JUMP = act("nebula.jump", "⌘J");
+const NEXT = act("nebula.next", "⌘]");
+const NEW = act("mod.open:nebula-box", "⌘K");
 
 /**
  * Where the board's user is. `has`: the board has the keys; `filtering`: the filter field has them;
@@ -32,79 +36,81 @@ export function hintContext({ has, filtering, item, pc, col }) {
   return "empty";
 }
 
-/** The [key, text] pairs for a place. `preview`: the setting, which changes what Enter is said to do. */
+/** Most hint pairs shown while the board has the keys; "? more" follows them. */
+export const MAX_HINTS = 4;
+
+const more = (pairs) => [...pairs.filter(([k]) => k !== "?").slice(0, MAX_HINTS), ["?", "more"]];
+
+/**
+ * The status line while the terminal has the keys: what waits and the keys to get there, as [{ text, tone }]
+ * (lib/strip.js stripParts). `waiting` is { needs, unseen } across the open projects. `label` is shortcutLabel(keys(), mac).
+ */
+export function awayParts(waiting, label) {
+  if (waiting.needs > 0) return stripParts({ needs: waiting.needs, unseen: 0 }, [`${label(NEXT)} go`, `${label(JUMP)} jump`]);
+  if (waiting.unseen > 0) return stripParts({ needs: 0, unseen: waiting.unseen }, [`${label(JUMP)} jump`]);
+  return [{ text: "All quiet", tone: "plain" }, ...stripParts({ needs: 0, unseen: 0 }, [`${label(NEW)} new session`])];
+}
+
+/** The [key, text] pairs for a place (not "away", which is awayParts). `preview`: the setting, which changes what Enter is said to do. */
 export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
   const enter = preview ? "step in" : "open";
   switch (ctx) {
-    case "away":
-      return [
-        [FOLD, "keys to the board"],
-        [JUMP, "jump to an agent"],
-        ["click", "a row to show it"],
-      ];
     case "filter":
       return [
         ["↩", "first match"],
         ["Esc", "clear"],
       ];
     case "columns":
-      return [
+      return more([
         ["j k", "move"],
         ["h l", "column"],
         ["↩", "open"],
         ["p", "new session"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     case "nebula":
-      return [
+      return more([
         ["↩", "resume"],
         ["d", "hide"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     case "archived":
-      return [
+      return more([
         ["↩", "show"],
         ["u", "unarchive"],
         ["d", "delete"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     case "exited":
-      return [
+      return more([
         ["↩", "resume"],
         ["a", "archive"],
         ["d", "delete"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     case "row":
-      return [
+      return more([
         ["↩", enter],
         ["Esc", "to terminal"],
         ["r", "rename"],
         ["a", "archive"],
         ["d", "delete"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     case "vacant":
-      return [["p", "new session"], ...(deletable ? [["d", "delete worktree"]] : []), ["/", "jump"], ["?", "keys"]];
+      return more([["p", "new session"], ...(deletable ? [["d", "delete worktree"]] : []), ["/", "jump"]]);
     case "repo":
-      return [
+      return more([
         ["↩", "fold"],
         ["p", "new session"],
         ["/", "jump"],
-        ["?", "keys"],
-      ];
+      ]);
     default:
-      return [
+      return more([
         ["p", "new session"],
         ["/", "jump"],
         [FOLD, "fold"],
-        ["?", "keys"],
-      ];
+      ]);
   }
 }
 

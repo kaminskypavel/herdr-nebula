@@ -83,7 +83,7 @@ import {
   NOTHING_TO_UNARCHIVE,
   HIDDEN_TEXT,
 } from "./lib/flash.js";
-import { hintContext, hintPairs, hintLine, HELP_SIZE } from "./lib/hints.js";
+import { hintContext, hintPairs, hintLine, awayParts, HELP_SIZE } from "./lib/hints.js";
 import { jumpSize } from "./lib/jump.js";
 import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/open.js";
 import { buildIcons } from "./lib/icons.js";
@@ -1172,6 +1172,7 @@ export class Board {
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
     this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
     this.attn = attentionStrip(this.scoped);
+    this.waiting = attentionStrip(this.base, 0); // across every open project: what ⌘] and ⌘J reach
     this.pinned = shared(PINNED);
     this.promptLine = this.config().promptLine;
     this.pc = this.view === "columns" && this.colMode === "projects" ? projectColumns(this.model, this.cols, this.root, this.tab !== ALL) : null;
@@ -1309,13 +1310,32 @@ export class Board {
       .child(SORT_TITLE[this.sort]);
   }
 
+  // Words joined by " · ": a count in its color (red for needs you, cyan for done), the rest muted. Used by the
+  // attention strip and the status line while the terminal has the keys.
+  partsRow(t, parts) {
+    const tone = { needs: t.ansi1, unseen: t.ansi6, plain: t.muted };
+    return h_flex()
+      .min_w(0)
+      .items_center()
+      .gap(6)
+      .text_size(fs(12))
+      .children(
+        parts.flatMap((p, i) => [
+          ...(i ? [div().flex_none().text_color(t.dim).child("·")] : []),
+          div()
+            .flex_none()
+            .text_color(tone[p.tone])
+            .when(p.tone !== "plain", (el) => el.font_semibold())
+            .child(p.text),
+        ]),
+      );
+  }
+
   // Under the toolbar (render draws it only when something needs you or finished unseen in the shown tab): the counts, the
   // key to go to the next one, and up to three rows to click (the agent shows, the keys stay here).
   strip(t) {
     const a = this.attn;
     const next = shortcutLabel(keys(), window()?.platform === "macos")({ action: "nebula.next", def: "⌘]" });
-    const parts = stripParts(a, [`${next} next`]);
-    const tone = { needs: t.ansi1, unseen: t.ansi6, plain: t.muted };
     return v_flex()
       .id("attention-strip")
       .flex_none()
@@ -1324,23 +1344,7 @@ export class Board {
       .gap(2)
       .border_b(1)
       .border_color(t.border)
-      .child(
-        h_flex()
-          .h(rh(20))
-          .items_center()
-          .gap(6)
-          .text_size(fs(12))
-          .children(
-            parts.flatMap((p, i) => [
-              ...(i ? [div().flex_none().text_color(t.dim).child("·")] : []),
-              div()
-                .flex_none()
-                .text_color(tone[p.tone])
-                .when(p.tone !== "plain", (el) => el.font_semibold())
-                .child(p.text),
-            ]),
-          ),
-      )
+      .child(this.partsRow(t, stripParts(a, [`${next} next`])).h(rh(20)))
       .children(
         a.items.map(({ row, project }) =>
           h_flex()
@@ -1388,35 +1392,49 @@ export class Board {
       );
   }
 
-  // At the left of the status line while the board has the keyboard, so a stray letter is never a surprise: Esc gives them back.
-  keysChip(t) {
+  // At the left of the status line: KEYS (accent) while the board has the keyboard, so a stray letter is never a
+  // surprise (Esc gives them back), FILTER while the filter field has them, else a dim TERMINAL.
+  keyCap(t, ctx, label) {
+    const mine = ctx === "filter" || this.has;
     return h_flex()
       .id("keys-chip")
       .flex_none()
       .h(rh(20))
       .px(6)
-      .mr(8)
+      .mr(10)
       .items_center()
       .rounded(4)
       .border_1()
-      .border_color(t.accent)
+      .border_color(mine ? t.accent : t.border)
       .text_size(fs(11))
       .font_semibold()
-      .text_color(t.accent)
-      .tooltip("The board has the keys. Esc hands them back to the terminal.")
-      .child("KEYS");
+      .text_color(mine ? t.accent : t.dim)
+      .tooltip(
+        mine
+          ? "The board has the keys. Esc hands them back to the terminal."
+          : `The terminal has the keys. Click the board, or ${label({ action: "nebula.keys", def: "⌃`" })}, to give them to the board.`,
+      )
+      .child(ctx === "filter" ? "FILTER" : this.has ? "KEYS" : "TERMINAL");
   }
 
-  // The bottom strip: what the last action did (a few seconds), else the keys for where you are.
+  // The bottom strip: what the last action did (a few seconds); else, while the terminal has the keys, what
+  // waits and the keys to go there; else the hints for where you are (four and "? more").
   statusLine(t) {
     const said = liveFlash(this.flash),
       item = this.byKey.get(this.cursor);
+    const label = shortcutLabel(keys(), window()?.platform === "macos");
     const ctx = hintContext({ has: this.has, filtering: this.filtering, item, pc: this.pc, col: this.col });
-    const pairs = hintPairs(ctx, {
-      preview: this.config().preview,
-      deletable: item?.type === "vacant" && Boolean(item.band.deletable),
-    });
-    const text = said ? said.text : hintLine(pairs, shortcutLabel(keys(), window()?.platform === "macos"));
+    const text = (color, s) => div().min_w(0).truncate().text_color(color).child(s);
+    let body;
+    if (said) body = text(t.foreground, said.text);
+    else if (ctx === "away") body = this.partsRow(t, awayParts(this.waiting, label));
+    else {
+      const pairs = hintPairs(ctx, {
+        preview: this.config().preview,
+        deletable: item?.type === "vacant" && Boolean(item.band.deletable),
+      });
+      body = text(t.muted, hintLine(pairs, label));
+    }
     return h_flex()
       .id("status-line")
       .flex_none()
@@ -1426,9 +1444,8 @@ export class Board {
       .border_t(1)
       .border_color(t.border)
       .text_size(fs(12))
-      .text_color(said ? t.foreground : t.muted)
-      .when(this.has, (el) => el.child(this.keysChip(t)))
-      .child(div().min_w(0).truncate().child(text));
+      .child(this.keyCap(t, ctx, label))
+      .child(body);
   }
 
   canFoldAll() {
