@@ -37,3 +37,8 @@ export const tabHint = (name, n) => (n <= 9 ? { tip: `${name}  \u2318${n}`, num:
 
 // The count in a tab's red pill: the number of sessions that need you, "9+" past nine.
 export const pillText = (n) => (n > 9 ? "9+" : String(n));
+
+// A click on a project icon also hands the (focusable) icon bar the keys, and Herdr tells it "focus"; the bar
+// passes such a "focus" on to the board, except right after a project pick, when the keys belong to the agent
+// the pick showed. pending: a re-show still waiting; at: when the last re-show ran (ms); ms: the re-show delay.
+export const passFocusOn = ({ pending, at, now, ms }) => !pending && now - (at ?? 0) > ms * 2;

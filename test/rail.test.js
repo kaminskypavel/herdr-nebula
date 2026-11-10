@@ -91,3 +91,11 @@ test("pinned projects come first in pin order; the rest keep the open order", as
   assert.deepEqual(togglePinned(["/c", "/a"], "/c"), ["/a"]);
   assert.deepEqual(togglePinned(undefined, "/a"), ["/a"]);
 });
+
+test("the bar passes a focus on to the board, except right after a project pick", async () => {
+  const { passFocusOn } = await import("../mods/nebula/lib/rail.js");
+  assert.equal(passFocusOn({ pending: false, at: undefined, now: 10_000, ms: 250 }), true);
+  assert.equal(passFocusOn({ pending: true, at: undefined, now: 10_000, ms: 250 }), false);
+  assert.equal(passFocusOn({ pending: false, at: 9_800, now: 10_000, ms: 250 }), false);
+  assert.equal(passFocusOn({ pending: false, at: 9_000, now: 10_000, ms: 250 }), true);
+});

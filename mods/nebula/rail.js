@@ -41,7 +41,7 @@ import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
 import { buildBoard } from "./lib/viewmodel.js";
-import { railTabs, tabHint, pillText } from "./lib/rail.js";
+import { railTabs, tabHint, pillText, passFocusOn } from "./lib/rail.js";
 import { landing, rootOf } from "./lib/tabs.js";
 import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
@@ -92,7 +92,7 @@ export class Rail {
         else if (c === "focus") {
           // pane.go reached the icon bar: the board takes the keys. Not after a project pick: that
           // "focus" came from the click on the icon, and the keys belong to the agent it showed.
-          if (!this.repick && Date.now() - (this.repickedAt ?? 0) > REPICK_MS * 2) run("pane.go", { direction: "right" });
+          if (passFocusOn({ pending: Boolean(this.repick), at: this.repickedAt, now: Date.now(), ms: REPICK_MS })) run("pane.go", { direction: "right" });
         } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
         else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
