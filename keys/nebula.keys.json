@@ -3,7 +3,7 @@
     "ctrl-`": "nebula.keys",
     "cmd-]": "nebula.next",
     "cmd-[": "nebula.prev",
-    "cmd-k": "mod.open:nebula-box",
+    "cmd-k": "nebula.new",
     "cmd-j": "nebula.jump",
     "cmd-1": "nebula.tab1",
     "cmd-2": "nebula.tab2",

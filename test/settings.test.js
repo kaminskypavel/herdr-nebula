@@ -80,7 +80,7 @@ test("with no rebinds the groups show the built-in keys", () => {
     ["Anywhere", "New-session box", "Board"],
   );
   assert.equal(rowOf(groups, "Board", "new, presets, view").keys, "p e v");
-  assert.equal(rowOf(groups, "Anywhere", "new session").keys, "⌘K");
+  assert.equal(rowOf(groups, "Anywhere", "new session (p on the board)").keys, "⌘K");
 });
 
 test("a rebind of the focus key in keys() shows the new key", () => {
@@ -89,8 +89,8 @@ test("a rebind of the focus key in keys() shows the new key", () => {
 });
 
 test("a rebound chord shows in Anywhere", () => {
-  const groups = groupShortcuts([{ section: "layout:nebula", keys: "cmd-j", action: "mod.open:nebula-box" }], true);
-  assert.equal(rowOf(groups, "Anywhere", "new session").keys, "⌘J");
+  const groups = groupShortcuts([{ section: "layout:nebula", keys: "cmd-j", action: "nebula.new" }], true);
+  assert.equal(rowOf(groups, "Anywhere", "new session (p on the board)").keys, "⌘J");
 });
 
 test("an unbound action (empty keys) falls back to the built-in key", () => {

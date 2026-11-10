@@ -115,7 +115,7 @@ const SHORTCUTS = [
     rows: [
       { keys: [b("nebula.keys", "⌃`")], text: "board: take keys, fold" },
       { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
-      { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
+      { keys: [b("nebula.new", "⌘K")], text: "new session (p on the board)" },
       { keys: [b("nebula.jump", "⌘J")], text: "jump to any agent, any project" },
       { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
     ],

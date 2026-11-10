@@ -816,9 +816,9 @@ test("a project tab whose worktrees are all empty lists them instead of saying N
 });
 
 test("the vacant line names what p and d do; d only where the worktree may go", () => {
-  assert.equal(vacantHint({ deletable: true }), "nothing running · p new session · d delete worktree");
-  assert.equal(vacantHint({ deletable: false }), "nothing running · p new session");
-  assert.equal(vacantHint({}), "nothing running · p new session");
+  assert.equal(vacantHint({ deletable: true }), "nothing running · ⌘K new session · d delete worktree");
+  assert.equal(vacantHint({ deletable: false }), "nothing running · ⌘K new session");
+  assert.equal(vacantHint({}), "nothing running · ⌘K new session");
 });
 
 test("only a named linked worktree is deletable, never the repo's own checkout or the default branch", () => {

@@ -33,8 +33,8 @@ test("a row says what Enter does, and that Esc hands the keys back; four hints a
 });
 
 test("an empty worktree offers a new session, and delete only where the board may remove it", () => {
-  assert.equal(hintLine(hintPairs("vacant", { deletable: true }), mac), "p new session · d delete worktree · / jump · ? more");
-  assert.equal(hintLine(hintPairs("vacant"), mac), "p new session · / jump · ? more");
+  assert.equal(hintLine(hintPairs("vacant", { deletable: true }), mac), "⌘K new session · d delete worktree · / jump · ? more");
+  assert.equal(hintLine(hintPairs("vacant"), mac), "⌘K new session · / jump · ? more");
 });
 
 test("the filter says how to leave it", () => {
@@ -62,7 +62,7 @@ test("with the keys elsewhere, the line says what waits and the keys to get ther
     [
       { section: "layout:nebula", keys: "ctrl-space", action: "nebula.next" },
       { section: "layout:nebula", keys: "cmd-p", action: "nebula.jump" },
-      { section: "layout:nebula", keys: "cmd-n", action: "mod.open:nebula-box" },
+      { section: "layout:nebula", keys: "cmd-n", action: "nebula.new" },
     ],
     true,
   );
@@ -71,7 +71,7 @@ test("with the keys elsewhere, the line says what waits and the keys to get ther
 });
 
 test("the empty board and a repo header have hints too", () => {
-  assert.equal(hintLine(hintPairs("empty"), mac), "p new session · / jump · ⌃` fold · ? more");
+  assert.equal(hintLine(hintPairs("empty"), mac), "⌘K new session · / jump · ⌃` fold · ? more");
   assert.match(hintLine(hintPairs("repo"), mac), /^↩ fold/);
 });
 

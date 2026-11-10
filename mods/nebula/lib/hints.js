@@ -13,7 +13,7 @@ const act = (action, def) => ({ action, def });
 const FOLD = act("nebula.keys", "⌃`");
 const JUMP = act("nebula.jump", "⌘J");
 const NEXT = act("nebula.next", "⌘]");
-const NEW = act("mod.open:nebula-box", "⌘K");
+const NEW = act("nebula.new", "⌘K");
 
 /**
  * Where the board's user is. `has`: the board has the keys; `filtering`: the filter field has them;
@@ -65,7 +65,7 @@ export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
         ["j k", "move"],
         ["h l", "column"],
         ["↩", "open"],
-        ["p", "new session"],
+        [NEW, "new session"],
         ["/", "jump"],
       ]);
     case "nebula":
@@ -98,16 +98,16 @@ export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
         ["/", "jump"],
       ]);
     case "vacant":
-      return more([["p", "new session"], ...(deletable ? [["d", "delete worktree"]] : []), ["/", "jump"]]);
+      return more([[NEW, "new session"], ...(deletable ? [["d", "delete worktree"]] : []), ["/", "jump"]]);
     case "repo":
       return more([
         ["↩", "fold"],
-        ["p", "new session"],
+        [NEW, "new session"],
         ["/", "jump"],
       ]);
     default:
       return more([
-        ["p", "new session"],
+        [NEW, "new session"],
         ["/", "jump"],
         [FOLD, "fold"],
       ]);

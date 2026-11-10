@@ -222,7 +222,7 @@ export function foldBands(folded, repos, fold) {
 
 // The dim line of a band with no session: what can be done there. `d` is offered only where the
 // board may remove the checkout (never the repo's own, never the default branch).
-export const vacantHint = (band) => `nothing running · p new session${band.deletable ? " · d delete worktree" : ""}`;
+export const vacantHint = (band) => `nothing running · ⌘K new session${band.deletable ? " · d delete worktree" : ""}`;
 
 function bandItems(repo, folded) {
   return repo.bands.flatMap((b) => [

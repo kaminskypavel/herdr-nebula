@@ -95,6 +95,8 @@ export class Rail {
           if (passFocusOn({ pending: Boolean(this.repick), at: this.repickedAt, now: Date.now(), ms: REPICK_MS })) run("pane.go", { direction: "right" });
         } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
+        else if (c === "new" && shared(BOARD_KEYS) !== true)
+          openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 640, height: 520 }); // ⌘K from an agent: its project (the board opens it when it has the keys)
         else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
         cx.notify();
       }
@@ -407,6 +409,30 @@ export class Rail {
     });
   }
 
+  // The project tabs: pinned ones sit together in a tray with a pin on top (a soft panel, so they read as
+  // one group), the rest follow below it.
+  pinTray(t, tabs, selected) {
+    const tabOf = (p, i) => this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 });
+    const pinned = tabs.items.filter((p) => p.pinned);
+    const rest = tabs.items.map((p, i) => [p, i]).filter(([p]) => !p.pinned);
+    if (!pinned.length) return tabs.items.map(tabOf);
+    const tray = v_flex()
+      .flex_none()
+      .items_center()
+      .gap(4)
+      .pt(4)
+      .pb(5)
+      .px(3)
+      .rounded(12)
+      .bg(t.raised)
+      .border_1()
+      .border_color(t.border)
+      .tooltip("Pinned")
+      .child(svg(icon("pin")).size(11).text_color(t.muted))
+      .children(pinned.map((p) => tabOf(p, tabs.items.indexOf(p))));
+    return [tray, div().flex_none().h(4), ...rest.map(([p, i]) => tabOf(p, i))];
+  }
+
   // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
   // when agents there need you, a red pill with how many.
   projectTab(t, p, { open, selected, n }) {
@@ -480,14 +506,7 @@ export class Rail {
             .items_center()
             .gap(4)
             .overflow_y_scroll()
-            .children(
-              tabs.items.flatMap((p, i) => {
-                const tab = this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 });
-                // A short line under the last pinned project, when unpinned ones follow.
-                const last = p.pinned && tabs.items[i + 1] && !tabs.items[i + 1].pinned;
-                return last ? [tab, div().flex_none().w(24).h(1).my(2).bg(t.border)] : [tab];
-              }),
-            ),
+            .children(this.pinTray(t, tabs, selected)),
         )
         .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
         .child(div().flex_1())

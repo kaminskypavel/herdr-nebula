@@ -52,7 +52,12 @@ let have;
 try { have = text === null ? {} : JSON.parse(text); } catch (e) { console.error(`keys: ${to} is not valid JSON (${e.message}); left alone`); process.exit(1); }
 let added = 0;
 // nebula.focus was renamed nebula.keys (Herdr sends a focusable mod a bare "focus" of its own).
-for (const binds of Object.values(have)) for (const [key, action] of Object.entries(binds ?? {})) if (action === "nebula.focus") { binds[key] = "nebula.keys"; added++; }
+// mod.open:nebula-box became nebula.new in the nebula layout (one New session key that follows the board).
+const RENAMED = { "nebula.focus": "nebula.keys" };
+for (const [section, binds] of Object.entries(have)) for (const [key, action] of Object.entries(binds ?? {})) {
+  const to = RENAMED[action] ?? (section === "layout:nebula" && action === "mod.open:nebula-box" ? "nebula.new" : null);
+  if (to) { binds[key] = to; added++; }
+}
 for (const [section, binds] of Object.entries(want)) {
   have[section] ??= {};
   for (const [key, action] of Object.entries(binds)) {

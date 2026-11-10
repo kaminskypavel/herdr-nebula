@@ -250,8 +250,11 @@ export class Board {
     // mod.json makes this mod focusable: Herdr's pane.go (left from the terminal) hands the board the keys.
     cx.spawn(async (cx) => {
       for (;;) {
-        if (String(await nextCommand()) !== "focus") continue;
-        this.handle.focus();
+        const c = String(await nextCommand());
+        if (c === "focus") this.handle.focus();
+        else if (c === "new" && this.has)
+          this.openLaunch(); // ⌘K while the board has the keys: like p (the rail opens it otherwise)
+        else continue;
         cx.notify();
       }
     });
@@ -1272,7 +1275,17 @@ export class Board {
       )
       .child(this.filterBox(t))
       .child(this.sortButton(t))
-      .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch()));
+      .child(
+        this.headerButton(
+          t,
+          "new-session",
+          "plus",
+          "New session",
+          shortcutLabel(keys(), window()?.platform === "macos")({ action: "nebula.new", def: "⌘K" }),
+          compact,
+          () => this.openLaunch(),
+        ),
+      );
   }
 
   filterBox(t) {
