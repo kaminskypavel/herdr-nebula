@@ -56,6 +56,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
 const RAIL_W = 76;
 const REPICK_MS = 250; // after a project pick, when the bar shows its agent once more (see pick)
+const PIN_ICON = "mods/nebula/icons/pin.svg";
 const ICON = 32; // a project icon's size inside its 42px button
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
@@ -381,16 +382,15 @@ export class Rail {
             .absolute()
             .left(Math.max(0, (size - ICON) / 2) - 2)
             .top(Math.max(0, (size - ICON) / 2) - 2)
-            .min_w(15)
-            .h(15)
-            .px(3)
-            .rounded(4)
-            .bg(t.chrome)
+            .min_w(13)
+            .h(13)
+            .px(2)
+            .rounded(3)
+            .bg("#00000073")
             .flex()
             .items_center()
             .justify_center()
             .text_size(fs(11))
-            .font_semibold()
             .text_color(on ? t.foreground : t.muted)
             .child(String(num)),
         ),
@@ -409,28 +409,14 @@ export class Rail {
     });
   }
 
-  // The project tabs: pinned ones sit together in a tray with a pin on top (a soft panel, so they read as
-  // one group), the rest follow below it.
+  // The project tabs: pinned ones first, each with a pin on its corner, and a short line under them
+  // when unpinned ones follow.
   pinTray(t, tabs, selected) {
-    const tabOf = (p, i) => this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 });
-    const pinned = tabs.items.filter((p) => p.pinned);
-    const rest = tabs.items.map((p, i) => [p, i]).filter(([p]) => !p.pinned);
-    if (!pinned.length) return tabs.items.map(tabOf);
-    const tray = v_flex()
-      .flex_none()
-      .items_center()
-      .gap(4)
-      .pt(4)
-      .pb(5)
-      .px(3)
-      .rounded(12)
-      .bg(t.raised)
-      .border_1()
-      .border_color(t.border)
-      .tooltip("Pinned")
-      .child(svg(icon("pin")).size(11).text_color(t.muted))
-      .children(pinned.map((p) => tabOf(p, tabs.items.indexOf(p))));
-    return [tray, div().flex_none().h(4), ...rest.map(([p, i]) => tabOf(p, i))];
+    return tabs.items.flatMap((p, i) => {
+      const tab = this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 });
+      const last = p.pinned && tabs.items[i + 1] && !tabs.items[i + 1].pinned;
+      return last ? [tab, div().flex_none().w(24).h(1).my(2).bg(t.border)] : [tab];
+    });
   }
 
   // A project's tab: its icon (the shared picture or initials) with the status dot at the corner, or,
@@ -468,7 +454,27 @@ export class Rail {
                 .child(pillText(p.needs)),
             )
         : face;
-    return this.button(t, `proj-${p.root}`, hint.tip, () => this.pick(p.root), icon, {
+    const shown = p.pinned
+      ? div()
+          .relative()
+          .size(ICON)
+          .flex_none()
+          .child(icon)
+          .child(
+            div()
+              .absolute()
+              .right(-4)
+              .top(-4)
+              .size(14)
+              .rounded_full()
+              .bg(ring)
+              .flex()
+              .items_center()
+              .justify_center()
+              .child(svg(PIN_ICON).size(9).text_color(t.accent)),
+          )
+      : icon;
+    return this.button(t, `proj-${p.root}`, p.pinned ? `${hint.tip} · pinned` : hint.tip, () => this.pick(p.root), shown, {
       on: p.on,
       mark: true,
       size: 42,
