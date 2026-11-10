@@ -55,6 +55,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
 const RAIL_W = 76;
+const REPICK_MS = 250; // after a project pick, when the bar shows its agent once more (see pick)
 const ICON = 32; // a project icon's size inside its 42px button
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
@@ -88,9 +89,11 @@ export class Rail {
       for (;;) {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
         if (c === "keys") this.send({ type: "chord" }, cx);
-        else if (c === "focus")
-          run("pane.go", { direction: "right" }); // pane.go reached the icon bar: the board takes the keys
-        else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
+        else if (c === "focus") {
+          // pane.go reached the icon bar: the board takes the keys. Not after a project pick: that
+          // "focus" came from the click on the icon, and the keys belong to the agent it showed.
+          if (!this.repick && Date.now() - (this.repickedAt ?? 0) > REPICK_MS * 2) run("pane.go", { direction: "right" });
+        } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
         else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
         cx.notify();
@@ -179,6 +182,11 @@ export class Rail {
   }
 
   watch(cx) {
+    if (this.repick && Date.now() >= this.repick.at) {
+      run(this.repick.c.name, this.repick.c.args);
+      this.repick = null;
+      this.repickedAt = Date.now();
+    }
     if (this.hud && Date.now() > this.hud.until) {
       closeOverlay(this.hud.id);
       this.hud = null;
@@ -291,17 +299,20 @@ export class Rail {
     else this.send({ type: "chord" }, cx);
   }
 
-  // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
   // Switches to a project, like switching a workspace: the board shows it, the main area its agent
-  // (lib/tabs.js landing). A project with no live agent only changes the board.
+  // (lib/tabs.js landing). A project with no live agent only changes the board. A click on the icon also
+  // gives this bar the keyboard (mod.json makes the mod focusable), which raced the agent's focus and
+  // left the old agent shown, so watch() asks once more a beat later and the bar ignores that "focus".
   pick(root) {
     setShared(REPO, root);
     const row = landing(this.model, root, this.lastIn[root]);
     if (!row) return;
     const c = focusCommand(row);
     run(c.name, c.args);
+    this.repick = { c, at: Date.now() + REPICK_MS };
   }
 
+  // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
   pickTab(n) {
     const p = this.tabs.items[n - 1];
     if (!p) return;

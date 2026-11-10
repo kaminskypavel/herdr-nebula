@@ -8,9 +8,10 @@
 # - layouts/nebula.json -> <target>/layouts
 # - keys/nebula.keys.json merged into <target>/keys.json: bindings you have stay as they
 #   are, in the same order; only missing ones are added (a backup is kept when it changes)
-# - mods/toast -> <target>/mods/toast, in place of Herdr's own toast mod (how every notification
-#   looks; ours names the agent's session and what it last said). Herdr's is kept once in
-#   <target>/backups/toast-herdr; copy it back to undo.
+# - mods/toast and mods/confirm -> <target>/mods, in place of Herdr's own toast mod (how every
+#   notification looks; ours names the agent's session and what it last said) and confirm mod (ours
+#   names the space or tab a close would end, with its project icon and agents). Herdr's are kept
+#   once in <target>/backups/<mod>-herdr; copy one back to undo.
 # - herdr-app check on the installed mods
 # - bin/herdr-nebula.mjs linked as ~/.local/bin/herdr-nebula, and its prompt hook added to
 #   Claude and Codex settings (real install only)
@@ -31,13 +32,15 @@ rsync -a --delete $skip --exclude=/lib "$repo/mods/nebula-box/" "$target/mods/ne
 rsync -a --delete "$repo/mods/nebula/lib/" "$repo/mods/nebula-box/lib/"
 # shellcheck disable=SC2086
 rsync -a --delete $skip "$repo/mods/nebula/lib/" "$target/mods/nebula-box/lib/"
-if [ -f "$target/mods/toast/main.js" ] && ! grep -q "herdr-nebula" "$target/mods/toast/main.js" && [ ! -d "$target/backups/toast-herdr" ]; then
-  mkdir -p "$target/backups"
-  cp -R "$target/mods/toast" "$target/backups/toast-herdr"
-fi
-mkdir -p "$target/mods/toast"
-# shellcheck disable=SC2086
-rsync -a --delete $skip "$repo/mods/toast/" "$target/mods/toast/"
+for m in toast confirm; do
+  if [ -f "$target/mods/$m/main.js" ] && ! grep -q "herdr-nebula" "$target/mods/$m/main.js" && [ ! -d "$target/backups/$m-herdr" ]; then
+    mkdir -p "$target/backups"
+    cp -R "$target/mods/$m" "$target/backups/$m-herdr"
+  fi
+  mkdir -p "$target/mods/$m"
+  # shellcheck disable=SC2086
+  rsync -a --delete $skip "$repo/mods/$m/" "$target/mods/$m/"
+done
 cmp -s "$repo/layouts/nebula.json" "$target/layouts/nebula.json" || cp "$repo/layouts/nebula.json" "$target/layouts/nebula.json"
 
 node - "$repo/keys/nebula.keys.json" "$target/keys.json" <<'JS'
@@ -66,6 +69,7 @@ JS
 herdr-app check "$target/mods/nebula"
 herdr-app check "$target/mods/nebula-box"
 herdr-app check "$target/mods/toast"
+herdr-app check "$target/mods/confirm"
 if [ "$target" = "$HOME/.config/herdr-app" ]; then
   mkdir -p "$HOME/.local/bin"
   ln -sfn "$repo/bin/herdr-nebula.mjs" "$HOME/.local/bin/herdr-nebula"
