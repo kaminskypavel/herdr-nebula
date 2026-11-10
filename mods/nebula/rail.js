@@ -49,7 +49,7 @@ import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
 import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
-import { setReduceMotion } from "./lib/motion.js";
+import { setReduceMotion, animate, markerTops, FADE, SPRING } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
 import { HELP_SIZE } from "./lib/hints.js";
 import { NOTHING_WAITING } from "./lib/flash.js";
@@ -349,7 +349,7 @@ export class Rail {
   }
 
   // One button. opts: { on (lit: the board is shown, or this tab is selected), dot (a red dot: something needs you),
-  // mark (an accent bar on the bar's left edge while on), size (default 32), menu (a right-click handler),
+  // mark (an accent bar on the bar's left edge while on; the project tabs use the marker instead), size (default 32), menu (a right-click handler),
   // num (the ⌘ number, on a small chip in the icon's top-left corner, opposite the status dot) }.
   button(t, id, tip, action, child, { on = false, dot = false, mark = false, size = 32, menu = null, num = null } = {}) {
     return div()
@@ -481,11 +481,31 @@ export class Rail {
       : icon;
     return this.button(t, `proj-${p.root}`, p.pinned ? `${hint.tip} · pinned` : hint.tip, () => this.pick(p.root), shown, {
       on: p.on,
-      mark: true,
       size: 42,
       num: hint.num,
       menu: () => this.projectMenu(p, open, selected),
     });
+  }
+
+  // The accent bar at the bar's left edge: one marker in the scrolling project list, so it scrolls with the tabs,
+  // that springs to the selected tab and fades out when no project is selected (All has its own static bar).
+  marker(t, tabs) {
+    const at = tabs.items.findIndex((p) => p.on),
+      tops = markerTops(tabs.items);
+    if (at >= 0) this.markTop = tops[at];
+    return animate(
+      div()
+        .id("rail-mark")
+        .absolute()
+        .left(0)
+        .top(this.markTop ?? tops[0] ?? 0)
+        .w(3)
+        .h(16)
+        .rounded(2)
+        .bg(t.accent)
+        .opacity(at >= 0 ? 1 : 0),
+      (el) => el.spring("top", SPRING).transition("opacity", FADE),
+    );
   }
 
   render() {
@@ -518,7 +538,9 @@ export class Rail {
             .items_center()
             .gap(4)
             .overflow_y_scroll()
-            .children(this.pinTray(t, tabs, selected)),
+            .relative()
+            .children(this.pinTray(t, tabs, selected))
+            .child(this.marker(t, tabs)),
         )
         .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
         .child(div().flex_1())

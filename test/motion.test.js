@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP } from "../mods/nebula/lib/motion.js";
+import { setReduceMotion, reduced, animate, STAR, STAR_MS, BOB, SPRING, POP, markerTops } from "../mods/nebula/lib/motion.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 // A stand-in element: records the calls made on it.
@@ -53,4 +53,12 @@ test("springs settle in about 300 ms without wobble", () => {
   assert.equal(SPRING.response, 300);
   assert.ok(SPRING.damping >= 0.95 && SPRING.damping <= 1);
   assert.ok(POP > 8, "a done dot pops bigger than its 8px");
+});
+
+test("the marker sits at each tab's middle, 46 px apart, with the pinned divider between", () => {
+  assert.deepEqual(markerTops([]), []);
+  assert.deepEqual(markerTops([{ pinned: false }, { pinned: false }, { pinned: false }]), [13, 59, 105]);
+  assert.deepEqual(markerTops([{ pinned: true }, { pinned: true }, { pinned: false }, { pinned: false }]), [13, 59, 114, 160]);
+  assert.deepEqual(markerTops([{ pinned: true }, { pinned: true }]), [13, 59], "all pinned: no divider");
+  assert.deepEqual(markerTops([{ pinned: false }, { pinned: true }]), [13, 59], "a divider only after the last pin");
 });
