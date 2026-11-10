@@ -14,8 +14,13 @@
 //                       the prompt line on rows, whether empty worktrees get a band
 //   nebula.resumed      { [nebulaId]: terminal } the nebula sessions this board resumed in Herdr (written here)
 //   nebula.pinned       the terminal pinned beside the active tab, or null (written here; lib/pin.js edits the layout)
-// Moving the cursor (j, k, arrows, the attention keys) only highlights a row; Enter or a
-// double click shows the agent. The cursor is a session's address, never an index.
+//   nebula.flash        { text, n, undo? } a dialog's line for the status line (lib/flash.js)
+//   nebula.goto         { id, n } the jump palette's pick: the cursor goes to that session
+// Moving the cursor (j, k, arrows, the attention keys, a click) shows that agent in the main area
+// while the board keeps the keys (lib/preview.js; the setting "Preview while moving"); Enter or a
+// double click steps in, Esc hands the keys back to the terminal. The cursor is a session's address,
+// never an index. The bottom strip is the status line: key hints for where you are, or what the last
+// action did for a few seconds.
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
 import {
@@ -38,6 +43,8 @@ import {
   focused,
   settings,
   hc,
+  keys,
+  window,
 } from "herdr";
 import { putToSleep, hasExited } from "./sleeper.js";
 import { canResume, resumeCommand } from "./lib/resume.js";
@@ -60,8 +67,23 @@ import {
   withHidden,
 } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
-import { mergeSettings, cycleOf, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
-import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS, HIDDEN } from "./lib/shared.js";
+import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
+import { ALL, SUMMARY, REPO, SETTINGS, FOCUS_BOARD, BOARD_KEYS, ROW_ACTION, RESUMED, PINNED, OPEN, ICONS, HIDDEN, FLASH, GOTO } from "./lib/shared.js";
+import { PREVIEW_MS, HOLD_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
+import {
+  makeFlash,
+  liveFlash,
+  uKey,
+  archivedFlash,
+  unarchivedFlash,
+  asleepFlash,
+  resumingFlash,
+  NOTHING_WAITING,
+  NOTHING_TO_UNARCHIVE,
+  HIDDEN_TEXT,
+} from "./lib/flash.js";
+import { hintContext, hintPairs, hintLine, HELP_SIZE } from "./lib/hints.js";
+import { jumpSize } from "./lib/jump.js";
 import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/open.js";
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
@@ -88,7 +110,7 @@ import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
-import { fs, setTextScale } from "./lib/scale.js";
+import { fs, rh, setTextScale } from "./lib/scale.js";
 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
@@ -136,6 +158,15 @@ export class Board {
     this.has = false;
     this.asked = shared(FOCUS_BOARD);
     this.acted = shared(ROW_ACTION)?.n ?? 0;
+    this.flashN = shared(FLASH)?.n ?? 0;
+    this.gotoN = shared(GOTO)?.n ?? 0;
+    this.flash = null; // the status line's message: { text, until } (lib/flash.js)
+    this.undo = null; // the last archive `u` takes back: { tab, title }
+    this.previewToken = 0; // a newer cursor move cancels the preview waiting for its 150 ms
+    this.epoch = 0; // Esc or stepping in cancels the refocus a preview still has waiting
+    this.holdUntil = 0; // the board keeps saying it has the keys while Herdr moves focus for a preview
+    this.previewed = null; // the row last shown by a preview or by stepping in: where Esc hands the keys
+    this.lastPane = null; // the pane that had the keys before the board did
     this.view = viewOf(load("view", mergeSettings(shared(SETTINGS)).view)).id;
     this.folded = new Set(load("tree.folded", []));
     this.bandsFolded = new Set(load("bands.folded", [])); // worktree band paths, in every view but Columns
@@ -144,7 +175,7 @@ export class Board {
     this.filter = ""; // not persisted
     this.filtering = false; // the filter input has the keyboard
     this.leftAt = 0;
-    this.input = InputState.new({ placeholder: "Filter" });
+    this.input = InputState.new({ placeholder: "Filter · f" });
     this.input.on("change", (_e, cx) => {
       this.filter = this.input.value();
       cx.notify();
@@ -352,7 +383,9 @@ export class Board {
       this.handle.focus();
       for (const ms of REFOCUS_MS) cx.timer.after(ms, () => this.handle.focus());
     }
-    const has = this.handle.is_focused();
+    const real = this.handle.is_focused();
+    if (real) this.holdUntil = 0;
+    const has = real || Date.now() < this.holdUntil;
     if (has !== this.has) {
       this.has = has;
       setShared(BOARD_KEYS, has);
@@ -360,6 +393,10 @@ export class Board {
     }
     const f = focused(),
       term = f?.terminal ?? f?.agent ?? null;
+    if (!has) {
+      if (f?.pane) this.lastPane = f.pane;
+      if (this.previewed && f?.terminal && f.terminal !== this.previewed.address) this.previewed = null; // the user went elsewhere
+    }
     if (term !== this.lastTerm && this.all) {
       const r = followFocus({ terminal: term, last: this.lastTerm, boardKeys: has, model: this.all });
       this.lastTerm = r.last;
@@ -398,6 +435,23 @@ export class Board {
       )
     ) {
       this.setPin(null);
+      cx.notify();
+    }
+    const said = shared(FLASH);
+    if (said && said.n !== this.flashN) {
+      this.flashN = said.n;
+      this.say(said.text, said.undo, cx);
+    }
+    const jumped = shared(GOTO);
+    if (jumped && jumped.n !== this.gotoN) {
+      this.gotoN = jumped.n;
+      if (this.all) {
+        this.goTo(jumped.id, cx);
+        cx.notify();
+      }
+    }
+    if (this.flash && !liveFlash(this.flash)) {
+      this.flash = null;
       cx.notify();
     }
     const picked = shared(ROW_ACTION);
@@ -573,6 +627,62 @@ export class Board {
     this.persistFolds();
   }
 
+  // The status line says `text` for a few seconds; `undo` is the archive `u` takes back.
+  say(text, undo, cx) {
+    this.flash = makeFlash(text, undo);
+    if (undo) this.undo = undo;
+    cx?.notify();
+  }
+
+  // Preview while moving: shows the highlighted agent in the main area (pane.focus selects its tab and
+  // marks it seen) and takes the keys straight back, again after each REFOCUS_MS unless Esc, Enter or
+  // a click elsewhere has taken them (this.epoch). lib/preview.js has the reasoning.
+  schedulePreview(cx) {
+    if (!this.config().preview) return;
+    const token = ++this.previewToken;
+    cx.timer.after(PREVIEW_MS, () => {
+      if (token === this.previewToken) this.preview(cx);
+    });
+  }
+
+  // `clicked`: the board was just given the keys by the click, which watch() has not seen yet.
+  preview(cx, clicked = false) {
+    const row = previewTarget(this.byKey.get(this.cursor));
+    if (!row || !(clicked || this.has)) return;
+    const epoch = this.epoch,
+      take = () => this.handle.focus();
+    this.previewed = row;
+    this.lastTerm = row.address; // so follow focus does not take the move for the user's own
+    this.holdUntil = Date.now() + HOLD_MS;
+    const c = focusCommand(row);
+    run(c.name, c.args);
+    take();
+    for (const ms of REFOCUS_MS)
+      cx.timer.after(ms, () => {
+        if (epoch === this.epoch && refocusDue({ focused: focused(), row, has: this.handle.is_focused() })) take();
+      });
+  }
+
+  // Esc: the keys go back to the agent in the main area; the board stays shown.
+  giveBack(cx) {
+    this.previewToken++;
+    this.epoch++;
+    this.holdUntil = 0;
+    const c = giveBackTarget({ previewed: this.previewed, lastPane: this.lastPane, panes: panes() });
+    if (c) run(c.name, c.args);
+    cx.notify();
+  }
+
+  // `u` with no archived row under the cursor: brings back the last archived session.
+  undoArchive(u, cx) {
+    if (u.kind === "undo") {
+      const c = tabCommand("unarchive", u.tab);
+      run(c.name, c.args);
+      this.undo = null;
+      this.say(unarchivedFlash(u.title), undefined, cx);
+    } else this.say(NOTHING_TO_UNARCHIVE, undefined, cx);
+  }
+
   // Resumes a nebula session in Herdr: a new tab (or space) in its worktree running
   // `claude --resume`, as a fork while nebula still runs it, named after it. Then shows it.
   // Already resumed here: shows that copy instead of forking another.
@@ -585,6 +695,7 @@ export class Board {
     }
     if (this.resuming.has(s.id)) return;
     this.resuming.add(s.id);
+    this.say(resumingFlash(s.name), undefined, cx);
     const plan = planLaunch({
       checkouts: [...this.repos().flatMap((r) => r.checkouts), { path: s.worktree, branch: s.branch }],
       checkout: s.worktree,
@@ -631,6 +742,7 @@ export class Board {
     const cmd = resumeCommand(row.session, row.launch);
     if (!cmd || !hasExited(row.address) || this.resuming.has(row.address)) return;
     this.resuming.add(row.address);
+    this.say(resumingFlash(row.title), undefined, cx);
     cx.spawn(async (cx) => {
       const r = await hc(["send", row.address, cmd]).catch(() => null);
       this.resuming.delete(row.address);
@@ -652,8 +764,9 @@ export class Board {
       return;
     }
     cx.spawn(async (cx) => {
-      if ((await putToSleep(row.address, cx)) === "stuck")
-        notify({ title: "Could not stop the agent", body: `${row.title} is still running.`, level: "error", timeout: 5000 });
+      const r = await putToSleep(row.address, cx);
+      if (r === "stuck") notify({ title: "Could not stop the agent", body: `${row.title} is still running.`, level: "error", timeout: 5000 });
+      else if (r === "asleep") this.say(asleepFlash(row.title), undefined, cx);
       cx.notify();
     });
   }
@@ -661,13 +774,17 @@ export class Board {
   // Shows the agent in the terminal (a parked one has no pane); a nebula row resumes, and so
   // does an exited or asleep agent with a known conversation, in its own terminal.
   show(row, cx) {
+    this.previewToken++; // stepping in: a preview waiting for its 150 ms, or its refocus, must not take the keys back
+    this.epoch++;
+    this.holdUntil = 0;
     if (row.kind === "nebula") {
       this.resume(row, cx);
       return;
     }
     if (canResume(row)) this.resumeHere(row, cx);
-    if (row.pane) run("pane.focus", { pane: row.pane });
-    else run("agent.focus", { terminal: row.address });
+    this.previewed = row;
+    const c = focusCommand(row);
+    run(c.name, c.args);
   }
 
   place(key) {
@@ -712,7 +829,12 @@ export class Board {
       this.col = 2;
       this.place(item.key);
       if (shift) this.pinRow(item.row);
-      else this.show(item.row, cx);
+      else if (dbl || !this.config().preview)
+        this.show(item.row, cx); // a double click steps in; the first click only looks
+      else {
+        this.previewToken++;
+        this.preview(cx, true);
+      }
     } else if (item.type === "vacant") this.place(item.key);
     else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {
@@ -788,13 +910,20 @@ export class Board {
       return;
     }
     if (!actionsFor(row, Boolean(launch)).some((a) => a.id === action)) return;
-    if (action === "hide") setShared(HIDDEN, withHidden(shared(HIDDEN), row.nebula.id));
-    else if (action === "resume") this.show(row, cx);
+    if (action === "hide") {
+      setShared(HIDDEN, withHidden(shared(HIDDEN), row.nebula.id));
+      this.say(HIDDEN_TEXT, undefined, cx);
+    } else if (action === "resume") this.show(row, cx);
     else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : row.title });
     else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive) box(440, 190, { role: "archive-confirm", tab: row.tab, title: row.title });
     else if (action === "archive" || action === "unarchive") {
       const c = tabCommand(action, row.tab);
       run(c.name, c.args);
+      if (action === "archive") this.say(archivedFlash(row.title), { tab: row.tab, title: row.title }, cx);
+      else {
+        if (this.undo?.tab === row.tab) this.undo = null;
+        this.say(unarchivedFlash(row.title), undefined, cx);
+      }
     } else if (action === "delete") {
       const p = this.deleteProps(row);
       box(520, p.offer ? 460 : 250, { role: "confirm", ...p });
@@ -887,7 +1016,14 @@ export class Board {
     this.place(this.byKey.has(key) ? key : null);
   }
 
+  // A key on the board; a move of the cursor then shows the agent under it (after the 150 ms).
   key(e, cx) {
+    const before = this.cursor;
+    this.onKey(e, cx);
+    if (this.cursor !== before && !this.filtering) this.schedulePreview(cx);
+  }
+
+  onKey(e, cx) {
     const m = e.modifiers ?? {};
     if (this.filtering) {
       this.filterKey(e.key, cx);
@@ -898,14 +1034,20 @@ export class Board {
     const k = e.key,
       item = this.byKey.get(this.cursor),
       act = rowActionOf(k, m);
+    if (k === "escape") {
+      this.giveBack(cx);
+      return;
+    }
     if (this.pc && this.columnKey(k, m)) {
       cx.notify();
       return;
     }
+    const u = k === "u" && !m.shift ? uKey(item?.type === "session" ? item.row : null, this.undo) : null;
     if (k === "j" || k === "down" || k === "k" || k === "up") {
       this.place(stepCursor(this.stops, this.cursor, k === "j" || k === "down" ? 1 : -1));
       this.reveal(cx, this.cursor);
-    } else if (act && item?.type === "session") this.act(act, item.row, cx);
+    } else if (u && u.kind !== "row") this.undoArchive(u, cx);
+    else if (act && item?.type === "session") this.act(act, item.row, cx);
     else if (act === "delete" && item?.type === "vacant") this.deleteBand(item);
     else if (k === "enter") {
       if (item?.type === "session") this.show(item.row, cx);
@@ -918,12 +1060,15 @@ export class Board {
     } else if (k === "." || k === ",") {
       const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, k === "." ? 1 : -1);
       if (id) this.goTo(id, cx);
+      else this.say(NOTHING_WAITING, undefined, cx);
     } else if (k === "s") {
       if (item?.type === "session") this.pinRow(item.row);
     } else if (k === "v") {
       this.setView(cycleOf(VIEW_IDS, this.view, 1), cx);
-    } else if (k === "/") {
-      cx.timer.after(1, () => this.input.focus()); // after this key, so the "/" is not typed into it
+    } else if (k === "?" || (k === "/" && m.shift)) box(HELP_SIZE.width, HELP_SIZE.height, { role: "help" });
+    else if (k === "/") this.openJump();
+    else if (k === "f") {
+      cx.timer.after(1, () => this.input.focus()); // after this key, so the "f" is not typed into it
       return;
     } else if (k === "p") this.openLaunch();
     else if (k === "e") this.openPresets();
@@ -993,6 +1138,12 @@ export class Board {
     }
   }
 
+  // The jump palette (nebula-box, role "jump"): every agent of every project, open or closed.
+  openJump() {
+    const size = jumpSize();
+    openOverlay({ mod: "nebula-box", kind: "dialog", width: size.width, height: size.height, props: { role: "jump" } });
+  }
+
   openPicker() {
     openOverlay({
       mod: "nebula-box",
@@ -1050,10 +1201,50 @@ export class Board {
               ),
           )
           .child(div().flex_1())
+          .when(this.has, (el) => el.child(this.keysChip(t)))
           .child(this.headerButton(t, "presets", "bookmark", "Presets", "e", compact, () => this.openPresets()).mr(8))
           .child(this.headerButton(t, "new-session", "plus", "New session", "p", compact, () => this.openLaunch())),
       )
       .child(this.toolbar(t));
+  }
+
+  // Shown while the board has the keyboard, so a stray letter is never a surprise: Esc gives them back.
+  keysChip(t) {
+    return h_flex()
+      .id("keys-chip")
+      .flex_none()
+      .h(18)
+      .px(6)
+      .mr(8)
+      .items_center()
+      .rounded(4)
+      .border_1()
+      .border_color(t.accent)
+      .text_size(fs(10))
+      .font_semibold()
+      .text_color(t.accent)
+      .tooltip("The board has the keys. Esc hands them back to the terminal.")
+      .child("KEYS");
+  }
+
+  // The bottom strip: what the last action did (a few seconds), else the keys for where you are.
+  statusLine(t) {
+    const said = liveFlash(this.flash),
+      item = this.byKey.get(this.cursor);
+    const ctx = hintContext({ has: this.has, filtering: this.filtering, item, pc: this.pc, col: this.col });
+    const pairs = hintPairs(ctx, { preview: this.config().preview, deletable: item?.type === "vacant" && Boolean(item.band.deletable) });
+    const text = said ? said.text : hintLine(pairs, shortcutLabel(keys(), window()?.platform === "macos"));
+    return h_flex()
+      .id("status-line")
+      .flex_none()
+      .h(rh(26))
+      .px(20)
+      .items_center()
+      .border_t(1)
+      .border_color(t.border)
+      .text_size(fs(11.5))
+      .text_color(said ? t.foreground : t.dim)
+      .child(div().min_w(0).truncate().child(text));
   }
 
   // Under the view tabs: the filter on the left, the sort and (Tree, Cards, List) fold buttons on the right.
@@ -1249,6 +1440,7 @@ export class Board {
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
-      .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))));
+      .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
+      .child(this.statusLine(t));
   }
 }

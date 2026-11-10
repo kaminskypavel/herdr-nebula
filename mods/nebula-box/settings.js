@@ -20,6 +20,7 @@ const TOGGLES = {
   confirmArchive: ["Confirm archive", "Ask before hiding a session"],
   promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
+  preview: ["Preview while moving", "Show the highlighted agent in the main area as you move; Enter steps in"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
@@ -57,6 +58,7 @@ export class Settings {
       "confirmArchive",
       "promptLine",
       "showEmptyWorktrees",
+      "preview",
       "presetSide",
       "editor",
       "harness",
@@ -337,6 +339,7 @@ export class Settings {
               toggle("confirmArchive"),
               toggle("promptLine"),
               toggle("showEmptyWorktrees"),
+              toggle("preview"),
               this.line(
                 t,
                 at("presetSide"),

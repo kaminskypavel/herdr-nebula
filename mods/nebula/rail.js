@@ -3,7 +3,7 @@
 // for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
 // scrolls when it does not fit. A click selects a project (shared nebula.repo, which the board follows);
 // a right-click opens a menu with Close. It also owns the keyboard cycle and the jump chords, because a hidden board receives no key commands:
-// keys.json binds them to this mod's commands (focus, next, prev), and the rail shows,
+// keys.json binds them to this mod's commands (focus, next, prev, jump), and the rail shows,
 // folds or focuses the board (lib/focus.js decides which). The board answers through
 // shared values:
 //   nebula.boardKeys    true while the board has the keyboard (the board writes it)
@@ -47,6 +47,9 @@ import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
 import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
+import { jumpSize } from "./lib/jump.js";
+import { HELP_SIZE } from "./lib/hints.js";
+import { NOTHING_WAITING } from "./lib/flash.js";
 
 // The bar's width (layouts/nebula.json rail-col): 76 leaves the macOS window buttons room, as Herdr's own folded sidebar does.
 const RAIL_W = 76;
@@ -70,6 +73,7 @@ export class Rail {
         const c = String(await nextCommand()).replace(/^nebula\./, "");
         if (c === "focus") this.send({ type: "chord" }, cx);
         else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
+        else if (c === "jump") this.openJump();
         else if (/^tab[1-9]$/.test(c)) this.pickTab(Number(c.slice(3))); // ⌘1 to ⌘9
         cx.notify();
       }
@@ -220,6 +224,13 @@ export class Rail {
     const f = focused();
     const to = jumpTarget(terminals(), this.repos(), f?.terminal ?? f?.agent ?? null, dir);
     if (to) run("agent.focus", { terminal: to });
+    else notify({ title: NOTHING_WAITING, level: "info", timeout: 2000 }); // the board may be folded, so no status line to say it
+  }
+
+  // The jump palette over every project, from anywhere (the board's `/` opens the same one).
+  openJump() {
+    const size = jumpSize();
+    openOverlay({ mod: "nebula-box", kind: "dialog", width: size.width, height: size.height, props: { role: "jump" } });
   }
 
   // Opens a second Herdr window on the same core. exec's env may lack node, so give the
@@ -420,7 +431,7 @@ export class Rail {
         .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
         .child(div().flex_1())
         .child(b("window", "New window", (_e, cx) => this.newWindow(cx), "copy"))
-        .child(b("help", "Shortcuts", () => this.openBox("help", 560, 460), "circle-help"))
+        .child(b("help", "Shortcuts", () => this.openBox("help", HELP_SIZE.width, HELP_SIZE.height), "circle-help"))
         .child(this.button(t, "settings", "Settings", () => this.openBox("settings", 580, 660), svg("mods/workspace-chrome/settings.svg").size(16)))
     );
   }

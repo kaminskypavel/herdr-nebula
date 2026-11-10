@@ -17,6 +17,8 @@
 //   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
 //   promptLine      Tree and List rows carry a dim second line with the last prompt
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
+//   preview         moving the highlight (or a click) shows that agent in the main area while the
+//                   board keeps the keys; Enter or a double click steps in (lib/preview.js)
 //   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
 //                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
 import { HARNESSES } from "./harness.js";
@@ -38,6 +40,7 @@ export const DEFAULTS = {
   nebulaSessions: true,
   promptLine: true,
   showEmptyWorktrees: true,
+  preview: true,
   sleepAfter: SLEEP_DEFAULT,
 };
 
@@ -68,6 +71,7 @@ export function mergeSettings(stored) {
     nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
     promptLine: typeof s.promptLine === "boolean" ? s.promptLine : DEFAULTS.promptLine,
     showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
+    preview: typeof s.preview === "boolean" ? s.preview : DEFAULTS.preview,
     sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
   };
 }
@@ -112,6 +116,7 @@ const SHORTCUTS = [
       { keys: [b("nebula.focus", "⌃`")], text: "board: take keys, fold" },
       { keys: [b("nebula.next", "⌘]"), b("nebula.prev", "⌘[")], text: "next, previous needs-you" },
       { keys: [b("mod.open:nebula-box", "⌘K")], text: "new session" },
+      { keys: [b("nebula.jump", "⌘J")], text: "jump to any agent, any project" },
       { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
     ],
   },
@@ -129,13 +134,15 @@ const SHORTCUTS = [
     group: "Board",
     col: 1,
     rows: [
-      { keys: ["j", "k", "↑", "↓"], text: "move highlight" },
-      { keys: ["↩", "click"], text: "show, resume if exited" },
+      { keys: ["j", "k", "↑", "↓"], text: "move, showing the agent" },
+      { keys: ["↩", "double click"], text: "step in, resume if exited" },
+      { keys: ["Esc"], text: "keys back to the terminal" },
+      { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },
       { keys: [".", ","], text: "next, previous needs-you" },
       { keys: ["p", "e", "v"], text: "new, presets, view" },
       { keys: ["p", "d"], text: "on an empty worktree: new, delete" },
       { keys: ["s"], text: "pin beside, again to unpin" },
-      { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive, delete" },
+      { keys: ["r", "a", "u", "d"], text: "rename, archive, unarchive (or undo), delete" },
       { keys: ["⇧P", "⇧↩", "A"], text: "relaunch, open folder, archived" },
       { keys: ["⇧R"], text: "resume exited or asleep" },
       { keys: ["z"], text: "sleep agent now" },
@@ -144,11 +151,15 @@ const SHORTCUTS = [
   },
 ];
 
+// A key of the lists above: a literal string, or { action, def } drawn as the key bound to the
+// action in keys() (def when none is).
+export const shortcutLabel = (binds, mac) => (k) => {
+  if (typeof k === "string") return k;
+  const hit = (binds ?? []).find((e) => e.action === k.action && String(e.keys ?? "").trim());
+  return hit ? strokeLabel(hit.keys, mac) : k.def;
+};
+
 export function groupShortcuts(binds, mac) {
-  const label = (k) => {
-    if (typeof k === "string") return k;
-    const hit = (binds ?? []).find((e) => e.action === k.action && String(e.keys ?? "").trim());
-    return hit ? strokeLabel(hit.keys, mac) : k.def;
-  };
+  const label = shortcutLabel(binds, mac);
   return SHORTCUTS.map((g) => ({ group: g.group, col: g.col, rows: g.rows.map((r) => ({ keys: r.keys.map(label).join(" "), text: r.text })) }));
 }

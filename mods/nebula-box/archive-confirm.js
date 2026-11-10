@@ -2,8 +2,10 @@
 // archiving" is on (role "archive-confirm"; props: { title, tab }).
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, theme, run } from "herdr";
+import { props, closeOverlay, theme, run, setShared } from "herdr";
 import { tabCommand } from "./lib/actions.js";
+import { archivedFlash, flashValue } from "./lib/flash.js";
+import { FLASH } from "./lib/shared.js";
 import { button, dialogTitle, escapeKey } from "./ui.js";
 import { fs } from "./lib/scale.js";
 
@@ -19,6 +21,7 @@ export class ArchiveConfirm {
       c = tabCommand("archive", p.tab);
     closeOverlay(p.overlay);
     run(c.name, c.args);
+    setShared(FLASH, flashValue(archivedFlash(p.title), { tab: p.tab, title: p.title }));
   }
 
   render() {

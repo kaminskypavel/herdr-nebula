@@ -40,7 +40,11 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **Resume after an exit, a crash or a reboot.** The prompt hook saves each Claude Code and Codex conversation id on its terminal (the `nebula.session` label). When the agent has left the shell, its row reads "exited · Enter resumes", and <kbd>↩</kbd>, a click or <kbd>⇧R</kbd> types `claude --resume <id>` (or `codex resume <id>`, with the row's model and effort) into the same terminal. After a reboot or a core restart Herdr gives each lost terminal a shell in its last folder, so the same row picks the conversation back up.
 - **Idle agents sleep.** An agent that is done and seen, has a conversation to resume, and has been out of view (not in the shown tab, not pinned) for 15 minutes gets its CLI stopped to free memory: the terminal stays as a shell, and the row reads "asleep · Enter resumes". Settings, Agents: Sleep idle agents after (Off, 5, 15, 30 or 60 minutes). <kbd>z</kbd> (or the right-click menu) sleeps the highlighted agent now; one that is working, needs you or has no conversation id yet is left alone, with a note saying why.
 - **A second window.** The New window button on the icon bar opens another Herdr window on the same agents, for two boards side by side.
-- **Keyboard first.** <kbd>⌃`</kbd> hands the keys to the board and back. <kbd>⌘]</kbd> jumps to the next agent that needs you, from anywhere.
+- **Preview as you move.** <kbd>j</kbd> <kbd>k</kbd> (after a 150 ms rest) or a single click shows that agent in the main area while the keys stay on the board, so reading ten agents is ten keypresses. <kbd>↩</kbd> or a double click steps in; landing on an unseen finish marks it seen. Settings: Preview while moving.
+- **You can see who has the keys.** A **KEYS** chip lights in the board's top row while the board has the keyboard. <kbd>Esc</kbd> hands the keys back to the terminal and keeps the board shown; <kbd>⌃`</kbd> still folds it.
+- **A status line.** The strip at the bottom of the board lists the keys for where you are (a row, an empty worktree, the filter, Columns, rebuilt from your live key bindings). After an action it says what happened for three seconds: "Archived 'Fix login' · u undo", "Started in api / feat-x", "Renamed", "Asleep: ...", "Resuming ...", "Nothing waiting". <kbd>u</kbd> with no archived row under the cursor takes back the last archive. <kbd>?</kbd> opens the shortcuts list.
+- **Jump to any agent.** <kbd>/</kbd> on the board, or <kbd>⌘J</kbd> anywhere, opens a palette over every project, open or closed. It lists `project / title` with a status dot and age, needs-you first, then working, unseen and the most recent; typing fuzzy-filters (nebula's matcher, so `api fix` finds `api / fix login`). <kbd>↩</kbd> selects the project's tab (opening it if closed) and steps into the agent. <kbd>Esc</kbd> clears the query first, then closes. The toolbar filter stays: click it or press <kbd>f</kbd>.
+- **Keyboard first.** <kbd>⌃`</kbd> hands the keys to the board and folds it. <kbd>⌘]</kbd> jumps to the next agent that needs you, from anywhere, and a toast says when nobody does.
 
 <table>
 <tr>
@@ -77,13 +81,17 @@ That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mo
 
 | Where    | Key                                                 | Does                                                 |
 | -------- | --------------------------------------------------- | ---------------------------------------------------- |
-| Anywhere | <kbd>⌃`</kbd>                                       | Board takes the keys; again hands them back          |
+| Anywhere | <kbd>⌃`</kbd>                                       | Board takes the keys; again folds it                 |
 | Anywhere | <kbd>⌘]</kbd> <kbd>⌘[</kbd>                         | Next, previous session that needs you                |
 | Anywhere | <kbd>⌘K</kbd>                                       | New session                                          |
+| Anywhere | <kbd>⌘J</kbd>                                       | Jump to any agent in any project                     |
 | Anywhere | <kbd>⌘1</kbd> to <kbd>⌘9</kbd>                      | Select a project in the icon bar                     |
-| Board    | <kbd>j</kbd> <kbd>k</kbd>, <kbd>↩</kbd> or a click  | Move, show the agent                                 |
+| Board    | <kbd>j</kbd> <kbd>k</kbd>, or a click               | Move, and show the agent (keys stay on the board)    |
+| Board    | <kbd>↩</kbd>, or a double click                     | Step into the agent (the keys go to its terminal)    |
+| Board    | <kbd>Esc</kbd>                                      | Give the keys back to the terminal, board stays      |
+| Board    | <kbd>/</kbd> <kbd>f</kbd> <kbd>?</kbd>              | Jump to any agent, filter, shortcuts                 |
 | Board    | <kbd>p</kbd> <kbd>e</kbd> <kbd>v</kbd>              | New session, presets, next view                      |
-| Board    | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive, delete                   |
+| Board    | <kbd>r</kbd> <kbd>a</kbd> <kbd>u</kbd> <kbd>d</kbd> | Rename, archive, unarchive (or undo), delete         |
 | Board    | <kbd>⇧R</kbd>, or <kbd>↩</kbd> on an exited row     | Resume an exited or asleep agent's conversation      |
 | Board    | <kbd>z</kbd>                                        | Sleep the agent now (stops its CLI; <kbd>↩</kbd> resumes) |
 | Board    | <kbd>s</kbd>, or shift-click                        | Pin the agent beside the active one (again to unpin) |

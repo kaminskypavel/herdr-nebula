@@ -108,6 +108,26 @@ test("the prompt line and empty worktrees are on by default, and only a boolean 
   assert.equal(mergeSettings({ promptLine: "no", showEmptyWorktrees: 0 }).showEmptyWorktrees, true);
 });
 
+test("Preview while moving is on by default, and only a boolean turns it off", () => {
+  assert.equal(mergeSettings({}).preview, true);
+  assert.equal(mergeSettings({ preview: false }).preview, false);
+  assert.equal(mergeSettings({ preview: "no" }).preview, true);
+});
+
+test("Help lists the jump palette, Esc, / f ? and moving shows the agent", () => {
+  const groups = groupShortcuts([], true);
+  assert.equal(rowOf(groups, "Anywhere", "jump to any agent, any project").keys, "⌘J");
+  const board = groups.find((g) => g.group === "Board").rows;
+  assert.ok(board.some((r) => r.keys === "Esc" && /terminal/.test(r.text)));
+  assert.ok(board.some((r) => r.keys === "/ f ?" && /jump/.test(r.text)));
+  assert.ok(board.some((r) => /^move/.test(r.text) && /showing/.test(r.text)));
+});
+
+test("a rebound jump key shows in Help", () => {
+  const groups = groupShortcuts([{ section: "layout:nebula", keys: "cmd-p", action: "nebula.jump" }], true);
+  assert.equal(rowOf(groups, "Anywhere", "jump to any agent, any project").keys, "⌘P");
+});
+
 test("Help lists Resume and Sleep on the board", () => {
   const rows = groupShortcuts([], true).find((g) => g.group === "Board").rows;
   assert.ok(rows.some((r) => r.keys === "⇧R" && /resume/i.test(r.text)));

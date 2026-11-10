@@ -4,6 +4,7 @@
     "cmd-]": "nebula.next",
     "cmd-[": "nebula.prev",
     "cmd-k": "mod.open:nebula-box",
+    "cmd-j": "nebula.jump",
     "cmd-1": "nebula.tab1",
     "cmd-2": "nebula.tab2",
     "cmd-3": "nebula.tab3",

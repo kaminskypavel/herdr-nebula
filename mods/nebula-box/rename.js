@@ -4,8 +4,10 @@
 // props: { tab, name (the current title, empty while the session is unnamed) }.
 import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, closeOverlay, theme } from "herdr";
+import { props, closeOverlay, theme, setShared } from "herdr";
 import { button, dialogTitle, escapeKey, doCmd } from "./ui.js";
+import { RENAMED, flashValue } from "./lib/flash.js";
+import { FLASH } from "./lib/shared.js";
 import { fs } from "./lib/scale.js";
 
 export class Rename {
@@ -42,8 +44,10 @@ export class Rename {
     cx.spawn(async (cx) => {
       const r = await doCmd("tab.rename", { id: p.tab, name });
       this.busy = false;
-      if (r.code === 0) closeOverlay(p.overlay);
-      else {
+      if (r.code === 0) {
+        closeOverlay(p.overlay);
+        setShared(FLASH, flashValue(RENAMED));
+      } else {
         this.error = (r.stderr || r.stdout || "Rename failed.").trim();
         cx.notify();
       }

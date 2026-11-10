@@ -12,8 +12,9 @@ import { readPresets } from "./lib/presets.js";
 import { inside } from "./lib/projects.js";
 import { REFOCUS_MS } from "./lib/focus.js";
 import { branchName } from "./lib/branch.js";
+import { startedFlash, flashValue } from "./lib/flash.js";
 import { mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
-import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT } from "./lib/shared.js";
+import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT, FLASH } from "./lib/shared.js";
 import { openList, readPresetFile } from "./presets.js";
 import { button, dialogTitle, dropdown, agentIcon, inputBox, textCard, worktreeRow } from "./ui.js";
 import {
@@ -493,6 +494,7 @@ export class Launch {
       return;
     }
     const task = this.currentTask();
+    this.where = startedFlash(repo.name, this.wt() ? this.effective() : this.list().find((c) => c.path === this.checkout)?.branch);
     this.busy = "Launching…";
     cx.notify();
     // owner: null, so closing the box (Cmd+K again) does not cancel the launch half way.
@@ -553,6 +555,7 @@ export class Launch {
 
   finish(terminal, cx) {
     setShared(DRAFT, ""); // launched: nothing to keep
+    if (this.where) setShared(FLASH, flashValue(this.where)); // the board's status line says where it went
     try {
       this.close();
     } catch {}

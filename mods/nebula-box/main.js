@@ -19,6 +19,7 @@ import { Import } from "./import.js";
 import { Projects } from "./projects.js";
 import { ProjectMenu } from "./project-menu.js";
 import { Hud } from "./hud.js";
+import { Jump } from "./jump.js";
 
 const PARTS = {
   add: AddRepo,
@@ -36,6 +37,7 @@ const PARTS = {
   projects: Projects,
   "project-menu": ProjectMenu,
   hud: Hud,
+  jump: Jump,
 };
 
 export default class NebulaBox extends View {

@@ -14,3 +14,5 @@ export const OPEN = "nebula.open";
 export const SUMMARY = "nebula.summary";
 export const ICONS = "nebula.icons";
 export const DRAFT = "nebula.draft"; // the new-session box's task, kept when Esc closes it
+export const FLASH = "nebula.flash"; // { text, n, undo? } a dialog's line for the board's status line (lib/flash.js)
+export const GOTO = "nebula.goto"; // { id, n } the jump palette's pick: the board puts its cursor on that session
