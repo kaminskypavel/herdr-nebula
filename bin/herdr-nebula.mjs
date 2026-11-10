@@ -24,10 +24,10 @@ const HOOKS_DIR = path.join(HERE, "..", "hooks");
 // The hook must answer well inside Claude's 5 second limit: every child call shares one budget.
 const BUDGET_MS = 1800;
 let deadline = Date.now() + BUDGET_MS;
-function run(cmd, args) {
+function run(cmd, args, env = process.env) {
   const left = deadline - Date.now();
   if (left <= 0) throw new Error("out of time");
-  return execFileSync(cmd, args, { encoding: "utf8", timeout: left, stdio: ["ignore", "pipe", "ignore"] });
+  return execFileSync(cmd, args, { encoding: "utf8", timeout: left, env, stdio: ["ignore", "pipe", "ignore"] });
 }
 
 const hcLabels = (term) => JSON.parse(run("hc", ["get", term, "--json"])).labels ?? {};
@@ -36,17 +36,45 @@ const setLabel = (term, key, value) => run("hc", ["label", term, `${key}=${value
 // The tab with this id, as { name, named }. `herdr-app ls` does not say whether a tab was
 // named; an unnamed tab shows its position ("2"), so that is the test.
 // ponytail: a tab the user names with its own position number reads as unnamed.
+// Asks each Herdr window in turn (appHomes): the first whose app has the tab is the one renamed.
+let tabHome = null;
 function findTab(id) {
-  for (const space of JSON.parse(run("herdr-app", ["ls"])).spaces ?? []) {
-    const i = (space.tabs ?? []).findIndex((t) => t.id === id);
-    if (i >= 0) {
-      const name = String(space.tabs[i].name ?? "");
-      return { name, named: name !== String(i + 1) };
+  for (const home of appHomes()) {
+    let spaces;
+    try {
+      spaces = JSON.parse(run("herdr-app", ["ls"], { ...process.env, HERDR_APP_HOME: home })).spaces ?? [];
+    } catch {
+      continue; // that window is closed
+    }
+    for (const space of spaces) {
+      const i = (space.tabs ?? []).findIndex((t) => t.id === id);
+      if (i >= 0) {
+        tabHome = home;
+        const name = String(space.tabs[i].name ?? "");
+        return { name, named: name !== String(i + 1) };
+      }
     }
   }
   return null;
 }
-const renameTab = (id, name) => run("herdr-app", ["do", "tab.rename", JSON.stringify({ id, name })]);
+const renameTab = (id, name) => run("herdr-app", ["do", "tab.rename", JSON.stringify({ id, name })], { ...process.env, HERDR_APP_HOME: tabHome ?? appHome() });
+
+// The Herdr homes to ask: HERDR_APP_HOME when set, else ~/.config/herdr-app and its siblings with a socket
+// (herdr-app-2 is the second window `herdr-nebula window` makes). Terminals do not say which window shows
+// them, and a closed window's socket file can stay behind, so findTab tries each. None with a socket: the default.
+function appHomes() {
+  if (process.env.HERDR_APP_HOME) return [process.env.HERDR_APP_HOME];
+  const base = path.join(os.homedir(), ".config");
+  let names = [];
+  try {
+    names = fs.readdirSync(base).filter((n) => /^herdr-app(-\d+)?$/.test(n));
+  } catch {}
+  const live = names
+    .sort()
+    .map((n) => path.join(base, n))
+    .filter((h) => fs.existsSync(path.join(h, "herdr-app.sock")));
+  return live.length ? live : [appHome()];
+}
 
 const clean = (s) =>
   String(s)
