@@ -10,6 +10,10 @@ import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, run, theme, terminals, exec, shared } from "herdr";
 import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, replyLine, eventOf, iconOf, DOT_OF } from "./lib.js";
 
+// Reduce motion (Settings in nebula): the toast then simply appears.
+const stillOn = () => shared("nebula.settings")?.reduceMotion === true;
+const SLIDE = { duration: 180, easing: "ease-out" };
+
 const DOT = { error: "blocked", warning: "working", success: "done", info: "accent" };
 const SIZE = 28;
 
@@ -41,6 +45,13 @@ function projectIcon(icon, dot, t) {
 export default class Toast extends View {
   init(_props, cx) {
     this.reply = null;
+    // The content starts 16 px right and invisible, and a beat after the first render moves to rest.
+    this.in = stillOn();
+    if (!this.in)
+      cx.timer.after(60, (cx) => {
+        this.in = true;
+        cx.notify();
+      });
     const p = props() ?? {},
       term = terminalOf(p, terminals()),
       s = sessionOf(term?.labels?.["nebula.session"]);
@@ -71,19 +82,16 @@ export default class Toast extends View {
             .rounded(4)
             .flex_none()
             .bg(t[DOT[p.level] ?? "accent"]);
-    return h_flex()
-      .id("toast")
+    // The content slides in from 16 px right and fades in; the card (background, hover, click) stays put.
+    const content = h_flex()
+      .id("toast-content")
+      .relative()
       .size_full()
       .px(18)
       .gap(12)
       .items_center()
-      .bg(t.popover)
-      .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
-      .on_click(() => {
-        if (p.action?.name) run(p.action.name, p.action.args ?? {});
-        closeOverlay(p.overlay);
-      })
+      .left(this.in ? 0 : 16)
+      .opacity(this.in ? 1 : 0)
       .child(lead)
       .child(
         v_flex()
@@ -113,5 +121,16 @@ export default class Toast extends View {
           )
           .when(Boolean(lines.body), (el) => el.child(div().truncate().text_size(12).text_color(t.muted).child(lines.body))),
       );
+    return h_flex()
+      .id("toast")
+      .size_full()
+      .bg(t.popover)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click(() => {
+        if (p.action?.name) run(p.action.name, p.action.args ?? {});
+        closeOverlay(p.overlay);
+      })
+      .child(stillOn() ? content : content.transition("left", SLIDE).transition("opacity", SLIDE));
   }
 }
