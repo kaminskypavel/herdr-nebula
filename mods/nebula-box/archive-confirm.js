@@ -54,7 +54,7 @@ export class ArchiveConfirm {
               .font_medium()
               .child(p.title ?? ""),
           )
-          .child(div().text_size(fs(12)).text_color(t.dim).child("Hides the tab. The agent keeps running and the tab returns when it needs you.")),
+          .child(div().text_size(fs(12)).text_color(t.muted).child("Hides the tab. The agent keeps running and the tab returns when it needs you.")),
       )
       .child(div().flex_1())
       .child(

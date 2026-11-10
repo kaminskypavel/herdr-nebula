@@ -117,13 +117,13 @@ export class Confirm {
   list(t, title, lines, color) {
     return v_flex()
       .gap(2)
-      .child(div().text_size(fs(11.5)).text_color(t.dim).child(title))
+      .child(div().text_size(fs(12)).text_color(t.muted).child(title))
       .children(lines.slice(0, SHOWN).map((l) => div().min_w(0).truncate().text_size(fs(12)).text_color(color).child(l)))
       .when(lines.length > SHOWN, (el) =>
         el.child(
           div()
             .text_size(fs(12))
-            .text_color(t.dim)
+            .text_color(t.muted)
             .child(`+${lines.length - SHOWN} more`),
         ),
       );
@@ -162,7 +162,7 @@ export class Confirm {
           .child(
             div()
               .text_size(fs(12))
-              .text_color(t.dim)
+              .text_color(t.muted)
               .child(p.worktreeOnly ? "Nothing is running in it." : p.alone ? "Ends the agent and closes its tab." : "Ends the agent."),
           ),
       )
@@ -175,7 +175,7 @@ export class Confirm {
               .text_color(t.muted)
               .child(p.worktreeOnly ? `Removes the worktree ${p.offer.branch}.` : `This is the last session in the worktree ${p.offer.branch}.`),
           )
-          .when(!this.loaded, (e) => e.child(div().text_size(fs(12)).text_color(t.dim).child("Checking the worktree…")))
+          .when(!this.loaded, (e) => e.child(div().text_size(fs(12)).text_color(t.muted).child("Checking the worktree…")))
           .when(this.files.length > 0, (e) => e.child(this.list(t, `${this.files.length} uncommitted`, this.files, t.working)))
           .when(this.unpushed.length > 0, (e) =>
             e.child(this.list(t, `${this.unpushed.length} unpushed commit${this.unpushed.length === 1 ? "" : "s"}`, this.unpushed, t.working)),
@@ -184,7 +184,7 @@ export class Confirm {
             e.child(div().text_size(fs(12)).text_color(t.working).child("Could not check the worktree. Removing will not discard anything.")),
           )
           .when(this.check.known && this.files.length === 0 && this.unpushed.length === 0, (e) =>
-            e.child(div().text_size(fs(12)).text_color(t.dim).child("Clean, nothing unpushed.")),
+            e.child(div().text_size(fs(12)).text_color(t.muted).child("Clean, nothing unpushed.")),
           )
           .child(
             h_flex()
@@ -212,7 +212,7 @@ export class Confirm {
               )
               .child(
                 div()
-                  .text_size(fs(12.5))
+                  .text_size(fs(12))
                   .text_color(this.remove ? t.blocked : t.foreground)
                   .child(removeLabel(forceCount(this.check))),
               ),

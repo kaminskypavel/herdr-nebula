@@ -42,7 +42,7 @@ export class Menu {
       .min_h(0)
       .p(5)
       .bg(t.popover)
-      .text_size(fs(12.8))
+      .text_size(fs(13))
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;
@@ -69,7 +69,7 @@ export class Menu {
                 .hover((s) => s.bg(t.hover))
                 .on_click(() => this.choose(i))
                 .child(div().flex_1().child(a.label))
-                .child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(a.key)),
+                .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(a.key)),
             ),
         ),
       );

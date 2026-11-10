@@ -182,7 +182,7 @@ export class Presets {
   }
 
   badge(t, text) {
-    return h_flex().h(18).px(7).flex_none().items_center().rounded(9).border_1().border_color(t.border).text_size(fs(10.5)).text_color(t.dim).child(text);
+    return h_flex().h(18).px(7).flex_none().items_center().rounded(9).border_1().border_color(t.border).text_size(fs(11)).text_color(t.muted).child(text);
   }
 
   row(t, r, i) {
@@ -209,7 +209,7 @@ export class Presets {
       })
       .child(HARNESSES[id] ? svg(agentIcon(id)).size(16).flex_none().text_color(t.foreground) : div().w(16).flex_none())
       .child(div().max_w(240).truncate().text_size(fs(13)).text_color(t.foreground).child(p.name))
-      .child(div().flex_1().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(meta))
+      .child(div().flex_1().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(meta))
       .when(Boolean(p.prefix.trim()), (el) => el.child(this.badge(t, "prefix")))
       .when(Boolean(p.postfix.trim()), (el) => el.child(this.badge(t, "postfix")))
       .when(Boolean(r.reason), (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.blocked).child(r.reason)));
@@ -259,8 +259,8 @@ export class Presets {
                 .py(28)
                 .flex()
                 .justify_center()
-                .text_size(fs(12.5))
-                .text_color(t.dim)
+                .text_size(fs(12))
+                .text_color(t.muted)
                 .child(this.presets.length ? "No preset matches." : "No presets yet. Press ^A to add one."),
             ),
           ),
@@ -288,8 +288,8 @@ export class Presets {
               .flex_1()
               .min_w(0)
               .truncate()
-              .text_size(fs(11.5))
-              .text_color(this.confirm ? t.blocked : t.dim)
+              .text_size(fs(12))
+              .text_color(this.confirm ? t.blocked : t.muted)
               .child(this.confirm ? `Delete "${this.confirm}"? Enter yes · Esc no` : "Enter launch · ^A new · ^E edit · ^D delete"),
           )
           .child(button(t, "pl-new", "New preset", "plain", () => this.edit(null))),

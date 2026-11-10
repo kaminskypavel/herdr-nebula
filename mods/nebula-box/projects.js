@@ -149,7 +149,7 @@ export class Projects {
                 .bg(t[COLOR[p.status]] ?? t.unknown),
             }),
             div().flex_1().min_w(0).truncate().text_color(t.foreground).child(p.name),
-            div().flex_none().text_size(fs(11)).text_color(t.dim).child(sessionsLabel(p.count)),
+            div().flex_none().text_size(fs(11)).text_color(t.muted).child(sessionsLabel(p.count)),
             p.open ? svg(CHECK).size(12).flex_none().text_color(t.accent) : div().w(12).flex_none(),
           ],
           (cx) => this.choose(i, cx),
@@ -178,7 +178,7 @@ export class Projects {
             .border_color(this.focusIn ? t.accent : t.input)
             .bg(t.background)
             .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
-            .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(fs(12.5)).text_color(t.foreground)),
+            .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(fs(12)).text_color(t.foreground)),
         )
         .child(add)
         // A popup sizes to its content, so the list needs a real height (a flex_1 list collapses to 0).

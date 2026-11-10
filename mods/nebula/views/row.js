@@ -17,7 +17,7 @@ const PORTS_SHOWN = 3;
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
 // `sessionTall` is a session row with the prompt line under its title.
-export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 40, vacant: 26, sub: 22, shelf: 22, empty: 40 };
+export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 42, vacant: 26, sub: 22, shelf: 24, empty: 40 };
 
 // The stated height of an item in a virtual list; opts: { promptLine } (the setting).
 export const itemHeight = (item, opts = {}) =>
@@ -63,8 +63,8 @@ export function metaLine(row, t, size = 12) {
     .items_center()
     .gap(5)
     .text_size(fs(size))
-    .text_color(t.dim)
-    .when(Boolean(icon), (el) => el.child(svg(icon).size(12).flex_none().text_color(t.dim)))
+    .text_color(t.muted)
+    .when(Boolean(icon), (el) => el.child(svg(icon).size(12).flex_none().text_color(t.muted)))
     .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
 }
 
@@ -142,7 +142,7 @@ function portCells(row, t) {
     );
 }
 
-export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(10)).text_color(t.dim).child(text);
+export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(11)).text_color(t.muted).child(text);
 
 // A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
 // selected row. `height` is the row's own (the lists state it), so the bar needs no stretch from its parent.
@@ -200,13 +200,9 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
             .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
             .when(Boolean(meta), (el) => el.child(meta)),
         )
-        .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(text.sub))),
+        .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(text.sub))),
     )
-    .child(
-      pinned && look.ageTone !== "needs"
-        ? age("pinned", selected ? t.muted : t.dim)
-        : age(look.ageText, ageColor(look, t, selected ? t.muted : t.dim), row.asleep, look.ageTone === "needs"),
-    )
+    .child(pinned && look.ageTone !== "needs" ? age("pinned", t.muted) : age(look.ageText, ageColor(look, t, t.muted), row.asleep, look.ageTone === "needs"))
     .when(Boolean(ports), (el) => el.child(ports));
 }
 
@@ -219,8 +215,8 @@ export function vacantLine(item, t, { selected, indent = 14, click = null }) {
     .pl(indent)
     .pr(10)
     .rounded(6)
-    .text_size(fs(11.5))
-    .text_color(selected ? t.muted : t.dim)
+    .text_size(fs(12))
+    .text_color(t.muted)
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .when(Boolean(click), (el) =>
@@ -240,12 +236,12 @@ export function subLine(sub, t, { indent = 30 }) {
     .gap(6)
     .pl(indent + sub.lines.length * 10)
     .pr(10)
-    .text_size(fs(11.5))
+    .text_size(fs(12))
     .tooltip(sub.badge ? `${sub.text}\nModel: ${sub.badge}` : sub.text)
     .child(ball(sub.status, t, 6))
     .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(sub.text))
     .when(Boolean(sub.badge), (el) => el.child(badge(sub.badge, t)))
-    .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.dim).text_size(fs(11))));
+    .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.muted).text_size(fs(11))));
 }
 
 export function bandLine(band, t, { indent = 10, folded = false, click = null }) {
@@ -350,12 +346,12 @@ export const shelfLine = (text, t) =>
     .gap(8)
     .pl(14)
     .pr(10)
-    .text_size(fs(10))
-    .text_color(t.dim)
+    .text_size(fs(11))
+    .text_color(t.muted)
     .child(div().flex_none().child(text))
     .child(div().flex_1().h(1).bg(t.border));
 
-export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.dim).child(text);
+export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
 
 export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true }) {
   const selected = cursor === item.key;

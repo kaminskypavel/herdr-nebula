@@ -220,8 +220,8 @@ export class PresetEdit {
             el.child(
               div()
                 .truncate()
-                .text_size(fs(11.5))
-                .text_color(tone ?? t.dim)
+                .text_size(fs(12))
+                .text_color(tone ?? t.muted)
                 .child(desc),
             ),
           ),
@@ -240,7 +240,7 @@ export class PresetEdit {
         v_flex()
           .gap(2)
           .child(div().text_size(fs(13)).text_color(t.foreground).child(label))
-          .child(div().text_size(fs(11.5)).text_color(t.dim).child(desc)),
+          .child(div().text_size(fs(12)).text_color(t.muted).child(desc)),
       )
       .child(body);
   }
@@ -271,7 +271,7 @@ export class PresetEdit {
     const note = (key) => (this.free(key) ? "Any id the agent takes; empty is its default" : "Default leaves it to the agent");
     const rows = [
       this.line(t, "Name", "Shown in the preset list", text(0, name)),
-      this.line(t, "Agent", reason ?? "The CLI that runs the task", this.pick(t, "agent"), reason ? t.blocked : t.dim),
+      this.line(t, "Agent", reason ?? "The CLI that runs the task", this.pick(t, "agent"), reason ? t.blocked : t.muted),
       this.line(t, "Model", note("model"), choice("model", 1, model)),
       this.line(t, "Effort", note("effort"), choice("effort", 2, effort)),
       ...this.order
@@ -305,7 +305,7 @@ export class PresetEdit {
           .gap(8)
           .items_center()
           .flex_none()
-          .child(div().flex_1().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child("Enter save · ^S save from text boxes · Tab next · ^G agent"))
+          .child(div().flex_1().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child("Enter save · ^S save from text boxes · Tab next · ^G agent"))
           .child(button(t, "pe-cancel", "Cancel", "plain", () => this.leave()))
           .child(button(t, "pe-save", this.busy ? "Saving…" : "Save", "primary", (_e, cx) => this.save(cx))),
       );

@@ -19,7 +19,7 @@ export function projectIcon({ icon, size = 18, badge = null, ring }) {
         .items_center()
         .justify_center()
         .bg(icon.color)
-        .text_size(Math.round(size * 0.45))
+        .text_size(Math.max(11, Math.round(size * 0.45)))
         .font_semibold()
         .text_color("#ffffff")
         .child(icon.initials);

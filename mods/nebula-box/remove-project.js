@@ -58,7 +58,7 @@ export class RemoveProject {
               .font_medium()
               .child(p.name ?? ""),
           )
-          .child(div().text_size(fs(12)).text_color(t.dim).child("The folder and its worktrees stay on disk. Add it back from the + button.")),
+          .child(div().text_size(fs(12)).text_color(t.muted).child("The folder and its worktrees stay on disk. Add it back from the + button.")),
       )
       .child(div().flex_1())
       .child(

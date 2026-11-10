@@ -48,7 +48,7 @@ export class ProjectMenu {
       .min_h(0)
       .p(5)
       .bg(t.popover)
-      .text_size(fs(12.8))
+      .text_size(fs(13))
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;

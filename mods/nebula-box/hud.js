@@ -40,7 +40,7 @@ export class Hud {
         div()
           .flex_none()
           .text_size(fs(12))
-          .text_color(t.dim)
+          .text_color(t.muted)
           .child(`⌘${p.n ?? ""}`),
       );
   }

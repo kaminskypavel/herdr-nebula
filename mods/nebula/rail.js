@@ -372,8 +372,8 @@ export class Rail {
             .flex()
             .items_center()
             .justify_center()
-            .text_size(fs(10))
-            .text_color(on ? t.muted : t.dim)
+            .text_size(fs(11))
+            .text_color(on ? t.foreground : t.muted)
             .child(String(num)),
         ),
       )
@@ -408,10 +408,10 @@ export class Rail {
             .child(
               div()
                 .absolute()
-                .right(-6)
-                .bottom(-5)
-                .h(14)
-                .min_w(14)
+                .right(-7)
+                .bottom(-6)
+                .h(17)
+                .min_w(17)
                 .px(4)
                 .rounded_full()
                 .bg(t.ansi1)
@@ -420,7 +420,7 @@ export class Rail {
                 .flex()
                 .items_center()
                 .justify_center()
-                .text_size(fs(9.5))
+                .text_size(fs(11))
                 .font_semibold()
                 .text_color("#ffffff")
                 .child(pillText(p.needs)),

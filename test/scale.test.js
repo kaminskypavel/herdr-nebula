@@ -18,3 +18,16 @@ test("a missing or bad size leaves the design sizes", () => {
     assert.equal(rh(22), 22);
   }
 });
+
+// One type scale for the board and its dialogs: 11, 12, 13 and 15 px. Nothing is smaller than 11.
+test("every fs() literal in the board and the box is on the type scale", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const files = ["mods/nebula", "mods/nebula/views", "mods/nebula/lib", "mods/nebula-box"].flatMap((dir) =>
+    readdirSync(new URL(`../${dir}/`, import.meta.url))
+      .filter((f) => f.endsWith(".js"))
+      .map((f) => [`${dir}/${f}`, readFileSync(new URL(`../${dir}/${f}`, import.meta.url), "utf8")]),
+  );
+  for (const [name, src] of files) {
+    for (const m of src.matchAll(/\bfs\((\d+(?:\.\d+)?)\)/g)) assert.ok([11, 12, 13, 15].includes(Number(m[1])), `${name}: fs(${m[1]}) is off the scale`);
+  }
+});

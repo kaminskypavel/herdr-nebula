@@ -50,7 +50,7 @@ function mini(row, t, selected, click, menu, pinned, openPort) {
             .min_w(0)
             .truncate()
             .text_size(fs(11))
-            .text_color(t.dim)
+            .text_color(t.muted)
             .child(pinned ? `${row.where} · pinned` : row.where),
         )
         .when(Boolean(ports), (el) => el.child(ports)),
@@ -148,7 +148,7 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
     .on_click((_e, cx) => click(key, cx))
     .child(ball(status, t))
     .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(name))
-    .child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(String(count)));
+    .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(String(count)));
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
@@ -187,13 +187,13 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
         .items_center()
         .gap(5)
         .text_size(fs(11))
-        .text_color(t.dim)
+        .text_color(t.muted)
         .when(Boolean(meta), (el) => el.child(meta))
         .when(Boolean(meta), (el) => el.child(div().flex_none().child("·")))
         .child(
           div()
             .flex_none()
-            .text_color(ageColor(look, t, t.dim))
+            .text_color(ageColor(look, t, t.muted))
             .when(look.ageTone === "needs", (el) => el.font_semibold())
             .child(pinned && look.ageTone !== "needs" ? "pinned" : look.ageText),
         )
@@ -216,7 +216,7 @@ function column(i, title, rows, empty, focused, t) {
         .pb(4)
         .text_size(fs(11))
         .font_semibold()
-        .text_color(focused ? t.foreground : t.dim)
+        .text_color(focused ? t.foreground : t.muted)
         .child(title),
     )
     .child(
@@ -226,7 +226,7 @@ function column(i, title, rows, empty, focused, t) {
         .min_h(0)
         .gap(2)
         .overflow_y_scrollbar()
-        .children(rows.length ? rows : [div().px(8).text_size(fs(12)).text_color(t.dim).child(empty)]),
+        .children(rows.length ? rows : [div().px(8).text_size(fs(12)).text_color(t.muted).child(empty)]),
     );
 }
 

@@ -1393,14 +1393,14 @@ export class Board {
     return h_flex()
       .id("keys-chip")
       .flex_none()
-      .h(18)
+      .h(rh(20))
       .px(6)
       .mr(8)
       .items_center()
       .rounded(4)
       .border_1()
       .border_color(t.accent)
-      .text_size(fs(10))
+      .text_size(fs(11))
       .font_semibold()
       .text_color(t.accent)
       .tooltip("The board has the keys. Esc hands them back to the terminal.")
@@ -1425,8 +1425,8 @@ export class Board {
       .items_center()
       .border_t(1)
       .border_color(t.border)
-      .text_size(fs(11.5))
-      .text_color(said ? t.foreground : t.dim)
+      .text_size(fs(12))
+      .text_color(said ? t.foreground : t.muted)
       .when(this.has, (el) => el.child(this.keysChip(t)))
       .child(div().min_w(0).truncate().child(text));
   }
@@ -1455,7 +1455,7 @@ export class Board {
       .when(compact, (el) => el.tooltip(label))
       .child(svg(`mods/nebula/icons/${icon}.svg`).size(13).flex_none())
       .when(!compact, (el) => el.child(div().child(label)))
-      .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(10)).text_color(t.muted).child(hint));
+      .child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(11)).text_color(t.muted).child(hint));
   }
 
   // No project to show: a centered empty state when there is nothing else to list, or a
@@ -1507,7 +1507,7 @@ export class Board {
             .flex_1()
             .min_w(0)
             .truncate()
-            .text_size(fs(12.5))
+            .text_size(fs(12))
             .text_color(t.muted)
             .child(listed ? "No project open" : "No projects yet"),
         )
@@ -1522,7 +1522,7 @@ export class Board {
       .child(
         div()
           .text_size(fs(13))
-          .text_color(t.dim)
+          .text_color(t.muted)
           .child(listed ? "No project open" : "No projects yet"),
       )
       .child(buttons);

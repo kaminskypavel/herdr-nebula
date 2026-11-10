@@ -112,7 +112,7 @@ export class Jump {
       .child(div().flex_none().max_w(200).truncate().text_color(t.muted).child(hit.project))
       .child(div().flex_none().text_color(t.dim).child("/"))
       .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(hit.title))
-      .child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(hit.age));
+      .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(hit.age));
   }
 
   render() {
@@ -142,12 +142,12 @@ export class Jump {
           .border_color(this.focusIn ? t.accent : t.input)
           .bg(t.background)
           .child(svg(SEARCH).size(13).flex_none().text_color(t.dim))
-          .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(fs(12.5)).text_color(t.foreground))
+          .child(Input.new(this.field).flex_1().min_w(0).h_full().text_size(fs(12)).text_color(t.foreground))
           .child(
             div()
               .flex_none()
               .text_size(fs(11))
-              .text_color(t.dim)
+              .text_color(t.muted)
               .child(list.length ? `${this.at + 1}/${list.length}` : "Esc"),
           ),
       )
@@ -159,7 +159,7 @@ export class Jump {
           .gap(1)
           .overflow_hidden()
           .children(shown.map((hit, n) => this.line(t, hit, this.top + n)))
-          .when(!list.length, (el) => el.child(div().p(10).text_size(fs(12.5)).text_color(t.dim).child("No agents match"))),
+          .when(!list.length, (el) => el.child(div().p(10).text_size(fs(12)).text_color(t.muted).child("No agents match"))),
       );
   }
 }

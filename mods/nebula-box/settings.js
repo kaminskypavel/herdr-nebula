@@ -224,7 +224,7 @@ export class Settings {
             }),
           )
           .child(typeof label === "string" ? div().truncate().text_size(fs(13)).text_color(t.foreground).child(label) : label)
-          .when(Boolean(desc), (el) => el.child(div().truncate().text_size(fs(11.5)).text_color(t.dim).child(desc))),
+          .when(Boolean(desc), (el) => el.child(div().truncate().text_size(fs(12)).text_color(t.muted).child(desc))),
       )
       .child(h_flex().flex_none().items_center().child(control));
   }
@@ -363,7 +363,7 @@ export class Settings {
                   .border_1()
                   .border_color(this.editing() ? t.accent : t.input)
                   .bg(t.background)
-                  .text_size(fs(12.5)),
+                  .text_size(fs(12)),
               ),
             ]),
           )
@@ -377,8 +377,8 @@ export class Settings {
                 this.ids.length
                   ? this.pick(t, "harness", { width: 170 })
                   : div()
-                      .text_size(fs(12.5))
-                      .text_color(t.dim)
+                      .text_size(fs(12))
+                      .text_color(t.muted)
                       .child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026"),
               ),
               ...this.ids.map(agent),
@@ -410,8 +410,8 @@ export class Settings {
       .child(
         h_flex()
           .items_center()
-          .text_size(fs(11.5))
-          .text_color(t.dim)
+          .text_size(fs(12))
+          .text_color(t.muted)
           .child(div().flex_1().child("Changes save as you go"))
           .child(div().child("\u2191\u2193 move   \u2190\u2192 change   Enter open")),
       );

@@ -29,7 +29,7 @@ export class Help {
               v_flex()
                 .gap(1)
                 .pb(6)
-                .child(div().px(8).pt(6).pb(2).text_size(fs(11.5)).font_semibold().text_color(t.accent).child(g.group))
+                .child(div().px(8).pt(6).pb(2).text_size(fs(12)).font_semibold().text_color(t.accent).child(g.group))
                 .children(
                   g.rows.map((r) =>
                     h_flex()
@@ -37,7 +37,7 @@ export class Help {
                       .h(24)
                       .gap(10)
                       .items_center()
-                      .child(div().flex_none().font_semibold().text_size(fs(12.5)).text_color(t.foreground).child(r.keys))
+                      .child(div().flex_none().font_semibold().text_size(fs(12)).text_color(t.foreground).child(r.keys))
                       .child(div().flex_1())
                       .child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(r.text)),
                   ),
@@ -63,7 +63,7 @@ export class Help {
           .pt(8)
           .border_t(1)
           .border_color(t.border)
-          .child(div().flex_1().text_size(fs(11.5)).text_color(t.dim).child("Esc close"))
+          .child(div().flex_1().text_size(fs(12)).text_color(t.muted).child("Esc close"))
           .child(
             h_flex()
               .id("repo-link")

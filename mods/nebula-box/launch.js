@@ -586,9 +586,9 @@ export class Launch {
         h_flex()
           .pb(6)
           .gap(8)
-          .text_size(fs(12.5))
+          .text_size(fs(12))
           .child(div().font_semibold().text_color(t.foreground).child(title))
-          .child(div().text_color(t.dim).child("↑↓ choose · → deeper · ← back · Esc close")),
+          .child(div().text_color(t.muted).child("↑↓ choose · → deeper · ← back · Esc close")),
       )
       .children(
         this.rows(step).map((row, n) =>
@@ -609,8 +609,8 @@ export class Launch {
             .child(div().flex_1())
             .child(
               div()
-                .text_size(fs(11.5))
-                .text_color(t.dim)
+                .text_size(fs(12))
+                .text_color(t.muted)
                 .child(row.hint ?? ""),
             ),
         ),
@@ -697,8 +697,8 @@ export class Launch {
                   div()
                     .pl(54)
                     .truncate()
-                    .text_size(fs(11.5))
-                    .text_color(t.dim)
+                    .text_size(fs(12))
+                    .text_color(t.muted)
                     .child(have ? "Existing worktree" : r ? tilde(worktreePath(r.root, branch), home()) : ""),
                 ),
               ),
@@ -717,8 +717,8 @@ export class Launch {
               .min_w(0)
               .gap(8)
               .items_center()
-              .text_size(fs(11.5))
-              .text_color(t.dim)
+              .text_size(fs(12))
+              .text_color(t.muted)
               .when(busy || !this.ready, (el) => el.child(div().frames(SPINNER, 90)))
               .child(
                 div()

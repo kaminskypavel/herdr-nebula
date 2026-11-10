@@ -27,7 +27,7 @@ const promptBlock = (prompt, t) => {
     .overflow_hidden()
     .text_size(size)
     .line_height(LINE)
-    .text_color(t.dim)
+    .text_color(t.muted)
     .when(Boolean(prompt), (el) => el.child(`› ${prompt}`));
 };
 
@@ -84,7 +84,7 @@ function card(row, t, selected, click, menu, pinned, openPort) {
             .child(
               div()
                 .flex_none()
-                .text_color(ageColor(look, t, t.dim))
+                .text_color(ageColor(look, t, t.muted))
                 .when(look.ageTone === "needs", (el) => el.font_semibold())
                 .child(pinned && look.ageTone !== "needs" ? "pinned" : look.ageText),
             ),

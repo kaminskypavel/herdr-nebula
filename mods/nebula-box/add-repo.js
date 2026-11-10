@@ -93,7 +93,7 @@ export class AddRepo {
       .child(
         v_flex()
           .gap(8)
-          .child(div().text_size(fs(12)).text_color(t.dim).child(HINT))
+          .child(div().text_size(fs(12)).text_color(t.muted).child(HINT))
           .child(
             h_flex()
               .gap(8)
@@ -120,7 +120,7 @@ export class AddRepo {
         h_flex()
           .gap(8)
           .items_center()
-          .child(h_flex().flex_1().gap(5).items_center().text_size(fs(11.5)).text_color(t.dim).child(keyHint(t, "Enter")).child("adds"))
+          .child(h_flex().flex_1().gap(5).items_center().text_size(fs(12)).text_color(t.muted).child(keyHint(t, "Enter")).child("adds"))
           .child(button(t, "ar-cancel", "Cancel", "plain", () => closeOverlay(overlay)))
           .child(button(t, "ar-add", this.busy ? "Checking…" : "Add", "primary", (_e, cx) => this.add(cx))),
       );

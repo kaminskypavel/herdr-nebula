@@ -115,7 +115,7 @@ export class Import {
               .text_color(usable ? t.foreground : t.dim)
               .child(title),
           )
-          .child(div().text_size(fs(11.5)).text_color(t.dim).child(desc)),
+          .child(div().text_size(fs(12)).text_color(t.muted).child(desc)),
       )
       .child(
         switchControl(t, `imp-${id}-sw`, on, (value, cx) => {
@@ -153,8 +153,8 @@ export class Import {
         .child(h_flex().gap(8).justify_end().children(buttons));
     const close = button(t, "imp-close", "Close", "plain", () => closeOverlay(overlay));
 
-    if (!f) return shell(div().flex_1().text_size(fs(12.5)).text_color(t.dim).child("Looking for nebula…"), [close]);
-    if (!f.there && !f.config) return shell(div().flex_1().text_size(fs(12.5)).text_color(t.dim).child("nebula was not found on this Mac"), [close]);
+    if (!f) return shell(div().flex_1().text_size(fs(12)).text_color(t.muted).child("Looking for nebula…"), [close]);
+    if (!f.there && !f.config) return shell(div().flex_1().text_size(fs(12)).text_color(t.muted).child("nebula was not found on this Mac"), [close]);
 
     const plan = this.plan(),
       defaults = describeSettings(this.patch);
