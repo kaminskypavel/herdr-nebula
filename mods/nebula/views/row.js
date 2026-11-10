@@ -8,8 +8,8 @@ import { COLOR } from "../lib/status.js";
 import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "../lib/viewmodel.js";
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
-import { pulseOf } from "../lib/attention.js";
-import { animate, reduced, BOB, STAR, STAR_MS } from "../lib/motion.js";
+import { pulseOf, nudging } from "../lib/attention.js";
+import { animate, reduced, BOB, BREATHE, NUDGE, STAR, STAR_MS } from "../lib/motion.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
@@ -160,23 +160,32 @@ function portCells(row, t) {
     );
 }
 
+// A row that just began needing you wiggles sideways for its first moments (lib/attention.js nudging).
+export const nudged = (el, row, now = Date.now()) => (nudging(row, now) ? animate(el.relative(), (e) => e.loop("left", NUDGE)) : el);
+
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(11)).text_color(t.muted).child(text);
 
 // A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
 // selected row. `height` is the row's own (the lists state it), so the bar needs no stretch from its parent.
 const CONTENT_W = 560; // the widest a session row's content gets (Tree and List)
 
-const edgeBar = (color, height) =>
-  div()
-    .absolute()
-    .left(0)
-    .top(6)
-    .h(Math.max(4, height - 12))
-    .w(3)
-    .rounded(2)
-    .bg(color);
+// The bar of a row that needs you breathes (`breathe`: while nobody is looking at it).
+export const breathing = (bar, breathe) => (breathe ? animate(bar, (el) => el.loop("opacity", BREATHE)) : bar);
 
-export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true }) {
+const edgeBar = (color, height, breathe = false) =>
+  breathing(
+    div()
+      .absolute()
+      .left(0)
+      .top(6)
+      .h(Math.max(4, height - 12))
+      .w(3)
+      .rounded(2)
+      .bg(color),
+    breathe,
+  );
+
+export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set() }) {
   const meta = metaLine(row, t, 12, selected),
     ports = portCells(row, t),
     look = rowLook(row);
@@ -204,12 +213,12 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         .cursor_pointer()
         .on_click((_e, cx) => click(row.id, cx)),
     )
-    .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height)))
+    .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height, !viewing.has(row.id))))
     .when(selected && look.bar !== "needs", (el) => el.child(edgeBar(t.accent, height)))
     .child(
       // The content stops at CONTENT_W so the age sits near the title on a wide board; the row's fill still spans.
       // The ports stay at the row's right edge (the lists find a clicked port by its distance from there).
-      h_flex()
+      nudged(h_flex(), row)
         .w_full()
         .min_w(0)
         .max_w(rh(CONTENT_W))
@@ -385,7 +394,7 @@ export const shelfLine = (text, t) =>
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true, viewing }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo":
@@ -393,7 +402,7 @@ export function drawItem(item, t, { cursor, deep = false, click = null, pinned =
     case "band":
       return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click });
     case "session":
-      return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned, promptLine });
+      return sessionLine(item.row, t, { selected, indent: deep ? 32 : 14, click, pinned: item.row.id === pinned, promptLine, viewing });
     case "vacant":
       return vacantLine(item, t, { selected, indent: deep ? 32 : 14, click });
     case "sub":

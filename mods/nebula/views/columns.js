@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, rowDot, badge, metaLine, portLinks, title, ageColor } from "./row.js";
+import { ball, rowDot, badge, breathing, metaLine, nudged, portLinks, title, ageColor } from "./row.js";
 import { rowLook } from "../lib/rowstyle.js";
 import { fs } from "../lib/scale.js";
 
@@ -19,7 +19,7 @@ const MODES = [
 
 function mini(row, t, selected, click, menu, pinned, openPort) {
   const ports = portLinks(row, t, openPort);
-  return v_flex()
+  return nudged(v_flex(), row)
     .id(`mini-${row.id}`)
     .flex_none()
     .gap(1)
@@ -153,11 +153,11 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
-function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort) {
+function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort, viewing) {
   const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
-  return v_flex()
+  return nudged(v_flex(), row)
     .id(`pcs-${row.id}`)
     .relative()
     .flex_none()
@@ -172,7 +172,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
-    .when(look.bar === "needs", (el) => el.child(div().absolute().left(0).top(6).bottom(6).w(3).rounded(2).bg(t.ansi1)))
+    .when(look.bar === "needs", (el) => el.child(breathing(div().absolute().left(0).top(6).bottom(6).w(3).rounded(2).bg(t.ansi1), !viewing.has(row.id))))
     .child(
       h_flex()
         .gap(8)
@@ -267,7 +267,7 @@ function projectsBody(b, t) {
       column(
         2 - at,
         "SESSIONS",
-        pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort)),
+        pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing)),
         "No sessions",
         col === 2,
         t,

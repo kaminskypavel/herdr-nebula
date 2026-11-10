@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FRESH_MS, freshState, trackStates, pulseOf } from "../mods/nebula/lib/attention.js";
+import { FRESH_MS, NUDGE_MS, freshState, trackStates, pulseOf, nudging } from "../mods/nebula/lib/attention.js";
 
 // Mirrors nebula's a_fresh_unread_finish_keeps_the_sweep_ticking_for_a_few_seconds
 // (crates/nebula-tui/src/event_loop/tests/mod.rs) and app::fresh_done.
@@ -78,4 +78,16 @@ test("a row that is gone is forgotten, so it is a first sight when it returns", 
   u = trackStates(u.state, rows(), 200);
   u = trackStates(u.state, rows(["a", "unseen"]), 300);
   assert.deepEqual(u.at, {});
+});
+
+test("a row nudges only in the first moments after it began needing you", () => {
+  const row = (over) => ({ status: "needs", stateSince: NOW, ...over });
+  assert.equal(nudging(row(), NOW), true);
+  assert.equal(nudging(row(), NOW + NUDGE_MS - 1), true);
+  assert.equal(nudging(row(), NOW + NUDGE_MS), false, "settled: the bar breathes instead");
+  assert.equal(nudging(row({ stateSince: 0 }), NOW), false, "no change time: it was already waiting");
+  assert.equal(nudging(row({ stateSince: undefined }), NOW), false);
+  for (const status of ["working", "unseen", "seen", "exited"]) assert.equal(nudging(row({ status }), NOW), false, status);
+  assert.equal(nudging(row({ archived: true }), NOW), false);
+  assert.equal(nudging(row({ exited: true }), NOW), false);
 });

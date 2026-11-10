@@ -45,3 +45,12 @@ export function pulseOf(status, fresh = false) {
   if (status === "unseen") return { from: 0.3, to: 1, period: 700 };
   return null;
 }
+
+// The first moments after a row's state changed: a row that needs you nudges sideways once, a fresh unseen finish
+// pops its dot once. Both read the row's stateSince (the tab's change time, else the board's note, lib/viewmodel.js).
+export const NUDGE_MS = 700;
+const within = (since, now, ms) => since > 0 && Math.abs(now - since) < ms;
+const live = (row) => !row.archived && !row.exited;
+
+/** Whether a row that needs you is still in its first NUDGE_MS (`since` is when it began needing you). */
+export const nudging = (row, now) => row.status === "needs" && live(row) && within(row.stateSince, now, NUDGE_MS);

@@ -91,7 +91,7 @@ import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
-import { trackStates, freshState } from "./lib/attention.js";
+import { trackStates, freshState, nudging } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { PORT_HIT, ball, title as rowTitle } from "./views/row.js";
 import { attentionStrip, stripParts } from "./lib/strip.js";
@@ -243,6 +243,7 @@ export class Board {
     this.resuming = new Set();
     this.stateTrack = new Map(); // when each row entered its state, for tabs with no change time (lib/attention.js)
     this.changeAt = {};
+    this.viewing = new Set(); // the terminals the user is looking at: a row that needs you stops breathing there
     this.motionKey = ""; // the fresh rows and noted times the last render drew; a change redraws
     this.shift = false; // shift was held at the last left press (the virtual lists report clicks without modifiers)
     if (!shared(PINNED)) setShared(PINNED, pinnedIn(layout())); // the layout may have kept the pin
@@ -519,10 +520,14 @@ export class Board {
     );
     this.stateTrack = u.state;
     this.changeAt = u.at;
+    const f = focused();
+    this.viewing = new Set([f?.terminal, f?.shown, f?.agent].filter(Boolean));
     const cfg = this.config();
     const key = JSON.stringify([
       u.at,
       rows.filter((r) => freshState(r.status, r.archived, r.stateSince, now)).map((r) => r.id),
+      rows.filter((r) => nudging(r, now)).map((r) => r.id),
+      [...this.viewing],
       cfg.promptLine,
       cfg.showEmptyWorktrees,
       cfg.reduceMotion,
