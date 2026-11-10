@@ -1,4 +1,4 @@
-// Loose stand-ins so `npm run typecheck` runs without Herdr installed. The real
+// Loose stand-ins so `bun run typecheck` runs without Herdr installed. The real
 // declarations (gpui-kit.d.ts, herdr.d.ts) are written by the Herdr app into
 // ~/.config/herdr-app and are not part of this repo. Everything here is any-typed:
 // it checks our own code, not the calls into Herdr.

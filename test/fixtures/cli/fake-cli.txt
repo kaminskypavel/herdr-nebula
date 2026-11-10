@@ -1,5 +1,5 @@
-// A stand-in for `hc` and `herdr-app` (run with node; the .txt name keeps `node --test` from
-// treating it as a test file). argv[2] is which tool it plays. All state lives in the JSON
+// A stand-in for `hc` and `herdr-app` (the tests run a .cjs copy with node or bun; the .txt name
+// keeps `node --test` from treating it as a test file). argv[2] is which tool it plays. All state lives in the JSON
 // file named by FAKE_STATE: { labels, tabs: [{ id, name }], calls: [[tool, ...args]] }.
 const fs = require("node:fs");
 

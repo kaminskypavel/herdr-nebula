@@ -17,9 +17,12 @@ function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hn-cli-"));
   const bin = path.join(dir, "bin");
   fs.mkdirSync(bin);
+  // Bun runs a file by its extension (a .txt is text to it), so the fake runs from a .cjs copy.
+  const fake = path.join(dir, "fake-cli.cjs");
+  fs.copyFileSync(FAKE, fake);
   for (const tool of ["hc", "herdr-app"]) {
     const f = path.join(bin, tool);
-    fs.writeFileSync(f, `#!/bin/sh\nexec "${process.execPath}" "${FAKE}" ${tool} "$@"\n`, { mode: 0o755 });
+    fs.writeFileSync(f, `#!/bin/sh\nexec "${process.execPath}" "${fake}" ${tool} "$@"\n`, { mode: 0o755 });
   }
   const home = path.join(dir, "home");
   const appHome = path.join(home, ".config", "herdr-app");
