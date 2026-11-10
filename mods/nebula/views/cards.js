@@ -3,7 +3,8 @@ import { h_flex, v_flex } from "gpui-base";
 import { listItems } from "../lib/viewmodel.js";
 import { NO_MATCH } from "../lib/arrange.js";
 import { ALL } from "../lib/tabs.js";
-import { ball, badge, drawItem, metaLine, portLinks, title } from "./row.js";
+import { ball, badge, drawItem, metaLine, portLinks, title, ageColor } from "./row.js";
+import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 
 export const items = (model, b) =>
@@ -32,7 +33,8 @@ const promptBlock = (prompt, t) => {
 
 function card(row, t, selected, click, menu, pinned, openPort) {
   const meta = metaLine(row, t, 11),
-    ports = portLinks(row, t, openPort);
+    ports = portLinks(row, t, openPort),
+    look = rowLook(row);
   return h_flex()
     .id(`card-${row.id}`)
     .flex_1()
@@ -63,7 +65,7 @@ function card(row, t, selected, click, menu, pinned, openPort) {
             .h(rh(18))
             .gap(6)
             .items_center()
-            .child(title(row, t).text_size(fs(13)))
+            .child(title(row, t, look).text_size(fs(13)))
             .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
         )
         .child(
@@ -82,8 +84,9 @@ function card(row, t, selected, click, menu, pinned, openPort) {
             .child(
               div()
                 .flex_none()
-                .text_color(t.dim)
-                .child(pinned ? "pinned" : row.age),
+                .text_color(ageColor(look, t, t.dim))
+                .when(look.ageTone === "needs", (el) => el.font_semibold())
+                .child(pinned && look.ageTone !== "needs" ? "pinned" : look.ageText),
             ),
         )
         .child(promptBlock(row.prompt, t))

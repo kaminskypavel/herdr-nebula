@@ -9,6 +9,7 @@ import { bandStats, bandSummary, summaryParts, vacantHint, BAND_COLOR } from "..
 import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
 import { pulseOf } from "../lib/attention.js";
+import { rowLook } from "../lib/rowstyle.js";
 import { fs, rh } from "../lib/scale.js";
 import { portUrl } from "../lib/ports.js";
 
@@ -37,14 +38,18 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
   return pulse ? b.loop("opacity", pulse) : b;
 }
 
-// The right-hand words of a row; `moon` puts a small moon before them (an asleep agent).
-const age = (text, color, moon = false) =>
+// The color of a row's age: red for needs you, cyan for an unseen finish, else `plain` (what the view uses).
+export const ageColor = (look, t, plain) => (look.ageTone === "needs" ? t.ansi1 : look.ageTone === "unseen" ? t.ansi6 : plain);
+
+// The right-hand words of a row; `moon` puts a small moon before them (an asleep agent); `bold` for needs you.
+const age = (text, color, moon = false, bold = false) =>
   h_flex()
     .flex_none()
     .items_center()
     .gap(4)
     .text_size(fs(12))
     .text_color(color)
+    .when(bold, (el) => el.font_semibold())
     .when(moon, (el) => el.child(svg("mods/nebula/icons/moon.svg").size(11).flex_none()))
     .child(text);
 
@@ -63,12 +68,15 @@ export function metaLine(row, t, size = 12) {
     .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
 }
 
-// A session's title: dim when exited or archived; an archived one is italic with an archive icon before it.
-export function title(row, t) {
+// A session's title, colored by its state (lib/rowstyle.js): red and bold when it needs you, bold when it
+// finished unseen, muted once seen, dim when exited or archived. An archived one is italic with an archive icon before it.
+const TITLE_COLOR = { needs: "ansi1", unseen: "foreground", seen: "muted", plain: "foreground", dim: "dim" };
+export function title(row, t, look = rowLook(row)) {
   const text = div()
     .min_w(0)
     .truncate()
-    .text_color(row.exited || row.archived ? t.dim : t.foreground)
+    .text_color(t[TITLE_COLOR[look.title]])
+    .when(look.title === "needs" || look.title === "unseen", (el) => el.font_semibold())
     .when(row.archived, (el) => el.italic())
     .child(row.title);
   return row.archived
@@ -136,12 +144,29 @@ function portCells(row, t) {
 
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(10)).text_color(t.dim).child(text);
 
+// A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
+// selected row. `height` is the row's own (the lists state it), so the bar needs no stretch from its parent.
+const edgeBar = (color, height) =>
+  div()
+    .absolute()
+    .left(0)
+    .top(6)
+    .h(Math.max(4, height - 12))
+    .w(3)
+    .rounded(2)
+    .bg(color);
+
 export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true }) {
   const meta = metaLine(row, t),
-    ports = portCells(row, t);
+    ports = portCells(row, t),
+    look = rowLook(row);
   const text = rowText(row, promptLine);
+  const height = rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session);
+  // Needs you wins the left edge; a selected row then shows the fill and an accent outline instead of the accent bar.
+  const outline = pinned || (selected && look.bar === "needs");
   return h_flex()
-    .h(rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session))
+    .relative()
+    .h(height)
     .flex_none()
     .items_center()
     .gap(10)
@@ -151,7 +176,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     .text_size(fs(13))
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
-    .when(pinned, (el) => el.border_1().border_color(t.accent))
+    .when(outline, (el) => el.border_1().border_color(t.accent))
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .when(Boolean(click), (el) =>
       el
@@ -159,6 +184,8 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         .cursor_pointer()
         .on_click((_e, cx) => click(row.id, cx)),
     )
+    .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height)))
+    .when(selected && look.bar !== "needs", (el) => el.child(edgeBar(t.accent, height)))
     .child(ball(row.status, t, 8, row.archived, row.fresh))
     .child(
       v_flex()
@@ -169,13 +196,17 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
             .min_w(0)
             .items_center()
             .gap(10)
-            .child(title({ ...row, title: text.title }, t))
+            .child(title({ ...row, title: text.title }, t, look))
             .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t)))
             .when(Boolean(meta), (el) => el.child(meta)),
         )
         .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(text.sub))),
     )
-    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim, !pinned && row.asleep))
+    .child(
+      pinned && look.ageTone !== "needs"
+        ? age("pinned", selected ? t.muted : t.dim)
+        : age(look.ageText, ageColor(look, t, selected ? t.muted : t.dim), row.asleep, look.ageTone === "needs"),
+    )
     .when(Boolean(ports), (el) => el.child(ports));
 }
 

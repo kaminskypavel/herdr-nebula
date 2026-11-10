@@ -1,7 +1,8 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, badge, metaLine, portLinks, title } from "./row.js";
+import { ball, badge, metaLine, portLinks, title, ageColor } from "./row.js";
+import { rowLook } from "../lib/rowstyle.js";
 import { fs } from "../lib/scale.js";
 
 export const items = (model, b) =>
@@ -153,9 +154,11 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
 function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort) {
   const meta = metaLine(row, t, 11),
-    ports = portLinks(row, t, openPort);
+    ports = portLinks(row, t, openPort),
+    look = rowLook(row);
   return v_flex()
     .id(`pcs-${row.id}`)
+    .relative()
     .flex_none()
     .gap(1)
     .px(8)
@@ -168,12 +171,13 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
+    .when(look.bar === "needs", (el) => el.child(div().absolute().left(0).top(6).bottom(6).w(3).rounded(2).bg(t.ansi1)))
     .child(
       h_flex()
         .gap(8)
         .items_center()
         .child(ball(row.status, t, 8, row.archived, row.fresh))
-        .child(title(row, t).flex_1().text_size(fs(13)))
+        .child(title(row, t, look).flex_1().text_size(fs(13)))
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )
     .child(
@@ -185,10 +189,13 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
         .text_size(fs(11))
         .text_color(t.dim)
         .when(Boolean(meta), (el) => el.child(meta))
+        .when(Boolean(meta), (el) => el.child(div().flex_none().child("·")))
         .child(
           div()
             .flex_none()
-            .child([meta && "·", pinned ? "pinned" : row.age].filter(Boolean).join(" ")),
+            .text_color(ageColor(look, t, t.dim))
+            .when(look.ageTone === "needs", (el) => el.font_semibold())
+            .child(pinned && look.ageTone !== "needs" ? "pinned" : look.ageText),
         )
         .when(Boolean(ports), (el) => el.child(ports)),
     );
