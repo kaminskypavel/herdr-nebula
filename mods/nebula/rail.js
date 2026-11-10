@@ -209,6 +209,10 @@ export class Rail {
       this.repick = null;
       this.repickedAt = Date.now();
     }
+    if (this.pop && Date.now() > this.pop.until) {
+      closeOverlay(this.pop.id);
+      this.pop = null;
+    }
     if (this.hud && Date.now() > this.hud.until) {
       closeOverlay(this.hud.id);
       this.hud = null;
@@ -363,17 +367,15 @@ export class Rail {
         );
         const report = r?.code === 0 ? reportIn(r.stdout) : null;
         if (!report) {
-          if (manual)
-            notify({ icon: LOGO, title: "Could not check for herdr-nebula updates", body: "Is herdr-nebula installed and online?", level: "warning" });
+          if (manual) this.popup({ title: "Could not check for herdr-nebula updates", body: "Is herdr-nebula installed and online?", level: "warning" });
           return;
         }
         setShared(UPDATE, { ...report, checkedAt: Date.now() });
         const head = localStorage.getItem("update.head");
-        if (head && head !== report.head) notify(updatedNotice(report));
+        if (head && head !== report.head) this.popup(updatedNotice(report));
         localStorage.setItem("update.head", report.head);
         if (manual && updateState(report) === "current")
-          notify({
-            icon: LOGO,
+          this.popup({
             title: "herdr-nebula is up to date",
             body: report.version || report.head,
             level: "success",
@@ -381,7 +383,7 @@ export class Rail {
           });
         else if (manual || shouldNotify(report, localStorage.getItem("update.seen"))) {
           const n = updateNotice(report);
-          if (n) notify(n);
+          if (n) this.popup(n);
           localStorage.setItem("update.seen", report.latest);
         }
       } finally {
@@ -393,12 +395,11 @@ export class Rail {
 
   // Runs the update. Its reinstall reloads this mod, so success is told by the next check (a new HEAD).
   runUpdate(cx) {
-    notify({ icon: LOGO, title: "Updating herdr-nebula", body: "Pulling and reinstalling", level: "info", timeout: 3000 });
+    this.popup({ title: "Updating herdr-nebula", body: "Pulling and reinstalling", level: "info", timeout: 3000 });
     cx.spawn(async () => {
       const r = await exec("/bin/sh", ["-c", `"\${SHELL:-/bin/zsh}" -lic 'herdr-nebula update' 2>&1`], { timeout: 300000 }).catch(() => null);
       if (r?.code !== 0)
-        notify({
-          icon: LOGO,
+        this.popup({
           title: "herdr-nebula update failed",
           body: String(r?.stdout ?? "no reply")
             .trim()
@@ -407,6 +408,23 @@ export class Rail {
           level: "error",
         });
     });
+  }
+
+  // herdr-nebula's own popup (nebula-box/popup.js): a frameless window just above the bar's bottom, beside it.
+  // Herdr's toast mod is its own and restored on every start, so update news does not go through notify().
+  popup({ title, body = "", level = "info", actions = [], timeout = 9000 }) {
+    const h = this.size?.height ?? 700;
+    const id = openOverlay({
+      mod: "nebula-box",
+      kind: "window",
+      key: "nebula-popup",
+      frame: "none",
+      width: 420,
+      height: 64,
+      at: { x: RAIL_W + 10, y: Math.max(10, h - 64 - 12) },
+      props: { role: "popup", title, body, level, actions },
+    });
+    this.pop = { id, until: Date.now() + timeout };
   }
 
   pickTab(n) {
@@ -697,6 +715,9 @@ export class Rail {
         .bg(t.chrome)
         .items_center()
         .on_mouse_up("left", (_e, cx) => this.dropTab(cx))
+        .on_size_change((size) => {
+          this.size = size; // where the popup goes (popup())
+        })
         .on_hover((over, cx) => {
           if (over || !this.drag) return; // the pointer left the bar mid-drag: drop nothing
           this.drag = null;

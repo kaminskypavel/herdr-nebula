@@ -22,7 +22,10 @@ test("the popup names the changes and runs nebula.update on click; a local copy 
       ["What changed", "nebula.changes", false],
     ],
   );
-  assert.equal(updateNotice({ behind: 1, latest: "abc" }).title, "herdr-nebula abc is ready");
+  assert.equal(updateNotice({ behind: 1, latest: "abc" }).title, "herdr-nebula update is ready");
+  // commits pushed after a release, with no newer tag: not "v0.1.0 is ready" to someone on v0.1.0
+  assert.equal(updateNotice({ behind: 1, latest: "abc", version: "v0.1.0-2-g1234abc", latestVersion: "v0.1.0" }).title, "herdr-nebula update is ready");
+  assert.equal(updateNotice({ behind: 1, latest: "abc", version: "v0.1.0", latestVersion: "v0.1.0" }).title, "herdr-nebula update is ready");
   assert.equal(updateNotice({ behind: 1, dirty: true }).action, undefined);
   assert.equal(updateNotice({ behind: 0 }), null);
 });
@@ -84,7 +87,7 @@ test("the notes since the installed version come from the CHANGELOG, newest firs
 
 test("a CHANGELOG section becomes headings, bullets and text for the What changed pane", async () => {
   const { noteLines } = await import("../mods/nebula/lib/update.js");
-  assert.deepEqual(noteLines("### Board\n- a `code` thing\nplain"), [
+  assert.deepEqual(noteLines("### Board\n![shot](https://x/a.png)\n<!-- slot -->\n- a `code` thing\nplain"), [
     { kind: "head", text: "Board" },
     { kind: "item", text: "a code thing" },
     { kind: "text", text: "plain" },

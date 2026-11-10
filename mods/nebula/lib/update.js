@@ -23,9 +23,12 @@ export function updateNotice(report) {
   if (state === "local")
     return { title: "herdr-nebula has updates", body: `${changes} on GitHub; your copy has its own changes, so pull with git`, level: "info", icon: LOGO };
   // As Herdr's own: "<name> <version> is ready" with Update and What changed (the notes pane).
-  const first = (report.subjects ?? [])[0];
+  // Named by a release only when main carries a newer tag: commits pushed after a release are still "an update".
+  const first = (report.subjects ?? [])[0],
+    tag = String(report.version ?? "").replace(/-\d+-g[0-9a-f]+$/, ""),
+    named = report.latestVersion && report.latestVersion !== tag ? report.latestVersion : "update";
   return {
-    title: `herdr-nebula ${report.latestVersion || report.latest || ""} is ready`.replace("  ", " "),
+    title: `herdr-nebula ${named} is ready`,
     body: first ? `${changes} · ${first}` : changes,
     level: "info",
     icon: LOGO,
@@ -127,7 +130,7 @@ export function noteLines(text) {
   return String(text ?? "")
     .split("\n")
     .map((l) => l.trim())
-    .filter(Boolean)
+    .filter((l) => l && !l.startsWith("![") && !l.startsWith("<!--")) // images and comments are for GitHub
     .map((l) => {
       const plain = (s) => s.replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1");
       if (l.startsWith("### ")) return { kind: "head", text: plain(l.slice(4)) };
