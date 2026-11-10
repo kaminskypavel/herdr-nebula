@@ -852,25 +852,7 @@ export class Launch {
               .child(this.chipOf(t, "checkout", "⌃T", { lead: svg(BRANCH).size(14).flex_none().text_color(t.muted) }))
               .child(this.chipOf(t, "harness", "Tab"))
               .child(this.chipOf(t, "preset", "⌃O", { prefix: "Preset" }))
-              .child(this.worktreeChip(t, busy))
-              .child(
-                h_flex()
-                  .id("ln-img")
-                  .h(28)
-                  .px(10)
-                  .gap(6)
-                  .items_center()
-                  .rounded(14)
-                  .border_1()
-                  .border_color(t.input)
-                  .text_size(fs(12))
-                  .text_color(t.muted)
-                  .cursor_pointer()
-                  .hover((s) => s.bg(t.hover))
-                  .on_click((_e, cx) => this.pasteImage(cx))
-                  .child("Image")
-                  .child(keyHint(t, "⌘⇧V")),
-              ),
+              .child(this.worktreeChip(t, busy)), // images come by ⌘V or ⌘⇧V, no pill
           )
           .when(this.wt(), (el) =>
             el.child(
