@@ -37,7 +37,7 @@ export const shouldNotify = (report, seenLatest) => Boolean(report?.latest) && u
 
 // The check's JSON from git's outputs: rev-list counts ("behind\tahead"), status --porcelain, the branch,
 // HEAD and origin/main, and the new subjects (one per line). -> the report.
-export function parseCheck({ counts, status, branch, head, latest, log }) {
+export function parseCheck({ counts, status, branch, head, latest, log, version }) {
   const [behind, ahead] = String(counts ?? "0\t0")
     .trim()
     .split(/\s+/)
@@ -49,6 +49,7 @@ export function parseCheck({ counts, status, branch, head, latest, log }) {
     branch: String(branch ?? "").trim(),
     head: String(head ?? "").trim(),
     latest: String(latest ?? "").trim(),
+    version: String(version ?? "").trim(),
     subjects: String(log ?? "")
       .split("\n")
       .map((l) => l.trim())
@@ -61,7 +62,7 @@ export function updateLine(report) {
   if (!report) return "Not checked yet";
   const state = updateState(report),
     n = report.behind;
-  if (state === "current") return `Up to date (${report.head})`;
+  if (state === "current") return `Up to date (${report.version || report.head})`;
   if (state === "local") return `${n} new on GitHub; your copy has its own changes, pull with git`;
   return `${n} new change${n === 1 ? "" : "s"} (${report.head} to ${report.latest})`;
 }

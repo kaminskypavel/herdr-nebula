@@ -125,6 +125,8 @@ const SHORTCUTS = [
       { keys: [b("nebula.new", "⌘K")], text: "new session (p on the board)" },
       { keys: [b("nebula.jump", "⌘J")], text: "jump to any agent, any project" },
       { keys: [b("nebula.tab1", "⌘1"), b("nebula.tab9", "⌘9")], text: "first to ninth project" },
+      { keys: [b("nebula.tab0", "⌘0")], text: "all projects" },
+      { keys: ["drag"], text: "a project icon: reorder (onto the pins: pin)" },
     ],
   },
   {

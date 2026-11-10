@@ -428,6 +428,7 @@ function checkReport() {
     branch: git(["rev-parse", "--abbrev-ref", "HEAD"]),
     head: git(["rev-parse", "--short", "HEAD"]),
     latest: git(["rev-parse", "--short", "origin/main"]),
+    version: git(["describe", "--tags", "--always"]),
     log: git(["log", "--format=%s", "-n", "20", "HEAD..origin/main"]),
   });
 }

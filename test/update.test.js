@@ -28,21 +28,26 @@ test("each new latest commit notifies once", () => {
 });
 
 test("git's outputs become the report", () => {
-  assert.deepEqual(parseCheck({ counts: "3\t1\n", status: " M x\n", branch: "main\n", head: "aaa\n", latest: "bbb\n", log: "one\ntwo\n" }), {
-    behind: 3,
-    ahead: 1,
-    dirty: true,
-    branch: "main",
-    head: "aaa",
-    latest: "bbb",
-    subjects: ["one", "two"],
-  });
+  assert.deepEqual(
+    parseCheck({ counts: "3\t1\n", status: " M x\n", branch: "main\n", head: "aaa\n", latest: "bbb\n", log: "one\ntwo\n", version: "v0.1.0-2-gaaa\n" }),
+    {
+      behind: 3,
+      ahead: 1,
+      dirty: true,
+      branch: "main",
+      head: "aaa",
+      latest: "bbb",
+      version: "v0.1.0-2-gaaa",
+      subjects: ["one", "two"],
+    },
+  );
 });
 
 test("Settings says where the copy stands; the shell's JSON line is found among rc noise", async () => {
   const { updateLine, reportIn } = await import("../mods/nebula/lib/update.js");
   assert.equal(updateLine(null), "Not checked yet");
   assert.equal(updateLine({ behind: 0, head: "aaa" }), "Up to date (aaa)");
+  assert.equal(updateLine({ behind: 0, head: "aaa", version: "v0.1.0" }), "Up to date (v0.1.0)");
   assert.equal(updateLine({ behind: 2, head: "aaa", latest: "bbb" }), "2 new changes (aaa to bbb)");
   assert.equal(updateLine({ behind: 1, dirty: true }), "1 new on GitHub; your copy has its own changes, pull with git");
   assert.deepEqual(reportIn('welcome\n{"behind":1}\n'), { behind: 1 });

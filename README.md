@@ -78,7 +78,9 @@ You need the [Herdr app](https://herdr.dev) and Node 22 or newer. [`wt`](https:/
 curl -fsSL https://raw.githubusercontent.com/kaminskypavel/herdr-nebula/main/install.sh | sh
 ```
 
-That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mods and the `nebula` layout into `~/.config/herdr-app`, adds the layout's keys, links the `herdr-nebula` command into `~/.local/bin`, adds the auto-title hook to Claude Code and Codex (with backups), and switches Herdr to the layout. Run it again to update. In Codex, approve the hook once with `/hooks`.
+That clones herdr-nebula into `~/.local/share/herdr-nebula`, installs the two mods and the `nebula` layout into `~/.config/herdr-app`, adds the layout's keys, links the `herdr-nebula` command into `~/.local/bin`, adds the auto-title hook to Claude Code and Codex (with backups), and switches Herdr to the layout. In Codex, approve the hook once with `/hooks`.
+
+Updates come by themselves: the icon bar offers a new version in a popup (or run `herdr-nebula update`). What changed in each version is in [CHANGELOG.md](CHANGELOG.md) and on the [releases page](https://github.com/kaminskypavel/herdr-nebula/releases).
 
 ## Coming from nebula?
 
