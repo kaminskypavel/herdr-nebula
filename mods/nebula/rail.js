@@ -42,10 +42,12 @@ import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } fr
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
 import { buildBoard } from "./lib/viewmodel.js";
 import { railTabs, tabHint, pillText } from "./lib/rail.js";
+import { landing, rootOf } from "./lib/tabs.js";
+import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
 import { ball } from "./views/row.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED } from "./lib/shared.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, SETTINGS, PINNED, PINNED_PROJECTS } from "./lib/shared.js";
 import { fs, setTextScale } from "./lib/scale.js";
 import { jumpSize } from "./lib/jump.js";
 import { HELP_SIZE } from "./lib/hints.js";
@@ -56,6 +58,15 @@ const RAIL_W = 76;
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
 const store = () => shared(STORE) ?? {};
+const PINS_KEY = "pinnedProjects";
+function savedPins() {
+  try {
+    const v = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((r) => typeof r === "string") : [];
+  } catch {
+    return [];
+  }
+}
 const icon = (name) => `mods/nebula/icons/${name}.svg`;
 
 export class Rail {
@@ -66,6 +77,10 @@ export class Rail {
     this.shown = boardShown();
     this.keys = shared(BOARD_KEYS) === true;
     this.launched = shared(LAUNCHED);
+    // Pins outlive a restart: the rail keeps them in its localStorage and shares them with the project menu.
+    if (!Array.isArray(shared(PINNED_PROJECTS))) setShared(PINNED_PROJECTS, savedPins());
+    this.pinsKey = JSON.stringify(shared(PINNED_PROJECTS));
+    this.lastIn = {}; // { [project root]: the terminal last focused there }, so picking the project goes back to it
     this.tabs = this.tabsNow();
     this.tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
     cx.spawn(async (cx) => {
@@ -182,7 +197,16 @@ export class Rail {
       this.launched = launched;
       this.send({ type: "launch" }, cx);
     }
+    const pinsKey = JSON.stringify(shared(PINNED_PROJECTS) ?? []);
+    if (pinsKey !== this.pinsKey) {
+      this.pinsKey = pinsKey;
+      localStorage.setItem(PINS_KEY, pinsKey);
+    }
     this.tabs = this.tabsNow();
+    const f = focused(),
+      term = f?.terminal ?? f?.agent ?? null,
+      root = term ? rootOf(this.model, term) : null;
+    if (root) this.lastIn[root] = term;
     const tabsKey = JSON.stringify([this.tabs, shared(ICONS)]);
     if (tabsKey !== this.tabsKey) {
       this.tabsKey = tabsKey;
@@ -194,8 +218,10 @@ export class Rail {
   // project needs you. Worked out here from the live sessions (the board's summary is stale while it is folded).
   tabsNow() {
     const model = buildBoard({ terminals: terminals(), agents: agents(), panes: panes(), spaces: spaces(), repos: this.repos() });
+    this.model = model;
     const open = currentOpen(shared(OPEN), model, store());
-    return { ...railTabs({ summary: summarize(model), open, selected: shared(REPO) }), open, plus: closedNeeding(model, open) };
+    const pinned = shared(PINNED_PROJECTS) ?? [];
+    return { ...railTabs({ summary: summarize(model), open, selected: shared(REPO), pinned }), open, plus: closedNeeding(model, open) };
   }
 
   send(ev, cx) {
@@ -263,10 +289,20 @@ export class Rail {
   }
 
   // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
+  // Switches to a project, like switching a workspace: the board shows it, the main area its agent
+  // (lib/tabs.js landing). A project with no live agent only changes the board.
+  pick(root) {
+    setShared(REPO, root);
+    const row = landing(this.model, root, this.lastIn[root]);
+    if (!row) return;
+    const c = focusCommand(row);
+    run(c.name, c.args);
+  }
+
   pickTab(n) {
     const p = this.tabs.items[n - 1];
     if (!p) return;
-    setShared(REPO, p.root);
+    this.pick(p.root);
     const id = openOverlay({
       mod: "nebula-box",
       kind: "window",
@@ -348,8 +384,8 @@ export class Rail {
       kind: "popup",
       at: "pointer",
       width: 190,
-      height: 72,
-      props: { role: "project-menu", root: p.root, name: p.name, open, selected },
+      height: 103,
+      props: { role: "project-menu", root: p.root, name: p.name, open, selected, pinned: p.pinned },
     });
   }
 
@@ -388,7 +424,7 @@ export class Rail {
                 .child(pillText(p.needs)),
             )
         : face;
-    return this.button(t, `proj-${p.root}`, hint.tip, () => setShared(REPO, p.root), icon, {
+    return this.button(t, `proj-${p.root}`, hint.tip, () => this.pick(p.root), icon, {
       on: p.on,
       mark: true,
       size: 42,
@@ -426,7 +462,14 @@ export class Rail {
             .items_center()
             .gap(4)
             .overflow_y_scroll()
-            .children(tabs.items.map((p, i) => this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 }))),
+            .children(
+              tabs.items.flatMap((p, i) => {
+                const tab = this.projectTab(t, p, { open: tabs.open, selected, n: i + 1 });
+                // A short line under the last pinned project, when unpinned ones follow.
+                const last = p.pinned && tabs.items[i + 1] && !tabs.items[i + 1].pinned;
+                return last ? [tab, div().flex_none().w(24).h(1).my(2).bg(t.border)] : [tab];
+              }),
+            ),
         )
         .child(this.button(t, "projects", "Open or close projects", () => this.openProjects(), svg(icon("plus")).size(16), { dot: tabs.plus }))
         .child(div().flex_1())

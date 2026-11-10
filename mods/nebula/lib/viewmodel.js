@@ -97,6 +97,7 @@ function sessionRow(t, where, ctx) {
     changedAt: tab?.changed_at > 0 ? tab.changed_at : 0,
     age: tab?.settled ? "archived" : exited ? resumeHint(resume) || "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
+    ports: ctx.ports?.[t.address] ?? [],
   };
 }
 
@@ -121,6 +122,7 @@ const gitOf = (wt, path) => wt[norm(path)] ?? { ahead: 0, added: 0, deleted: 0 }
 
 // `showEmpty` keeps the bands with no session (a checkout of its own with nothing running);
 // `unseenAt` is { [terminal]: ms } the board noted for tabs that carry no change time (lib/attention.js).
+// `ports` is { [terminal]: [port] }, the TCP ports each terminal's programs listen on (lib/ports.js).
 // `nebula` is nebula's joined session list (lib/nebula-sessions.js) and `resumed` the
 // shared "nebula.resumed" map. Their rows follow the live ones in the band holding their
 // worktree, or land in Other with the stray terminals.
@@ -137,13 +139,14 @@ export function buildBoard({
   resumed = {},
   showEmpty = false,
   unseenAt = {},
+  ports = {},
 }) {
   const where = tabLookup(agents, panes, spaces);
   const g = groupSessions(
     terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),
     repos,
   );
-  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, unseenAt };
+  const ctx = { kids: byParent(terminals), listed: new Map(agents.map((a) => [a.address, a.status])), now, unseenAt, ports };
   const rowOf = (t) => sessionRow(t, where.get(t.address), ctx);
   const mine = new Map(),
     strays = [];

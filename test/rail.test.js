@@ -24,8 +24,8 @@ test("the rail follows the open list's order, not the store's, and never moves t
 test("each item carries its name and status; only the selected one is on", () => {
   const r = railTabs({ summary, open: ["/r/a", "/r/b"], selected: "/r/b" });
   assert.deepEqual(r.items, [
-    { root: "/r/a", name: "a", status: "done", needs: 0, on: false },
-    { root: "/r/b", name: "b", status: "needs", needs: 2, on: true },
+    { root: "/r/a", name: "a", status: "done", needs: 0, on: false, pinned: false },
+    { root: "/r/b", name: "b", status: "needs", needs: 2, on: true, pinned: false },
   ]);
   assert.equal(r.all, false);
 });
@@ -72,4 +72,22 @@ test("the red pill shows the count, 9+ from ten on", () => {
   assert.equal(pillText(9), "9");
   assert.equal(pillText(10), "9+");
   assert.equal(pillText(37), "9+");
+});
+
+test("pinned projects come first in pin order; the rest keep the open order", async () => {
+  const { togglePinned } = await import("../mods/nebula/lib/rail.js");
+  const summary = ["/a", "/b", "/c", "/d"].map((root) => ({ root, name: root.slice(1), status: "idle" }));
+  const r = railTabs({ summary, open: ["/a", "/b", "/c", "/d"], selected: "/a", pinned: ["/c", "/x", "/b"] });
+  assert.deepEqual(
+    r.items.map((i) => [i.root, i.pinned]),
+    [
+      ["/c", true],
+      ["/b", true],
+      ["/a", false],
+      ["/d", false],
+    ],
+  );
+  assert.deepEqual(togglePinned(["/c"], "/a"), ["/c", "/a"]);
+  assert.deepEqual(togglePinned(["/c", "/a"], "/c"), ["/a"]);
+  assert.deepEqual(togglePinned(undefined, "/a"), ["/a"]);
 });

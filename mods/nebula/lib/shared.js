@@ -11,6 +11,7 @@ export const RESUMED = "nebula.resumed";
 export const HIDDEN = "nebula.hidden"; // nebula session ids hidden from the board
 export const PINNED = "nebula.pinned";
 export const OPEN = "nebula.open";
+export const PINNED_PROJECTS = "nebula.pinnedProjects"; // project roots pinned to the top of the icon bar, in pin order
 export const SUMMARY = "nebula.summary";
 export const ICONS = "nebula.icons";
 export const DRAFT = "nebula.draft"; // the new-session box's task, kept when Esc closes it

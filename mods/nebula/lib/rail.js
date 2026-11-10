@@ -5,16 +5,28 @@
 // roots in tab order, selected: the shared "nebula.repo" value (a root, ALL or nothing).
 import { ALL, tabOf } from "./tabs.js";
 
-// -> { all (the All tab is selected), items: [{ root, name, status, on }] }. A root missing from the
-// summary is left out. The order is the open list's: picking a project never moves it.
-export function railTabs({ summary, open, selected }) {
+// -> { all (the All tab is selected), items: [{ root, name, status, needs, on, pinned }] }. A root missing
+// from the summary is left out. Pinned projects come first, in pin order; the rest keep the open list's
+// order: picking a project never moves it.
+export function railTabs({ summary, open, selected, pinned = [] }) {
   const tab = tabOf(open, selected),
     by = new Map(summary.map((p) => [p.root, p]));
-  const items = open
+  const pins = pinned.filter((r) => open.includes(r));
+  const items = [...pins, ...open.filter((r) => !pins.includes(r))]
     .filter((r) => by.has(r))
-    .map((root) => ({ root, name: by.get(root).name, status: by.get(root).status, needs: by.get(root).needs ?? 0, on: root === tab }));
+    .map((root) => ({
+      root,
+      name: by.get(root).name,
+      status: by.get(root).status,
+      needs: by.get(root).needs ?? 0,
+      on: root === tab,
+      pinned: pins.includes(root),
+    }));
   return { all: tab === ALL, items };
 }
+
+// The pin list after the project menu's Pin or Unpin on `root`: a new pin goes last among the pins.
+export const togglePinned = (pinned, root) => ((pinned ?? []).includes(root) ? pinned.filter((r) => r !== root) : [...(pinned ?? []), root]);
 
 // The ⌘ number rule: only the first 9 project tabs have a key (⌘1 to ⌘9). n is the tab's place from 1.
 // The digit is always drawn: "show the numbers while ⌘ is held" is not possible, because Herdr reports

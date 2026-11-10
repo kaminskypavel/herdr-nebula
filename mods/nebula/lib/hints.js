@@ -40,7 +40,7 @@ export function hintPairs(ctx, { preview = false, deletable = false } = {}) {
       return [
         [FOLD, "keys to the board"],
         [JUMP, "jump to an agent"],
-        ["click", preview ? "a row to look" : "a row, ↩ to open"],
+        ["click", "a row to open"],
       ];
     case "filter":
       return [

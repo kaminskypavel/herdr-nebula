@@ -1,7 +1,7 @@
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { columnsModel, projectItems } from "../lib/viewmodel.js";
-import { ball, badge, metaLine, title } from "./row.js";
+import { ball, badge, metaLine, portLinks, title } from "./row.js";
 import { fs } from "../lib/scale.js";
 
 export const items = (model, b) =>
@@ -16,7 +16,8 @@ const MODES = [
   { id: "projects", title: "Projects" },
 ];
 
-function mini(row, t, selected, click, menu, pinned) {
+function mini(row, t, selected, click, menu, pinned, openPort) {
+  const ports = portLinks(row, t, openPort);
   return v_flex()
     .id(`mini-${row.id}`)
     .flex_none()
@@ -39,12 +40,19 @@ function mini(row, t, selected, click, menu, pinned) {
         .when(Boolean(row.badge), (el) => el.child(badge(row.badge, t))),
     )
     .child(
-      div()
+      h_flex()
         .min_w(0)
-        .truncate()
-        .text_size(fs(11))
-        .text_color(t.dim)
-        .child(pinned ? `${row.where} · pinned` : row.where),
+        .gap(6)
+        .child(
+          div()
+            .flex_1()
+            .min_w(0)
+            .truncate()
+            .text_size(fs(11))
+            .text_color(t.dim)
+            .child(pinned ? `${row.where} · pinned` : row.where),
+        )
+        .when(Boolean(ports), (el) => el.child(ports)),
     );
 }
 
@@ -116,7 +124,7 @@ function statusBody(b, t) {
                   .child(ball(c.status, t))
                   .child(div().min_w(0).truncate().child(`${c.title} ${c.rows.length}`)),
               )
-              .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu, b.pinned === r.id))),
+              .children(c.rows.map((r) => mini(r, t, b.cursor === r.id, b.click, b.menu, b.pinned === r.id, b.openPort))),
           ),
         ),
     );
@@ -143,8 +151,9 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
-function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
-  const meta = metaLine(row, t, 11);
+function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort) {
+  const meta = metaLine(row, t, 11),
+    ports = portLinks(row, t, openPort);
   return v_flex()
     .id(`pcs-${row.id}`)
     .flex_none()
@@ -180,7 +189,8 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned) {
           div()
             .flex_none()
             .child([meta && "·", pinned ? "pinned" : row.age].filter(Boolean).join(" ")),
-        ),
+        )
+        .when(Boolean(ports), (el) => el.child(ports)),
     );
 }
 
@@ -249,7 +259,7 @@ function projectsBody(b, t) {
       column(
         2 - at,
         "SESSIONS",
-        pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id)),
+        pc.sessions.map((r) => sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort)),
         "No sessions",
         col === 2,
         t,

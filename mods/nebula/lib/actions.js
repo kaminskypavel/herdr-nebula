@@ -20,18 +20,25 @@ const HIDE = [{ id: "hide", label: "Hide from board", key: "d" }];
 // What a key or menu pick does to this row: on a nebula row, delete and archive both mean Hide.
 export const rowAction = (row, action) => (row.kind === "nebula" && (action === "delete" || action === "archive") ? "hide" : action);
 
-export const actionsFor = (row, hasLaunch) =>
-  row.kind === "nebula"
-    ? HIDE
-    : ALL.filter(
-        (a) =>
-          (!a.tab || row.tab) &&
-          (!a.launch || hasLaunch) &&
-          (!a.resume || canResume(row)) &&
-          (!a.live || (row.address && !row.exited)) &&
-          (a.id !== "archive" || !row.archived) &&
-          (a.id !== "unarchive" || row.archived),
-      );
+export const actionsFor = (row, hasLaunch) => withPorts(row.ports, row.kind === "nebula" ? HIDE : rowActions(row, hasLaunch));
+
+// "Open localhost:<port>" for the first ports the session listens on (lib/ports.js), above the rest.
+const PORTS_SHOWN = 3;
+function withPorts(ports, list) {
+  const open = (ports ?? []).slice(0, PORTS_SHOWN).map((p) => ({ id: `port:${p}`, label: `Open localhost:${p}`, key: "" }));
+  return open.length && list.length ? [...open, { ...list[0], sep: true }, ...list.slice(1)] : [...open, ...list];
+}
+
+const rowActions = (row, hasLaunch) =>
+  ALL.filter(
+    (a) =>
+      (!a.tab || row.tab) &&
+      (!a.launch || hasLaunch) &&
+      (!a.resume || canResume(row)) &&
+      (!a.live || (row.address && !row.exited)) &&
+      (a.id !== "archive" || !row.archived) &&
+      (a.id !== "unarchive" || row.archived),
+  );
 
 export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
 

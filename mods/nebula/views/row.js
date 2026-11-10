@@ -10,6 +10,9 @@ import { rowMeta } from "../lib/rowmeta.js";
 import { rowText } from "../lib/prompt.js";
 import { pulseOf } from "../lib/attention.js";
 import { fs, rh } from "../lib/scale.js";
+import { portUrl } from "../lib/ports.js";
+
+const PORTS_SHOWN = 3;
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
 // `sessionTall` is a session row with the prompt line under its title.
@@ -73,10 +76,69 @@ export function title(row, t) {
     : text;
 }
 
+// The ports a session listens on as links (":3000 :5173"), for the plain views (Cards, Columns), or null.
+// A click opens localhost:<port> and stops there, so the row under it does not open the agent too.
+export function portLinks(row, t, open, size = 11) {
+  const ports = (row.ports ?? []).slice(0, PORTS_SHOWN);
+  if (!ports.length) return null;
+  return h_flex()
+    .flex_none()
+    .gap(6)
+    .text_size(fs(size))
+    .children(
+      ports.map((p) =>
+        div()
+          .id(`port-${row.id}-${p}`)
+          .text_color(t.accent)
+          .cursor_pointer()
+          .hover((s) => s.underline())
+          .tooltip(`Open ${portUrl(p)}`)
+          .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+          .on_click((_e, cx) => {
+            cx.stop_propagation();
+            open(p, cx);
+          })
+          .child(`:${p}`),
+      ),
+    );
+}
+
+// A session's ports at the right end of its row in Tree and List, in fixed-width cells: those lists
+// take no handler inside a row, so the board finds the port a click hit by its distance from the
+// list's right edge (lib/ports.js portAt, with PORT_HIT). Cards and Columns use portLinks.
+const LIST_PAD = 8, // virtualList's px
+  ROW_PAD = 10, // sessionLine's pr
+  CELL = 42,
+  CELL_GAP = 4;
+export const PORT_HIT = () => ({ inset: LIST_PAD + ROW_PAD, width: rh(CELL), gap: CELL_GAP, shown: PORTS_SHOWN });
+
+function portCells(row, t) {
+  const ports = (row.ports ?? []).slice(0, PORTS_SHOWN);
+  if (!ports.length) return null;
+  return h_flex()
+    .flex_none()
+    .gap(CELL_GAP)
+    .text_size(fs(11))
+    .children(
+      ports.map((p) =>
+        div()
+          .w(rh(CELL))
+          .flex()
+          .justify_end()
+          .text_color(t.accent)
+          .cursor_pointer()
+          .hover((s) => s.underline())
+          .tooltip(`Open ${portUrl(p)}`)
+          .child(`:${p}`),
+      ),
+    );
+}
+
 export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).border_color(t.border).text_size(fs(10)).text_color(t.dim).child(text);
 
 export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true }) {
-  const meta = metaLine(row, t);
+  const meta = metaLine(row, t),
+    ports = portCells(row, t);
   const text = rowText(row, promptLine);
   return h_flex()
     .h(rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session))
@@ -113,7 +175,8 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         )
         .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(11.5)).text_color(t.dim).child(text.sub))),
     )
-    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim, !pinned && row.asleep));
+    .child(age(pinned ? "pinned" : row.age, selected ? t.muted : t.dim, !pinned && row.asleep))
+    .when(Boolean(ports), (el) => el.child(ports));
 }
 
 // The line under a band with no session: it can hold the cursor, `p` and `d` act on it.

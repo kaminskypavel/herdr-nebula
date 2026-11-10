@@ -17,8 +17,8 @@
 //   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
 //   promptLine      Tree and List rows carry a dim second line with the last prompt
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
-//   preview         moving the highlight (or a click) shows that agent in the main area while the
-//                   board keeps the keys; Enter or a double click steps in (lib/preview.js)
+//   preview         moving the highlight shows that agent in the main area while the board keeps
+//                   the keys; Enter or a click steps in (lib/preview.js)
 //   sleepAfter      minutes a finished, seen agent may idle out of view before the rail stops its
 //                   CLI to free memory (0 off, 5, 15, 30 or 60; a malformed value is 15, not off)
 import { HARNESSES } from "./harness.js";
@@ -135,7 +135,7 @@ const SHORTCUTS = [
     col: 1,
     rows: [
       { keys: ["j", "k", "↑", "↓", "Tab", "⇧Tab"], text: "move" },
-      { keys: ["↩", "double click"], text: "step in, resume if exited" },
+      { keys: ["↩", "click"], text: "step in, resume if exited" },
       { keys: ["Esc"], text: "keys back to the terminal" },
       { keys: ["/", "f", "?"], text: "jump to any agent, filter, help" },
       { keys: [".", ","], text: "next, previous needs-you" },

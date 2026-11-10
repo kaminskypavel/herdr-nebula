@@ -193,3 +193,21 @@ test("Collapse all / Expand all act on what is shown: headers on All, bands on a
   assert.deepEqual([...d.folded], []);
   assert.deepEqual([...d.bands], ["/keep"]);
 });
+
+test("picking a project lands on the agent last looked at there, else the most urgent live one", async () => {
+  const { landing, rootOf } = await import("../mods/nebula/lib/tabs.js");
+  const row = (address, status, extra = {}) => ({ address, status, kind: undefined, archived: false, exited: false, ...extra });
+  const model = {
+    repos: [
+      { root: "/a", bands: [{ rows: [row("t1", "seen"), row("t2", "needs"), row("t3", "working", { archived: true })] }] },
+      { root: "/b", bands: [{ rows: [row("t9", "exited", { exited: true }), { address: null, kind: "nebula", status: "exited" }] }] },
+    ],
+  };
+  assert.equal(landing(model, "/a", "t1").address, "t1");
+  assert.equal(landing(model, "/a", "gone").address, "t2");
+  assert.equal(landing(model, "/a", "t3").address, "t2");
+  assert.equal(landing(model, "/b", null), null);
+  assert.equal(landing(model, "/nope", null), null);
+  assert.equal(rootOf(model, "t2"), "/a");
+  assert.equal(rootOf(model, "zz"), null);
+});

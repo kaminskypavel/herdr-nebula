@@ -90,6 +90,8 @@ import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, editorCommand, whereIs } from "./lib/actions.js";
 import { trackUnseen, freshDone } from "./lib/attention.js";
+import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
+import { PORT_HIT } from "./views/row.js";
 import {
   OTHER,
   NEW_SESSION,
@@ -130,6 +132,7 @@ const rowActionOf = (k, m) => {
 
 const COLUMN_TYPES = ["project", "worktree", "session"];
 const DOUBLE_CLICK_MS = 400;
+const PORTS_EVERY = 5000; // how often the board looks for listening ports
 const COMPACT_BELOW = 500;
 const REFRESH_EVERY = 60000;
 const MIN_GAP = 5000;
@@ -218,6 +221,7 @@ export class Board {
     this.order = "";
     this.click = (key, c) => this.onClick(key, c);
     this.menu = (key, e, c) => this.rowMenu(key, e, c);
+    this.openPort = (port, c) => this.openUrl(portUrl(port), c);
     this.items = [];
     this.stops = [];
     this.byKey = new Map();
@@ -226,6 +230,8 @@ export class Board {
     this.nebula = []; // nebula's own sessions (lib/nebula-sessions.js), read by loadNebula
     this.nebulaBusy = false;
     this.nebulaAt = 0;
+    this.ports = {}; // { [terminal]: [port] } its programs listen on (lib/ports.js), read by loadPorts
+    this.portsBusy = false;
     this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
     this.visible = findNode(layout(), "board")?.hidden !== true;
     this.resuming = new Set();
@@ -241,8 +247,29 @@ export class Board {
       this.loadNebula(c);
     });
     cx.timer.every(30000, (c) => c.notify());
+    cx.timer.every(PORTS_EVERY, (c) => this.loadPorts(c));
     this.loadAll(cx);
     this.loadNebula(cx);
+    this.loadPorts(cx);
+  }
+
+  // The ports each terminal listens on (a dev server an agent started), drawn on its row.
+  loadPorts(cx) {
+    if (this.portsBusy || !this.visible) return;
+    this.portsBusy = true;
+    cx.spawn(async (cx) => {
+      try {
+        const r = await exec("/bin/sh", ["-c", PORTS_SCRIPT], { timeout: 15000 }).catch(() => null);
+        if (r?.code !== 0) return;
+        const ports = parsePorts(r.stdout);
+        if (JSON.stringify(ports) !== JSON.stringify(this.ports)) {
+          this.ports = ports;
+          cx.notify();
+        }
+      } finally {
+        this.portsBusy = false;
+      }
+    });
   }
 
   // Nebula's sessions: its CLI lists them and its db says which Claude conversation each
@@ -832,6 +859,7 @@ export class Board {
     const now = Date.now(),
       dbl = this.last.key === key && now - this.last.at < DOUBLE_CLICK_MS;
     this.last = { key, at: now };
+    if (item.type === "session" && this.portClick(item.row, cx)) return;
     if (item.type === "sub") item = this.byKey.get(item.parent) ?? item;
     const shift = this.shift;
     this.shift = false;
@@ -839,12 +867,7 @@ export class Board {
       this.col = 2;
       this.place(item.key);
       if (shift) this.pinRow(item.row);
-      else if (dbl)
-        this.show(item.row, cx); // a double click (or Enter) steps in; a single click only highlights
-      else if (this.config().preview) {
-        this.previewToken++;
-        this.preview(cx, true);
-      }
+      else this.show(item.row, cx); // a click steps in, in every view (the user's call); j/k only highlight
     } else if (item.type === "vacant") this.place(item.key);
     else if (item.type === "project" || item.type === "worktree") this.choose(item.key);
     else if (item.type === "repo") {
@@ -940,13 +963,31 @@ export class Board {
     } else if (action === "relaunch") {
       const root = whereIs(this.model, row.id)?.repo.root;
       this.openLaunch({ prefill: { ...launch, ...(root && root !== OTHER ? { root } : {}) } });
-    } else if (action === "folder") {
+    } else if (action.startsWith("port:")) this.openUrl(portUrl(action.slice(5)), cx);
+    else if (action === "folder") {
       const { cmd, args } = editorCommand(shared(SETTINGS)?.editor, whereIs(this.model, row.id)?.band.path || row.cwd);
       cx.spawn(async () => {
         await exec(cmd, args).catch(() => null);
       });
     }
     cx.notify();
+  }
+
+  // A click in Tree or List that landed on one of the row's port cells opens that port (views/row.js).
+  portClick(row, cx) {
+    const down = this.listDown;
+    this.listDown = null;
+    if (!down || Date.now() - down.at > 1500 || !row.ports?.length || !viewOf(this.view).virtual) return false;
+    const port = portAt(row.ports, down.fromRight, PORT_HIT());
+    if (!port) return false;
+    this.openPort(port, cx);
+    return true;
+  }
+
+  openUrl(url, cx) {
+    cx.spawn(async () => {
+      await exec(window()?.platform === "macos" ? "open" : "xdg-open", [url]).catch(() => null);
+    });
   }
 
   rowMenu(key, _e, cx) {
@@ -974,6 +1015,7 @@ export class Board {
         launch: list.some((a) => a.id === "relaunch"),
         exited: row.exited,
         session: row.session,
+        ports: row.ports,
       },
     });
     cx.notify();
@@ -1106,6 +1148,7 @@ export class Board {
       unseenAt: this.unseenAt,
       nebula: this.nebulaOn ? shownSessions(this.nebula, shared(HIDDEN)) : [],
       resumed: shared(RESUMED) ?? {},
+      ports: this.ports,
     };
   }
 
@@ -1243,7 +1286,10 @@ export class Board {
     const said = liveFlash(this.flash),
       item = this.byKey.get(this.cursor);
     const ctx = hintContext({ has: this.has, filtering: this.filtering, item, pc: this.pc, col: this.col });
-    const pairs = hintPairs(ctx, { preview: this.config().preview, deletable: item?.type === "vacant" && Boolean(item.band.deletable) });
+    const pairs = hintPairs(ctx, {
+      preview: this.config().preview,
+      deletable: item?.type === "vacant" && Boolean(item.band.deletable),
+    });
     const text = said ? said.text : hintLine(pairs, shortcutLabel(keys(), window()?.platform === "macos"));
     return h_flex()
       .id("status-line")

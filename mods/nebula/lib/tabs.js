@@ -4,7 +4,7 @@
 //
 // `model` is the board's model cut to the open projects (onlyOpen in lib/open.js), `open` the
 // open roots in tab order and `selected` the shared "nebula.repo" value: a root, ALL or nothing.
-import { OTHER, bandPaths } from "./viewmodel.js";
+import { OTHER, bandPaths, byStatus } from "./viewmodel.js";
 import { ALL } from "./shared.js";
 
 export { ALL };
@@ -51,3 +51,16 @@ export function foldAllState({ folded, bands }, repos, fold, tab) {
   if (tab === ALL) return { folded: set(folded, roots, fold), bands: fold ? new Set(bands) : set(bands, paths, false) };
   return { folded: fold ? new Set(folded) : set(folded, roots, false), bands: set(bands, paths, fold) };
 }
+
+// Picking a project (its icon or ⌘n) shows one of its agents in the main area, like switching a
+// workspace: the one the user last looked at there while it is still live, else the most urgent
+// (needs you, working, unseen, seen). Archived and nebula rows never count. -> the row, or null.
+// `model` is buildBoard's, `last` the terminal address last focused in that project.
+export function landing(model, root, last) {
+  const repo = model.repos.find((r) => r.root === root);
+  const rows = (repo?.bands ?? []).flatMap((b) => b.rows).filter((r) => r.kind !== "nebula" && !r.archived && r.address && !r.exited);
+  return rows.find((r) => r.address === last) ?? byStatus(rows)[0] ?? null;
+}
+
+// The project root holding terminal `address` in buildBoard's model, or null.
+export const rootOf = (model, address) => model.repos.find((r) => r.bands.some((b) => b.rows.some((x) => x.address === address)))?.root ?? null;

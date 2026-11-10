@@ -52,7 +52,7 @@ test("an archived row offers unarchive, a nebula row hide, an exited row resume"
 });
 
 test("with the keys elsewhere, the hint says how to get them, from the live keymap", () => {
-  assert.equal(hintLine(hintPairs("away"), mac), "⌃` keys to the board · ⌘J jump to an agent · click a row, ↩ to open");
+  assert.equal(hintLine(hintPairs("away"), mac), "⌃` keys to the board · ⌘J jump to an agent · click a row to open");
   const rebound = shortcutLabel(
     [
       { section: "layout:nebula", keys: "ctrl-space", action: "nebula.focus" },
@@ -60,7 +60,7 @@ test("with the keys elsewhere, the hint says how to get them, from the live keym
     ],
     true,
   );
-  assert.equal(hintLine(hintPairs("away"), rebound), "⌃Space keys to the board · ⌘P jump to an agent · click a row, ↩ to open");
+  assert.equal(hintLine(hintPairs("away"), rebound), "⌃Space keys to the board · ⌘P jump to an agent · click a row to open");
 });
 
 test("the empty board and a repo header have hints too", () => {
@@ -77,4 +77,8 @@ test("no hint has an em dash, and every context has pairs", () => {
 
 test("the Help dialog is big enough for the board's keys", () => {
   assert.ok(HELP_SIZE.width >= 560 && HELP_SIZE.height >= 460);
+});
+
+test("a click opens a row in every view, so the away hint says so", () => {
+  assert.deepEqual(hintPairs("away").at(-1), ["click", "a row to open"]);
 });
