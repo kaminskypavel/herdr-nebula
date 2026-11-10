@@ -41,11 +41,15 @@ export function nextVersion(current, groups) {
 }
 
 // A CHANGELOG section: "## v0.2.0 (2026-11-20)" and a "###" list per kind that has entries.
+export const IMAGES = "https://raw.githubusercontent.com/kaminskypavel/herdr-nebula";
+
 export function section(version, date, groups) {
   const parts = Object.values(TYPES)
     .filter((k) => groups[k]?.length)
     .map((k) => `### ${k}\n${groups[k].map((x) => `- ${x}`).join("\n")}`);
-  return `## v${version} (${date})\n\n${parts.join("\n\n") || "Maintenance only."}\n`;
+  // A slot for screenshots (shot from the demo window, never a real one): the link holds once the tag exists.
+  const slot = `<!-- Screenshots: save them in assets/releases/v${version}/ and add ![What it shows](${IMAGES}/v${version}/assets/releases/v${version}/name.png) -->`;
+  return `## v${version} (${date})\n\n${slot}\n\n${parts.join("\n\n") || "Maintenance only."}\n`;
 }
 
 // The CHANGELOG with a new section on top (under its "# Changelog" heading).
@@ -61,5 +65,11 @@ export function notesFor(changelog, version) {
   const part = String(changelog ?? "")
     .split(/\n(?=## v\d)/)
     .find((x) => x.startsWith(`## ${v} `) || x.startsWith(`## ${v}\n`));
-  return part ? part.replace(/^## [^\n]*\n/, "").trim() : null;
+  // An unfilled screenshot slot (an HTML comment) stays out of the release.
+  return part
+    ? part
+        .replace(/^## [^\n]*\n/, "")
+        .replace(/^<!--[^\n]*-->\n*/gm, "")
+        .trim()
+    : null;
 }

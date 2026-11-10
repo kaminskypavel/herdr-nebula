@@ -27,7 +27,8 @@ test("a release with features steps the minor version, one with only fixes the p
 
 test("a section goes on top of the CHANGELOG and can be read back for the release", () => {
   const sec = section("0.2.0", "2026-11-20", group(subjects));
-  assert.match(sec, /^## v0\.2\.0 \(2026-11-20\)\n\n### Features\n- One New session key\n/);
+  assert.match(sec, /^## v0\.2\.0 \(2026-11-20\)\n\n<!-- Screenshots: save them in assets\/releases\/v0\.2\.0\//);
+  assert.match(sec, /\n### Features\n- One New session key\n/);
   const log = insertSection("# Changelog\n\n## v0.1.0 (2026-11-10)\n\n- first\n", sec);
   assert.ok(log.indexOf("## v0.2.0") < log.indexOf("## v0.1.0"));
   assert.equal(notesFor(log, "v0.1.0"), "- first");
