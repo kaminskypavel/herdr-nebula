@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { ASLEEP, AUTOTITLE, CLAUDETITLE, PROMPT, SESSION } from "../mods/nebula/lib/labels.js";
+import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION } from "../mods/nebula/lib/labels.js";
 import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
 import { SUB_PREFIX } from "../mods/nebula/lib/subagents.js";
@@ -117,6 +117,8 @@ function hookPrompt(app) {
 
   let tab = tabId ? findTab(tabId) : null;
   if (!tab) return;
+  // A name the board gave the tab from the task at launch is a placeholder: the tab counts as unnamed.
+  if (tab.named && labels[LAUNCHNAME] && tab.name === labels[LAUNCHNAME]) tab = { ...tab, named: false };
 
   let held = labels[CLAUDETITLE] ?? "";
   if (app === "claude") {
@@ -205,7 +207,7 @@ function title(words) {
     console.log("Could not find this session's tab, nothing renamed.");
     return;
   }
-  if (tab.named && tab.name !== (labels[AUTOTITLE] ?? "")) {
+  if (tab.named && tab.name !== (labels[AUTOTITLE] ?? "") && tab.name !== (labels[LAUNCHNAME] ?? "")) {
     console.log(`Session is already titled "${tab.name}". Leave it.`);
     return;
   }

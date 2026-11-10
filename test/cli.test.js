@@ -519,3 +519,12 @@ test("a custom-title.json that is not valid JSON counts as no Claude title", () 
   assert.equal(r.status, 0);
   assert.equal(w.state().tabs[0].name, "1");
 });
+
+test("a tab the board named from the task at launch still counts as unnamed: the hook asks for a title, and title replaces it", () => {
+  const w = world({ tabs: [{ id: "tb1", name: "check on the sqlite and" }], labels: { "nebula.launchname": "check on the sqlite and" } });
+  const out = reply(w.run(["hook", "prompt", "claude"], payload()));
+  assert.ok(out?.additionalContext?.includes("herdr-nebula title"));
+  assert.equal(out.sessionTitle, undefined);
+  w.run(["title", "Sqlite", "Radar", "Report"]);
+  assert.equal(w.state().tabs[0].name, "Sqlite Radar Report");
+});

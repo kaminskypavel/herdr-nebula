@@ -48,7 +48,7 @@ test("a checkout already shown in a space plans tab.new in that space", () => {
     p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
     ["space.select", "tab.new", "labels", "keys"],
   );
-  assert.deepEqual(launchStep(p).args, { space: "s1", folder: "/w/app", argv: ["claude", "Fix X"] });
+  assert.deepEqual(launchStep(p).args, { space: "s1", folder: "/w/app", argv: ["claude", "Fix X"], name: "Fix X" });
 });
 
 test("a space inside a deeper checkout does not count for the outer one", () => {
@@ -66,7 +66,7 @@ test("a checkout with no space plans space.new at its path", () => {
     p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
     ["space.new", "labels", "keys"],
   );
-  assert.deepEqual(launchStep(p).args, { folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"] });
+  assert.deepEqual(launchStep(p).args, { folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"], tab: "Fix X" });
 });
 
 test("^N with a new branch plans wt switch --create, then space.new at the path wt returns", () => {
@@ -87,7 +87,7 @@ test("^N with a branch that exists without a worktree plans wt switch without --
 test("^N with a branch that already has a worktree plans no wt call and reuses it", () => {
   const p = plan({ newWorktree: true, branch: "fix-x", branchExists: true, spaces: [{ id: "s2", path: "/w/app-worktrees/fix-x" }] });
   assert.ok(!p.steps.some((s) => s.type === "wt"));
-  assert.deepEqual(launchStep(p).args, { space: "s2", folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"] });
+  assert.deepEqual(launchStep(p).args, { space: "s2", folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"], name: "Fix X" });
   assert.equal(p.existing, true);
 });
 
@@ -266,8 +266,9 @@ test("the labels go to the launch step's terminal in one hc label call", async (
   const hc = calls.filter((c) => c[0] === "hc");
   assert.equal(hc.length, 1);
   assert.deepEqual(hc[0].slice(0, 3), ["hc", "label", "t9"]);
-  assert.equal(hc[0].length, 5);
+  assert.equal(hc[0].length, 6);
   assert.ok(hc[0].includes("nebula.board=1"));
+  assert.ok(hc[0].includes("nebula.launchname=Fix X"));
   assert.ok(hc[0].some((a) => a.startsWith("nebula.launch=") && JSON.parse(a.slice(14)).model === "gpt-5.5"));
 });
 
@@ -294,4 +295,15 @@ test("a project whose folder is gone gets a plain message naming the folder, not
     goneText("little-adventures", "~/devl/good-muse-story/little-adventures"),
     "little-adventures is not at ~/devl/good-muse-story/little-adventures anymore. Remove it in Projects (+), then add it from where it is now.",
   );
+});
+
+test("a launch names its tab from the task's first words, a placeholder the agent's title replaces", async () => {
+  const { launchName } = await import("../mods/nebula/lib/launch.js");
+  assert.equal(launchName("\n  check on the sqlite and radar we found in the discord\nmore"), "check on the sqlite and");
+  assert.equal(launchName(""), null);
+  assert.equal(launchName("a".repeat(60), 5, 20).length, 20);
+  const named = plan({ name: "Release notes" });
+  assert.equal(launchStep(named).args.tab, "Release notes");
+  assert.equal(named.steps.find((s) => s.type === "labels").name, null);
+  assert.equal(plan({ task: "" }).steps.find((s) => s.type === "labels").name, null);
 });

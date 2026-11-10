@@ -105,10 +105,26 @@ function spaceFor(folder, checkouts, spaces) {
 //   git (false for a plain folder: no worktree, newWorktree is ignored), newWorktree, branch, branchExists (a local branch of that name), spaces, harness,
 //   model, effort, preset (the chosen preset or null), task, from: "board" | "terminal",
 //   argv (the whole command, instead of one built from harness, model, effort and task),
-//   name (names the new tab, so auto-title leaves it alone) }.
+//   name (names the new tab, so auto-title leaves it alone; without one the task's first words name it
+//   as a placeholder, launchName) }.
 // Returns { steps, existing } where existing means the branch already had a worktree.
+// A placeholder tab name from the task, so a new session is not "1" while its agent starts (it may first
+// stop at a trust question): the task's first words. The agent's own title replaces it later (the prompt
+// hook and `herdr-nebula title` read the nebula.launchname label). -> the name, or null without a task.
+export function launchName(task, words = 5, max = 40) {
+  const line = String(task ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .find(Boolean);
+  if (!line) return null;
+  const short = line.split(/\s+/).slice(0, words).join(" ");
+  return short.length > max ? `${short.slice(0, max - 1).trimEnd()}…` : short;
+}
+
 export function planLaunch(o) {
   const task = o.preset ? composePrompt(o.preset, o.preset.skip_task ? "" : o.task) : String(o.task ?? "").trim();
+  const draft = o.name ? null : launchName(task),
+    name = o.name || draft;
   const argv = o.argv ?? buildArgv({ harness: o.harness, model: o.model, effort: o.effort, task });
   const steps = [];
   let folder = o.checkout,
@@ -130,11 +146,12 @@ export function planLaunch(o) {
   const space = folder === WT ? null : spaceFor(folder, o.checkouts, o.spaces);
   if (space) {
     steps.push({ type: "do", name: "space.select", args: { id: space } });
-    steps.push({ type: "do", name: "tab.new", args: { space, folder, argv, ...(o.name ? { name: o.name } : {}) }, launch: true });
-  } else steps.push({ type: "do", name: "space.new", args: { folder, argv, ...(o.name ? { tab: o.name } : {}) }, launch: true });
+    steps.push({ type: "do", name: "tab.new", args: { space, folder, argv, ...(name ? { name } : {}) }, launch: true });
+  } else steps.push({ type: "do", name: "space.new", args: { folder, argv, ...(name ? { tab: name } : {}) }, launch: true });
   steps.push({
     type: "labels",
     launch: { harness: o.harness, model: o.model || null, effort: o.effort || null, preset: o.preset?.name ?? null, checkout: folder },
+    name: draft,
   });
   steps.push({ type: "keys", to: o.from === "board" ? "board" : "agent" });
   return { steps, existing };
@@ -186,7 +203,7 @@ export async function runSteps(steps, exec, onStep = () => {}) {
       if (s.launch) terminal = out?.terminal ?? null;
     } else if (s.type === "labels" && terminal) {
       // The agent is already running; a label that fails to land only costs the board its metadata.
-      const pairs = Object.entries(launchLabels(s.launch)).map(([k, v]) => `${k}=${v}`);
+      const pairs = Object.entries(launchLabels(s.launch, s.name)).map(([k, v]) => `${k}=${v}`);
       await exec("hc", ["label", terminal, ...pairs]).catch(() => null);
     }
   }
