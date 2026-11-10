@@ -43,6 +43,7 @@ const LEGEND = "⇧↩ new line · ⇧Tab presets";
 const BRANCH = "mods/nebula/icons/git-branch.svg";
 const QUEUED = "Launching when ready…";
 const LAUNCHING = "Launching…";
+const FADE_MS = 160;
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 function place(s, all) {
@@ -63,6 +64,7 @@ export class Launch {
     this.handle = cx.focus_handle();
     this.ready = false;
     this.busy = null;
+    this.fading = false; // a launch worked: the box fades out, then closes
     this.queued = false; // Enter came before the box was ready: launch as soon as it is
     this.error = "";
     this.repos = projectList(shared(STORE) ?? {});
@@ -509,8 +511,8 @@ export class Launch {
         } catch (error) {
           this.error = words(error);
         }
-        this.busy = null;
         if (this.error) {
+          this.busy = null;
           alive(cx);
           return;
         }
@@ -564,17 +566,26 @@ export class Launch {
   finish(terminal, cx) {
     setShared(DRAFT, ""); // launched: nothing to keep
     if (this.where) setShared(FLASH, flashValue(this.where)); // the board's status line says where it went
-    try {
-      this.close();
-    } catch {}
-    if (this.from === "board") {
-      setShared(LAUNCHED, Math.random());
-      setShared(FOCUS_BOARD, Math.random());
-    } else if (terminal) {
-      const ask = () => run("pane.focus", { terminal });
-      ask();
-      for (const ms of REFOCUS_MS) cx.timer.after(ms, ask, { owner: null });
-    }
+    this.fading = true; // the box fades out (the root's opacity transition), then closes
+    alive(cx);
+    cx.timer.after(
+      FADE_MS + 20,
+      () => {
+        this.busy = null;
+        try {
+          this.close();
+        } catch {}
+        if (this.from === "board") {
+          setShared(LAUNCHED, Math.random());
+          setShared(FOCUS_BOARD, Math.random());
+        } else if (terminal) {
+          const ask = () => run("pane.focus", { terminal });
+          ask();
+          for (const ms of REFOCUS_MS) cx.timer.after(ms, ask, { owner: null });
+        }
+      },
+      { owner: null },
+    );
   }
 
   pickerView(t) {
@@ -715,6 +726,8 @@ export class Launch {
       .pt(20)
       .pb(16)
       .gap(12)
+      .opacity(this.fading ? 0 : 1)
+      .transition("opacity", FADE_MS)
       .bg(t.popover)
       .text_color(t.foreground)
       .text_size(fs(13))
@@ -771,8 +784,8 @@ export class Launch {
           .child(
             accentButton(t, "ln-go", (_e, cx) => this.go(cx))
               .when(busy, (el) => el.opacity(0.7))
-              .child(div().child(agent ? `Launch ${agent}` : "Launch"))
-              .child(div().opacity(0.75).child("↩")),
+              .when(busy, (el) => el.child(div().flex_none().frames(SPINNER, 80)).child(div().child(agent ? `Launching ${agent}` : "Launching")))
+              .when(!busy, (el) => el.child(div().child(agent ? `Launch ${agent}` : "Launch")).child(div().opacity(0.75).child("↩"))),
           ),
       );
   }
