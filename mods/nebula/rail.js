@@ -332,7 +332,7 @@ export class Rail {
       frame: "none",
       width: 300,
       height: 60,
-      props: { role: "hud", root: p.root, name: p.name, n },
+      props: { role: "hud", root: p.root, name: p.name, n, at: Date.now() }, // `at` times the flash's fade in and out
     });
     this.hud = { id, until: Date.now() + 900 }; // watch() closes it
   }

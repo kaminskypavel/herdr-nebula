@@ -13,6 +13,7 @@ import {
   stripHeight,
   trackEntering,
   enterPhase,
+  hudPhase,
 } from "../mods/nebula/lib/motion.js";
 import { setTextScale } from "../mods/nebula/lib/scale.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
@@ -109,4 +110,8 @@ test("a row that goes and comes back enters again; one that goes mid-entry is dr
   st = trackEntering(st, ["a"], 200);
   st = trackEntering(st, ["a", "b"], 300);
   assert.deepEqual([...enterPhase(st, 300)], [["b", "from"]], "back: new again");
+});
+
+test("the project flash starts low and invisible, rests, and fades out before the rail closes it at 900 ms", () => {
+  assert.deepEqual([0, 59, 60, 400, 699, 700, 899].map(hudPhase), [0, 0, 1, 1, 1, 2, 2]);
 });

@@ -92,3 +92,8 @@ export function enterPhase(state, now) {
   for (const [id, since] of state?.at ?? []) if (now - since < ENTER_MS) out.set(id, now - since < ENTER_FROM_MS ? "from" : "to");
   return out;
 }
+
+// The ⌘1 to ⌘9 flash: it rises and fades in at the start, and fades out before the rail closes it at 900 ms.
+// 0 draws it at its start (6 px down, invisible), 1 at rest, 2 faded out.
+export const HUD_RISE = 6;
+export const hudPhase = (ms) => (ms < 60 ? 0 : ms < 700 ? 1 : 2);
