@@ -18,3 +18,5 @@ export const ICONS = "nebula.icons";
 export const DRAFT = "nebula.draft"; // the new-session box's task, kept when Esc closes it
 export const FLASH = "nebula.flash"; // { text, n, undo? } a dialog's line for the board's status line (lib/flash.js)
 export const GOTO = "nebula.goto"; // { id, n } the jump palette's pick: the board puts its cursor on that session
+export const CLEARED = "nebula.cleared"; // { [row id]: clearKey } rows cleared with e on the board (lib/waiting.js)
+export const REPLIES = "nebula.replies"; // { [row id]: { key, line } } the line an agent last said, read by the board (lib/reply.js)
