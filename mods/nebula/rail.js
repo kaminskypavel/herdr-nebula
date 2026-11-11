@@ -40,6 +40,7 @@ import {
 } from "herdr";
 import { putToSleep } from "./sleeper.js";
 import { STATE_DIR, STATE_FILE, SYNCED, same, snapshot, parseState, stateText, archiveStep, archiveApply } from "./lib/globalstate.js";
+import { applySound } from "./lib/sounds.js";
 import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
 import { mergeSettings } from "./lib/settings.js";
 import { groupSessions } from "./lib/projects.js";
@@ -356,12 +357,37 @@ export class Rail {
     for (const id of step.unsettle) run("tab.unsettle", { id });
     if (step.settle.length || step.unsettle.length) g.pending = { settle: step.settle, unsettle: step.unsettle, until: now + 2000 };
     g.before = [...new Set([...settled.filter((id) => !step.unsettle.includes(id)), ...step.settle])];
+    this.syncSound();
     const keys = snapshot(shared);
     if (!same(keys, g.keys) || !same(step.archived, g.archived)) {
       g.keys = keys;
       g.archived = step.archived;
       this.writeState();
     }
+  }
+
+  // The Sound setting is shared, but Herdr reads its sounds from this window's own settings.json: make that file
+  // match the choice (once per change, and at start), so every window plays the same sound.
+  syncSound() {
+    const sound = mergeSettings(shared(SETTINGS)).sound;
+    if (sound === this.gs.sound || this.gs.soundBusy) return;
+    this.gs.soundBusy = true;
+    const file = `${appHome()}/settings.json`;
+    exec("/bin/cat", [file])
+      .catch(() => null)
+      .then((r) => {
+        const before = r?.code === 0 ? r.stdout : "",
+          text = applySound(before, appHome(), sound);
+        if (text.trim() === before.trim()) return null;
+        return exec("/bin/sh", ["-c", 'printf %s "$1" > "$2.tmp" && mv "$2.tmp" "$2"', "sh", text, file]);
+      })
+      .then(() => {
+        this.gs.sound = sound;
+      })
+      .catch(() => null)
+      .finally(() => {
+        this.gs.soundBusy = false;
+      });
   }
 
   // Writes the file whole (temp file, then mv); a write asked for while one runs follows it.
