@@ -109,6 +109,7 @@ export class Launch {
       this.now = this.task.value();
       this.error = "";
       this.syncBranch();
+      this.keepDraft(cx);
       cx.notify();
     });
     // A paste that found no text (an image) in the task field: take the clipboard's image.
@@ -522,6 +523,23 @@ export class Launch {
     }
   }
 
+  // The draft is kept as you type (half a second after the last key), not only on Esc: a reload of the mod (an
+  // update, a reinstall) or a reopen of the box brings back what you were writing.
+  keepDraft(cx) {
+    this.draftAt = Date.now();
+    if (this.draftTimer) return;
+    this.draftTimer = true;
+    const save = () => {
+      if (Date.now() - this.draftAt < 450) {
+        cx.timer.after(500, save);
+        return;
+      }
+      this.draftTimer = false;
+      if (!this.launched) setShared(DRAFT, draftOf(this.task.value(), this.images));
+    };
+    cx.timer.after(500, save);
+  }
+
   // The task as typed, without the line break the Enter that launched it left in the field.
   currentTask() {
     const now = this.task.value();
@@ -617,6 +635,7 @@ export class Launch {
   }
 
   finish(terminal, cx) {
+    this.launched = true; // a pending draft save must not bring the launched task back
     setShared(DRAFT, ""); // launched: nothing to keep
     if (this.where) setShared(FLASH, flashValue(this.where)); // the board's status line says where it went
     this.fading = true; // the box fades out (the root's opacity transition), then closes
@@ -884,7 +903,10 @@ export class Launch {
           )
           .child(
             button(t, "ln-cancel", "Cancel", "plain", () => {
-              if (!this.busy) this.close();
+              if (this.busy) return;
+              this.launched = true; // Cancel drops the draft (Esc keeps it)
+              setShared(DRAFT, "");
+              this.close();
             }),
           )
           .child(
