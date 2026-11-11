@@ -39,7 +39,6 @@ const TOGGLES = {
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   preview: ["Preview while moving", "Show the agent as you move the highlight; Herdr moves the keys there. Off: only Enter or a click opens"],
   upNext: ["Up next stack", "The cards on top of the board; its \u00d7 turns this off"],
-  nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
@@ -60,7 +59,7 @@ const TABS = [
   ["Look", ["textSize", "reduceMotion"]],
   ["Agents", ["harness", "h:*", "sleepAfter"]],
   ["Alerts", ["upNext", "away", "sound"]],
-  ["Data", ["nebulaSessions", "import"]],
+  ["Data", ["import"]],
   ["Updates", ["update"]],
 ];
 const TAB_NAMES = TABS.map(([name]) => name);
@@ -151,7 +150,7 @@ export class Settings {
   // Closes this overlay first: it would otherwise save its older copy over the import.
   openImport() {
     closeOverlay(props()?.overlay);
-    openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 520, height: 420, props: { role: "import" } });
+    openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 520, height: 490, props: { role: "import" } });
   }
 
   save(patch) {
@@ -544,7 +543,6 @@ export class Settings {
           .when(this.tab === "Data", (el) =>
             el.child(
               this.group(t, "", [
-                toggle("nebulaSessions"),
                 this.line(
                   t,
                   at("import"),

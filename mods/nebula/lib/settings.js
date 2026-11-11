@@ -14,7 +14,6 @@
 //                   postfix (after it)
 //   confirmArchive  ask before archiving a session
 //   editor          the command that opens a checkout (the folder is appended)
-//   nebulaSessions  show nebula's own sessions on the board (a click resumes one)
 //   promptLine      Tree and List rows carry a dim second line with the last prompt
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
 //   preview         moving the highlight shows that agent in the main area while the board keeps
@@ -54,7 +53,6 @@ export const DEFAULTS = {
   presetSide: "prefix",
   confirmArchive: false,
   editor: "open",
-  nebulaSessions: true,
   promptLine: true,
   showEmptyWorktrees: true,
   preview: false,
@@ -90,7 +88,6 @@ export function mergeSettings(stored) {
     presetSide: SIDES.includes(s.presetSide) ? s.presetSide : DEFAULTS.presetSide,
     confirmArchive: typeof s.confirmArchive === "boolean" ? s.confirmArchive : DEFAULTS.confirmArchive,
     editor: text(s.editor) ?? DEFAULTS.editor,
-    nebulaSessions: typeof s.nebulaSessions === "boolean" ? s.nebulaSessions : DEFAULTS.nebulaSessions,
     promptLine: typeof s.promptLine === "boolean" ? s.promptLine : DEFAULTS.promptLine,
     showEmptyWorktrees: typeof s.showEmptyWorktrees === "boolean" ? s.showEmptyWorktrees : DEFAULTS.showEmptyWorktrees,
     preview: typeof s.preview === "boolean" ? s.preview : DEFAULTS.preview,

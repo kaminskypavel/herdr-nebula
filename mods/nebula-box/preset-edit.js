@@ -1,7 +1,7 @@
 // The preset editor, opened by ^A and ^E in the presets list: name, agent, model,
 // effort, and the text added before (prefix) and after (postfix) the task. It saves into
-// nebula's agent_presets.json with the text it read as `expected`, so a file nebula
-// changed meanwhile is refused; then it shows the newer list. Saving, cancelling or
+// herdr-nebula's presets.json with the text it read as `expected`, so a file another
+// window changed meanwhile is refused; then it shows the newer list. Saving, cancelling or
 // closing opens the list again with the state it was left with.
 // props: name (the preset to edit; null for a new one), and the list's ctx (from,
 // launch, newWorktree, branch, task, checkout, root).

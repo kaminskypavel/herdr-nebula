@@ -49,6 +49,8 @@ import {
   hc,
   keys,
   window,
+  readTextFile,
+  writeTextFile,
 } from "herdr";
 import { putToSleep, hasExited } from "./sleeper.js";
 import { canResume, resumeCommand } from "./lib/resume.js";
@@ -56,20 +58,9 @@ import { sleepVerdict } from "./lib/sleep.js";
 import { ASLEEP } from "./lib/labels.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
-import { nebulaFiles, SQLITE } from "./lib/nebula-import.js";
-import {
-  nebulaBin,
-  SESSIONS_ARGS,
-  AGENTS_SQL,
-  parseSessions,
-  parseAgents,
-  joinSessions,
-  resumeArgv,
-  recordResumed,
-  resumedTerminal,
-  shownSessions,
-  withHidden,
-} from "./lib/nebula-sessions.js";
+import { nebulaFiles } from "./lib/nebula-import.js";
+import { HISTORY, parseHistory, readNebulaSessions } from "./lib/history.js";
+import { resumeArgv, recordResumed, resumedTerminal, shownSessions, withHidden } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
 import {
@@ -274,7 +265,6 @@ export class Board {
     this.nebulaAt = 0;
     this.ports = {}; // { [terminal]: [port] } its programs listen on (lib/ports.js), read by loadPorts
     this.portsBusy = false;
-    this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
     this.visible = findNode(layout(), "board")?.hidden !== true;
     this.resuming = new Set();
     this.stateTrack = new Map(); // when each row entered its state, for tabs with no change time (lib/attention.js)
@@ -333,22 +323,25 @@ export class Board {
     });
   }
 
-  // Nebula's sessions: its CLI lists them and its db says which Claude conversation each
-  // holds (both read only). A missing CLI or db, or a failed read, keeps the last list.
+  // Past nebula sessions, from herdr-nebula's own history file (lib/history.js). The first run copies nebula's list
+  // into it once; after that nebula itself is never read.
   loadNebula(cx) {
     if (this.nebulaBusy) return;
-    this.nebulaOn = mergeSettings(shared(SETTINGS)).nebulaSessions;
-    if (!this.nebulaOn) return;
     this.nebulaBusy = true;
-    const files = nebulaFiles(home());
     cx.spawn(async (cx) => {
       try {
-        const [a, b] = await Promise.all([
-          exec(nebulaBin(home()), SESSIONS_ARGS, { timeout: 30000 }).catch(() => null),
-          exec(SQLITE, ["-readonly", "-json", files.db, AGENTS_SQL], { timeout: 30000 }).catch(() => null),
-        ]);
-        if (a?.code !== 0 || b?.code !== 0) return;
-        const list = joinSessions(parseSessions(a.stdout), parseAgents(b.stdout));
+        const file = `${home()}/${HISTORY}`,
+          text = await readTextFile(file).catch(() => null);
+        let list = text === null ? null : parseHistory(text);
+        if (text === null) {
+          // Saved once: what nebula lists, or nothing when nebula is not installed. nebula installed but not
+          // readable now (its daemon is off) saves nothing, so a later start tries again.
+          const got = await readNebulaSessions(exec, home()),
+            installed = got === null && (await exec("/bin/test", ["-e", nebulaFiles(home()).db]).catch(() => ({ code: 1 }))).code === 0;
+          list = got ?? [];
+          if (!installed) await writeTextFile(file, `${JSON.stringify(list)}\n`, null).catch(() => null);
+        }
+        list ??= [];
         if (JSON.stringify(list) !== JSON.stringify(this.nebula)) {
           this.nebula = list;
           cx.notify();
@@ -512,10 +505,6 @@ export class Board {
     const visible = findNode(layout(), "board")?.hidden !== true;
     if (visible && !this.visible && Date.now() - this.nebulaAt > MIN_GAP) this.loadNebula(cx);
     this.visible = visible;
-    if (mergeSettings(shared(SETTINGS)).nebulaSessions !== this.nebulaOn) {
-      this.loadNebula(cx);
-      cx.notify();
-    }
     const pinned = shared(PINNED),
       live = terminals();
     if (
@@ -1390,7 +1379,7 @@ export class Board {
       showArchived,
       showEmpty: this.config().showEmptyWorktrees,
       changeAt: this.changeAt,
-      nebula: this.nebulaOn ? shownSessions(this.nebula, shared(HIDDEN)) : [],
+      nebula: shownSessions(this.nebula, shared(HIDDEN)),
       resumed: shared(RESUMED) ?? {},
       ports: this.ports,
       replies: shared(REPLIES) ?? {},
@@ -1889,7 +1878,7 @@ export class Board {
       : h_flex()
           .gap(8)
           .flex_none()
-          .when(this.hasNebula, (el) => el.child(action("empty-import", "Import from nebula", "primary", "import", 520, 420)))
+          .when(this.hasNebula, (el) => el.child(action("empty-import", "Import from nebula", "primary", "import", 520, 490)))
           .child(action("empty-add", "Add a project", this.hasNebula ? "plain" : "primary", "add", 460, 240));
     if (!alone) {
       return h_flex()

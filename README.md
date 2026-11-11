@@ -23,7 +23,7 @@ I'm a huge fan of [nebula](https://github.com/AgentSystemLabs/nebula). Its model
 
 I like [Herdr](https://herdr.dev) too: a native window, real panes, and terminals that keep running after you close it.
 
-So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. Nothing to choose between.
+So herdr-nebula brings that workflow into Herdr, as a layout and two mods. It is inspired by nebula, not a companion to it: it never reads nebula after a one-time import.
 
 ## What you get
 
@@ -41,8 +41,8 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 - **Quiet rows.** A row shows its agent icon and model only when it is the highlighted one, or when it runs something other than its project's usual agent and model; the common case stays plain. On a wide board a Tree or List row's content stops at about 560 px, so the age sits next to the title (ports stay at the right edge).
 - **Every worktree has a band.** One with nothing running reads "nothing running · ⌘K new session · d delete worktree": <kbd>⌘K</kbd> (or <kbd>p</kbd>) starts a session there, <kbd>d</kbd> removes the worktree after the same uncommitted/unpushed check (never the repo's own checkout or the default branch). Settings: Show empty worktrees.
 - **A new-session box** (<kbd>⌘K</kbd> anywhere; <kbd>p</kbd> also works on the board). With the board holding the keys it opens at the highlighted project and worktree, from an agent at that agent's project. The task is the big field up top; under it the project, checkout, agent (only the installed ones) and preset are pills (each shows its key: <kbd>⌃P</kbd> <kbd>⌃T</kbd> <kbd>Tab</kbd> <kbd>⌃O</kbd>), and a dashed `+ New worktree` pill (<kbd>⌃N</kbd>) starts it in a fresh [`wt`](https://github.com/max-sixty/worktrunk) worktree, with the branch name inline. The Launch button names the agent. Paste an image (<kbd>⌘V</kbd> with an image on the clipboard, or <kbd>⌘⇧V</kbd>) and it shows as a thumbnail; on launch the agent's task ends with `Images: /path/a.png ...` so it reads them. Pastes live in `nebula-pastes/` under the Herdr app folder, and ones older than 7 days are deleted when the box opens. <kbd>Esc</kbd> keeps what you typed for the next open, <kbd>⌘↩</kbd> launches (a plain <kbd>↩</kbd> is a new line), and a <kbd>⌘↩</kbd> pressed while the box is still loading launches as soon as it is ready.
-- **Presets shared with nebula.** Same `agent_presets.json`, so both tools see the same list.
-- **One-click import from nebula.** Your projects and per-agent defaults, straight from nebula's own files.
+- **Agent presets.** Named agent, model, effort and text around the task, in `~/.config/herdr-nebula/presets.json` (nebula's copied in once).
+- **One-time import from nebula.** Your projects, per-agent defaults, presets and past sessions, copied once from nebula's own files.
 - **Sessions that name themselves.** Claude Code and Codex title their tab after the first prompt. A name you give always wins.
 - **Row actions.** Rename, archive, relaunch with the same setup, open the folder, or delete. Delete offers to remove the worktree and shows uncommitted files and unpushed commits first.
 - **Resume after an exit, a crash or a reboot.** The prompt hook saves each Claude Code and Codex conversation id on its terminal (the `nebula.session` label). When the agent has left the shell, its row reads "exited · Enter resumes", and <kbd>↩</kbd>, a click or <kbd>⇧R</kbd> types `claude --resume <id>` (or `codex resume <id>`, with the row's model and effort) into the same terminal. After a reboot or a core restart Herdr gives each lost terminal a shell in its last folder, so the same row picks the conversation back up.
@@ -88,8 +88,8 @@ Updates come by themselves: the icon bar offers a new version in a popup (or run
 
 <img src="assets/import-banner.png" alt="The empty board offers Import from nebula and Add a project" width="560">
 
-- **Bring your projects.** Click **Import from nebula** on the empty board, or Settings, Data, Import. It reads nebula's own files: your projects and per-agent defaults. Nothing in nebula changes.
-- **Presets just work.** herdr-nebula reads and writes nebula's `agent_presets.json`, so both tools share one list.
+- **Bring your projects.** Click **Import from nebula** on the empty board, or Settings, Data, Import. It copies, once, from nebula's own files: your projects, per-agent defaults and past sessions (listed on the board to resume). Nothing in nebula changes, and herdr-nebula does not read nebula after that.
+- **Your presets come along.** The first run copies nebula's `agent_presets.json` into herdr-nebula's own `presets.json`; from then on the two are separate.
 - **Same keys, same colors.** <kbd>p</kbd> opens the new-session box (<kbd>^P</kbd> <kbd>^T</kbd> <kbd>Tab</kbd> <kbd>^O</kbd> as in nebula), worktrees land in `<repo>-worktrees/<branch>` via `wt`, and the status colors mean the same. Running sessions stay in nebula; start new ones here.
 
 ## Keys

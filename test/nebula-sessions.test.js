@@ -16,7 +16,6 @@ import {
 import { buildBoard, treeItems, listItems, columnsModel, projectColumns, agentOrder, attentionTarget, OTHER } from "../mods/nebula/lib/viewmodel.js";
 import { actionsFor } from "../mods/nebula/lib/actions.js";
 import { planLaunch, placedSpaces } from "../mods/nebula/lib/launch.js";
-import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 const cli = (sessions) => JSON.stringify({ sessions });
 const S = (id, o = {}) => ({
@@ -300,13 +299,6 @@ test("resume plan with no matching space starts a space whose first tab carries 
 test("planLaunch without argv or name builds the argv and names the tab from the task", () => {
   const plan = planLaunch({ checkouts: [{ path: "/w/app" }], checkout: "/w/app", spaces: [], harness: "claude", task: "Fix", from: "board" });
   assert.deepEqual(plan.steps.find((x) => x.launch).args, { folder: "/w/app", argv: ["claude", "Fix"], tab: "Fix" });
-});
-
-test("setting nebulaSessions defaults on and only a boolean changes it", () => {
-  assert.equal(DEFAULTS.nebulaSessions, true);
-  assert.equal(mergeSettings({}).nebulaSessions, true);
-  assert.equal(mergeSettings({ nebulaSessions: false }).nebulaSessions, false);
-  assert.equal(mergeSettings({ nebulaSessions: "no" }).nebulaSessions, true);
 });
 
 test("resumedTerminal finds the copy already resumed here, only while its terminal exists", () => {

@@ -1,5 +1,5 @@
-// The agent presets list, opened by `e` on the board and by Shift+Tab in the new session
-// box. It reads nebula's own agent_presets.json, so both tools share one set. Type to
+// The agent presets list, opened by `t` on the board and by Shift+Tab in the new session
+// box. It reads herdr-nebula's own presets.json (nebula's copied in once). Type to
 // filter; Enter launches through the new session box (prefilled with the preset), ^A
 // makes a preset, ^E edits one, ^D deletes after a confirm. Tab toggles a new worktree.
 // props: from ("board" | "terminal", where the launch box returns to), launch (the open
@@ -16,9 +16,19 @@ import { branchName } from "./lib/branch.js";
 import { button, dialogTitle, agentIcon, inputBox, worktreeRow } from "./ui.js";
 import { fs } from "./lib/scale.js";
 
-export const PRESETS = () => `${home()}/Library/Application Support/dev.nebula.nebula/agent_presets.json`;
+// herdr-nebula's own presets (same format as nebula's agent_presets.json). nebula's file is copied in once, the first
+// time ours is missing; after that nebula's is never read or written.
+export const PRESETS = () => `${home()}/.config/herdr-nebula/presets.json`;
+const NEBULA_PRESETS = () => `${home()}/Library/Application Support/dev.nebula.nebula/agent_presets.json`;
 // null when there is no file yet: writeTextFile takes that as "create it".
-export const readPresetFile = () => readTextFile(PRESETS()).catch(() => null);
+export async function readPresetFile() {
+  const own = await readTextFile(PRESETS()).catch(() => null);
+  if (own !== null) return own;
+  const theirs = await readTextFile(NEBULA_PRESETS()).catch(() => null);
+  if (theirs === null) return null;
+  await writeTextFile(PRESETS(), theirs, null).catch(() => null);
+  return theirs;
+}
 const SHOWN = 8;
 const ROW_H = 34;
 const SEARCH = "mods/workspace-chrome/search.svg";

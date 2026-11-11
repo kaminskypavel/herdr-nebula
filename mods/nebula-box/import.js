@@ -1,9 +1,10 @@
-// Import (role "import") copies what nebula already knows: its project list (sqlite, read
-// only) and its default models, effort, editor and archive prompt (config.json). Both
-// are read when it opens; each part has a switch, and Import writes the shared values.
+// Import (role "import") copies what nebula already knows, once: its project list (sqlite, read only), its default
+// models, effort, editor and archive prompt (config.json), and its past sessions (into herdr-nebula's history.json,
+// lib/history.js). herdr-nebula is inspired by nebula but never reads it after this. Each part has a switch.
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, theme, shared, setShared, exec, home, readTextFile } from "herdr";
+import { props, closeOverlay, theme, shared, setShared, exec, home, readTextFile, writeTextFile } from "herdr";
+import { HISTORY, readNebulaSessions } from "./lib/history.js";
 import { STORE } from "./lib/repos.js";
 import { SETTINGS } from "./lib/shared.js";
 import {
@@ -56,12 +57,13 @@ export class Import {
   init(cx) {
     this.found = null; // null while looking, else readNebula's result
     this.patch = {};
-    this.on = { projects: true, defaults: true };
+    this.on = { projects: true, defaults: true, sessions: true };
+    this.sessions = null; // nebula's past sessions, read when the dialog opens
     this.handle = cx.focus_handle();
     this.handle.focus();
     cx.timer.after(300, () => this.handle.focus());
     cx.spawn(async (cx) => {
-      this.found = await readNebula();
+      [this.found, this.sessions] = await Promise.all([readNebula(), readNebulaSessions(exec, home())]);
       let config = null;
       try {
         config = this.found.config ? JSON.parse(this.found.config) : null;
@@ -83,14 +85,25 @@ export class Import {
   hasDefaults() {
     return describeSettings(this.patch) !== "";
   }
+  hasSessions() {
+    return Boolean(this.sessions?.length);
+  }
   ready() {
-    return Boolean((this.on.projects && this.hasProjects()) || (this.on.defaults && this.hasDefaults()));
+    return Boolean((this.on.projects && this.hasProjects()) || (this.on.defaults && this.hasDefaults()) || (this.on.sessions && this.hasSessions()));
   }
 
   submit() {
     if (!this.ready()) return;
     if (this.on.projects && this.hasProjects()) setShared(STORE, this.plan().store);
     if (this.on.defaults && this.hasDefaults()) setShared(SETTINGS, applySettings(shared(SETTINGS), this.patch));
+    if (this.on.sessions && this.hasSessions()) {
+      const file = `${home()}/${HISTORY}`,
+        list = this.sessions;
+      readTextFile(file)
+        .catch(() => null)
+        .then((cur) => writeTextFile(file, `${JSON.stringify(list)}\n`, cur))
+        .catch(() => null);
+    }
     closeOverlay(props()?.overlay);
   }
 
@@ -170,7 +183,13 @@ export class Import {
         .flex_1()
         .min_h(0)
         .gap(8)
-        .child(div().px(2).text_size(fs(12)).text_color(t.muted).child("Read from nebula's own files. Nothing there changes."))
+        .child(
+          div()
+            .px(2)
+            .text_size(fs(12))
+            .text_color(t.muted)
+            .child("A one-time copy from nebula's own files; nothing there changes, and herdr-nebula does not read them again."),
+        )
         .child(
           v_flex()
             .rounded(10)
@@ -179,7 +198,19 @@ export class Import {
             .overflow_hidden()
             .child(this.part(t, "projects", "Projects", projectsDesc, this.hasProjects()))
             .child(div().h(1).mx(14).bg(t.border).flex_none())
-            .child(this.part(t, "defaults", "Defaults", defaultsDesc, this.hasDefaults())),
+            .child(this.part(t, "defaults", "Defaults", defaultsDesc, this.hasDefaults()))
+            .child(div().h(1).mx(14).bg(t.border).flex_none())
+            .child(
+              this.part(
+                t,
+                "sessions",
+                "Past sessions",
+                this.sessions == null
+                  ? "Couldn't read nebula's sessions: start nebula once, then import again"
+                  : `${plural(this.sessions.length, "session")}, listed on the board to resume`,
+                this.hasSessions(),
+              ),
+            ),
         ),
       [
         button(t, "imp-cancel", "Cancel", "plain", () => closeOverlay(overlay)),

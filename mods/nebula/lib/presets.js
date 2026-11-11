@@ -1,7 +1,8 @@
-// Agent presets in nebula's agent_presets.json (nebula-tui/src/agent_presets.rs): a
+// Agent presets in herdr-nebula's presets.json, the same format as nebula's agent_presets.json
+// (nebula-tui/src/agent_presets.rs), which is copied in once: a
 // JSON list of { name, kind, custom_harness, model, effort, prefix, postfix,
 // skip_task }. Read entry by entry: a missing or malformed file reads as empty, and a
-// save keeps what this reader can't read (a preset for a kind a newer nebula added)
+// save keeps what this reader can't read (a preset for a kind a newer nebula-format added)
 // and every field it has no name for, so nebula sharing the file loses nothing.
 // No herdr imports, so node can test it.
 
