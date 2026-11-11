@@ -100,6 +100,7 @@ function sessionRow(t, where, ctx) {
     session,
     asleep: resume.asleep,
     changedAt: tab?.changed_at > 0 ? tab.changed_at : 0,
+    turn: Number.isInteger(t.turn) ? t.turn : null, // the core's turn count, the same in every window (lib/waiting.js clearKey)
     age: tab?.settled ? "archived" : exited ? resumeHint(resume) || "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
     ports: ctx.ports?.[t.address] ?? [],

@@ -45,3 +45,15 @@ test("a finish rings its project for RING_MS, then stops; needs you never rings"
   assert.equal(ringing(row("t1", "needs", 1000), 1001), false);
   assert.equal(ringing(row("t1", "unseen", 0), 5), false);
 });
+
+test("a clear holds in every Herdr window: keyed by status and turn, not the window's own change time", () => {
+  const here = { id: "t1", kind: "agent", status: "unseen", turn: 4, changedAt: 1000, stateSince: 1000, archived: false, exited: false };
+  const cleared = clearRows({}, [here], undefined, 2000);
+  // another window started later: no change time for this state, same turn
+  assert.equal(isCleared(cleared, { ...here, changedAt: 0 }), true);
+  // a new turn, or the same state entered again after the clear, comes back
+  assert.equal(isCleared(cleared, { ...here, turn: 5 }), false);
+  assert.equal(isCleared(cleared, { ...here, changedAt: 2500 }), false);
+  // a value stored the old way (a bare key) still works
+  assert.equal(isCleared({ t1: "unseen:4" }, here), true);
+});

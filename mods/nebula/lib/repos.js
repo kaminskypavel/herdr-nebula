@@ -101,7 +101,7 @@ export const digitTile = (tiles, key) => (/^[1-9]$/.test(key) ? (tiles[Number(ke
 // board is skipped until it changes state (lib/waiting.js), so ⌘] never lands on what was dealt with.
 export function jumpTarget(terminals, repos, from, dir, { cleared = null, changed = {} } = {}) {
   const rows = flatten(groupSessions(terminals, repos))
-    .map((t) => ({ id: t.address, status: statusOf(t), changedAt: changed[t.address] ?? 0 }))
+    .map((t) => ({ id: t.address, status: statusOf(t), turn: Number.isInteger(t.turn) ? t.turn : null, changedAt: changed[t.address] ?? 0 }))
     .map((r) => (isCleared(cleared, r) ? { ...r, status: "seen" } : r)); // kept in the list so the walk still starts at `from`
   return nextAttention(rows, from, dir);
 }

@@ -13,14 +13,27 @@ export const AWAY_MS = 60 * 1000;
 
 // The key that clearing stores: the state and when the tab entered it (Herdr's tab change time, the same in
 // every mod; the board's own note would differ between the board and the icon bar).
-export const clearKey = (row) => `${row.status}:${row.changedAt || 0}`;
-export const isCleared = (cleared, row) => Boolean(cleared) && cleared[row.id] === clearKey(row);
+// A row's state as every Herdr window sees it: the status and the agent's turn (the core's count, shared by every
+// window). A tab's change time is not: each window counts it from its own start, so a key built on it differed between
+// two windows and a clear in one did not hold in the other. Old rows without a turn fall back to the change time.
+export const clearKey = (row) => `${row.status}:${row.turn ?? row.changedAt ?? 0}`;
+
+/**
+ * Whether a row is cleared: the same state (clearKey) as when cleared, and nothing new since (its change time, in this
+ * window's clock, is not after the clear). A value stored before this rule (a bare key) compares by key alone.
+ */
+export const isCleared = (cleared, row) => {
+  const v = cleared?.[row.id];
+  if (!v) return false;
+  if (typeof v === "string") return v === clearKey(row);
+  return v.key === clearKey(row) && (row.changedAt || 0) <= (v.at ?? 0);
+};
 
 /** The cleared map after clearing `rows`, keeping only ids still in `liveIds` (so it never grows without end). */
-export function clearRows(cleared, rows, liveIds) {
+export function clearRows(cleared, rows, liveIds, now = Date.now()) {
   const keep = liveIds ? new Set(liveIds) : null;
   const next = Object.fromEntries(Object.entries(cleared ?? {}).filter(([id]) => !keep || keep.has(id)));
-  for (const r of rows) next[r.id] = clearKey(r);
+  for (const r of rows) next[r.id] = { key: clearKey(r), at: now };
   return next;
 }
 
