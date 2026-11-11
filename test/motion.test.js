@@ -14,7 +14,6 @@ import {
   enterPhase,
   hudPhase,
 } from "../mods/nebula/lib/motion.js";
-import { setTextScale } from "../mods/nebula/lib/scale.js";
 import { mergeSettings, DEFAULTS } from "../mods/nebula/lib/settings.js";
 
 // A stand-in element: records the calls made on it.

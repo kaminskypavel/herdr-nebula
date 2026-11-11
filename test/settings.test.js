@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULTS, mergeSettings, defaultHarness, harnessChoice, cycleOf, groupShortcuts, strokeLabel, LEGEND } from "../mods/nebula/lib/settings.js";
+import {
+  DEFAULTS,
+  SOUND_CHOICES,
+  mergeSettings,
+  defaultHarness,
+  harnessChoice,
+  cycleOf,
+  groupShortcuts,
+  strokeLabel,
+  LEGEND,
+} from "../mods/nebula/lib/settings.js";
 
 test("an empty store yields Tree, claude and auto-title on", () => {
   for (const empty of [undefined, null, {}, "junk", []]) {
@@ -153,4 +163,14 @@ test("the away setting is macos, herdr or off; anything else is macos", () => {
   assert.equal(mergeSettings({}).away, "macos");
   for (const v of ["macos", "herdr", "off"]) assert.equal(mergeSettings({ away: v }).away, v);
   for (const v of ["on", true, null, 3]) assert.equal(mergeSettings({ away: v }).away, "macos");
+});
+
+test("sound and upNext: defaults, validation, a stored false kept", () => {
+  const d = mergeSettings({});
+  assert.equal(d.sound, "herdr");
+  assert.equal(d.upNext, true);
+  for (const sound of SOUND_CHOICES) assert.equal(mergeSettings({ sound }).sound, sound);
+  assert.equal(mergeSettings({ sound: "beep" }).sound, "herdr");
+  assert.equal(mergeSettings({ upNext: false }).upNext, false);
+  assert.equal(mergeSettings({ upNext: "no" }).upNext, true);
 });

@@ -26,6 +26,9 @@
 //   away            what happens when an agent starts waiting while the window is in the background, and
 //                   the welcome-back card on return: macos (a notification and the card), herdr (the card
 //                   only) or off (neither). Herdr's own popup is unaffected.
+//   sound           the notification sound: herdr (Herdr's bundled ones), chirp, ping, drop (mods/nebula/sounds)
+//                   or off; lib/sounds.js writes it into Herdr's settings.json when it changes
+//   upNext          the Up next stack on top of the board (its x turns this off; only false hides it)
 import { HARNESSES } from "./harness.js";
 import { SLEEP_CHOICES, SLEEP_DEFAULT } from "./sleep.js";
 import { TEXT_SIZES } from "./scale.js";
@@ -34,7 +37,13 @@ export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns:
 export const VIEW_IDS = Object.keys(VIEW_TITLE);
 export const SIDES = ["prefix", "postfix"];
 export const AWAY_CHOICES = ["macos", "herdr", "off"];
-export const AWAY_LABEL = { macos: "macOS notification and welcome-back card", herdr: "Welcome-back card only", off: "Neither" };
+export const AWAY_LABEL = {
+  macos: "macOS notification, and the stack opens when you're back",
+  herdr: "The stack opens when you're back",
+  off: "Neither",
+};
+export const SOUND_CHOICES = ["herdr", "chirp", "ping", "drop", "off"];
+export const SOUND_LABEL = { herdr: "Herdr", chirp: "Chirp", ping: "Ping", drop: "Drop", off: "Off" };
 
 export const DEFAULTS = {
   view: "tree",
@@ -53,6 +62,8 @@ export const DEFAULTS = {
   textSize: 100,
   sleepAfter: SLEEP_DEFAULT,
   away: "macos",
+  sound: "herdr",
+  upNext: true,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -87,6 +98,8 @@ export function mergeSettings(stored) {
     textSize: TEXT_SIZES.includes(s.textSize) ? s.textSize : DEFAULTS.textSize,
     sleepAfter: SLEEP_CHOICES.includes(s.sleepAfter) ? s.sleepAfter : DEFAULTS.sleepAfter,
     away: AWAY_CHOICES.includes(s.away) ? s.away : DEFAULTS.away,
+    sound: SOUND_CHOICES.includes(s.sound) ? s.sound : DEFAULTS.sound,
+    upNext: typeof s.upNext === "boolean" ? s.upNext : DEFAULTS.upNext,
   };
 }
 

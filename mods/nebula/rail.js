@@ -14,7 +14,7 @@
 // that starts waiting hops its icon and, with the window in the background, posts a macOS notification; coming back
 // after a while opens the welcome-back card (nebula-box role "away").
 import { svg, div, image } from "gpui-kit";
-import { v_flex, h_flex } from "gpui-base";
+import { v_flex } from "gpui-base";
 import {
   theme,
   run,
@@ -50,9 +50,9 @@ import { landing, rootOf } from "./lib/tabs.js";
 import { focusCommand } from "./lib/preview.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
-import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETTINGS, PINNED, PINNED_PROJECTS, CLEARED, REPLIES } from "./lib/shared.js";
+import { FOCUS_BOARD, LAUNCHED, BOARD_KEYS, OPEN, REPO, ICONS, ALL, UPDATE, SETTINGS, PINNED, PINNED_PROJECTS, CLEARED, REPLIES, BACK } from "./lib/shared.js";
 import { waitingRows, AWAY_MS, clearKey } from "./lib/waiting.js";
-import { projectAlerts, trackArrivals, awayItems, awayHeight, AWAY_WIDTH } from "./lib/alerts.js";
+import { projectAlerts, trackArrivals, awayItems } from "./lib/alerts.js";
 import { sessionOf, TRANSCRIPT, lastReply, replyLine } from "./lib/reply.js";
 import { SESSION } from "./lib/labels.js";
 import {
@@ -336,17 +336,10 @@ export class Rail {
     }
   }
 
-  // The welcome-back card: what began waiting while the window was away, newest need first.
+  // Coming back: when something began waiting while you were away, the board opens its Up next stack with "While
+  // you were away" (shared BACK; a dialog over your work was too much).
   welcomeBack(at, now) {
-    const items = awayItems(waitingRows(this.model, shared(CLEARED)), at, shared(REPLIES));
-    if (!items.length) return;
-    openOverlay({
-      mod: "nebula-box",
-      kind: "dialog",
-      width: AWAY_WIDTH,
-      height: awayHeight(items.length),
-      props: { role: "away", away: now - at, items },
-    });
+    if (awayItems(waitingRows(this.model, shared(CLEARED)), at, shared(REPLIES)).length) setShared(BACK, { at: now, away: now - at });
   }
 
   // A macOS notification for a row that started waiting: its project and session as the title, the agent's own

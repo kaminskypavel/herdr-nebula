@@ -3,7 +3,6 @@
 // card's items. All of it reads lib/waiting.js, so the bar, the board and ⌘] agree. Pure; no herdr imports, so
 // node can test it.
 import { waits, ringing, clearKey, RING_MS } from "./waiting.js";
-import { rh } from "./scale.js";
 
 // The ring dims over its last minute, so it fades out instead of vanishing.
 const FADE_MS = 60 * 1000;
@@ -73,10 +72,3 @@ export function awayText(ms) {
   if (m < 60) return `${m} min`;
   return m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${Math.floor(m / 60)} h`;
 }
-
-// The card's layout, shared by the dialog and the height the rail opens it with.
-export const AWAY_ROW = 52;
-export const AWAY_WIDTH = 460;
-
-/** The dialog's height for `n` rows: padding, header, the rows, the footer. */
-export const awayHeight = (n) => 40 + rh(22) + 24 + n * (rh(AWAY_ROW) + 2) + rh(30);

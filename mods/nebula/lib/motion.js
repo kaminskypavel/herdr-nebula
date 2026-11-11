@@ -2,8 +2,6 @@
 // sets it at the top of its render from the stored settings (setReduceMotion), and every animation is added
 // through animate(), so a still look is one place. No herdr imports, so node can test it.
 
-import { rh } from "./scale.js";
-
 let off = false;
 
 /** Sets the switch (the Reduce motion setting); returns it. Anything but `true` is motion on. */

@@ -1,9 +1,22 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run } from "herdr";
+import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run, exec, appHome, playSound } from "herdr";
 import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
-import { VIEW_IDS, VIEW_TITLE, SIDES, AWAY_CHOICES, AWAY_LABEL, mergeSettings, defaultHarness, harnessChoice, cycleOf } from "./lib/settings.js";
+import {
+  VIEW_IDS,
+  VIEW_TITLE,
+  SIDES,
+  AWAY_CHOICES,
+  AWAY_LABEL,
+  SOUND_CHOICES,
+  SOUND_LABEL,
+  mergeSettings,
+  defaultHarness,
+  harnessChoice,
+  cycleOf,
+} from "./lib/settings.js";
+import { applySound, soundPreview } from "./lib/sounds.js";
 import { SETTINGS, UPDATE } from "./lib/shared.js";
 import { updateLine, updateState } from "./lib/update.js";
 import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
@@ -22,15 +35,17 @@ const TOGGLES = {
   promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   preview: ["Preview while moving", "Show the agent as you move the highlight; Herdr moves the keys there. Off: only Enter or a click opens"],
+  upNext: ["Up next stack", "The cards on top of the board; its \u00d7 turns this off"],
   nebulaSessions: ["Nebula sessions", "Show nebula sessions on the board"],
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
 const SLEEP_OPTIONS = SLEEP_CHOICES.map((m) => ({ value: m, label: sleepLabel(m) }));
 const AWAY_OPTIONS = [
   { value: "macos", label: "macOS" },
-  { value: "herdr", label: "Card" },
+  { value: "herdr", label: "Stack" },
   { value: "off", label: "Off" },
 ];
+const SOUND_OPTIONS = SOUND_CHOICES.map((v) => ({ value: v, label: SOUND_LABEL[v] }));
 const TEXT_OPTIONS = TEXT_SIZES.map((p) => ({ value: p, label: textSizeLabel(p) }));
 const PICK_W = 150;
 
@@ -74,7 +89,9 @@ export class Settings {
       "harness",
       ...this.ids.map((id) => `h:${id}`),
       "sleepAfter",
+      "upNext",
       "away",
+      "sound",
       "nebulaSessions",
       "import",
       "update",
@@ -104,6 +121,24 @@ export class Settings {
     setShared(SETTINGS, this.s);
   }
 
+  // The Sound row: keeps the choice, plays it once, and writes it into Herdr's own settings.json
+  // (sounds.enabled, done, blocked; every other key stays) so Herdr plays it for its alerts.
+  setSound(sound) {
+    this.save({ sound });
+    const file = soundPreview(appHome(), sound);
+    if (file) playSound(file);
+    this.writeHerdrSound(sound).catch(() => null);
+  }
+
+  // Reads settings.json (missing or invalid is empty), merges the sound in, and swaps the file in
+  // atomically (a temp file in the same folder, then mv). Herdr applies the change live.
+  async writeHerdrSound(sound) {
+    const path = `${appHome()}/settings.json`;
+    const cur = await exec("cat", [path]).catch(() => null);
+    const json = applySound(cur?.code === 0 ? cur.stdout : "", appHome(), sound);
+    await exec("/bin/sh", ["-c", 'printf %s "$1" > "$2.tmp" && mv "$2.tmp" "$2"', "sh", json, path]);
+  }
+
   saveEditor() {
     this.save({ editor: this.editor.value() });
   }
@@ -127,6 +162,7 @@ export class Settings {
     else if (row === "presetSide") this.save({ presetSide: cycleOf(SIDES, this.s.presetSide, dir) });
     else if (row === "sleepAfter") this.save({ sleepAfter: cycleOf(SLEEP_CHOICES, this.s.sleepAfter, dir) });
     else if (row === "away") this.save({ away: cycleOf(AWAY_CHOICES, this.s.away, dir) });
+    else if (row === "sound") this.setSound(cycleOf(SOUND_CHOICES, this.s.sound, dir));
     else if (row === "textSize") this.save({ textSize: cycleOf(TEXT_SIZES, this.s.textSize, dir) });
     else if (row in TOGGLES) this.save({ [row]: !this.s[row] });
     else if (row.startsWith("h:")) {
@@ -427,6 +463,11 @@ export class Settings {
                   this.save({ sleepAfter: v });
                 }),
               ),
+            ]),
+          )
+          .child(
+            this.group(t, "Alerts", [
+              toggle("upNext"),
               this.line(
                 t,
                 at("away"),
@@ -439,6 +480,16 @@ export class Settings {
                 segmented(t, "away", AWAY_OPTIONS, s.away, (v, cx) => {
                   this.go(at("away"), cx);
                   this.save({ away: v });
+                }),
+              ),
+              this.line(
+                t,
+                at("sound"),
+                "Sound",
+                "Plays when you pick it. Herdr: its own bundled sounds",
+                segmented(t, "sound", SOUND_OPTIONS, s.sound, (v, cx) => {
+                  this.go(at("sound"), cx);
+                  this.setSound(v);
                 }),
               ),
             ]),
