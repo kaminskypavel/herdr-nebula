@@ -60,7 +60,8 @@ import { railOrder } from "./lib/rail.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
 import { nebulaFiles } from "./lib/nebula-import.js";
-import { HISTORY, parseHistory, readNebulaSessions } from "./lib/history.js";
+import { HISTORY, parseHistory, readNebulaSessions, closedEntry, addToHistory } from "./lib/history.js";
+import { sessionOf } from "./lib/reply.js";
 import { resumeArgv, recordResumed, resumedTerminal, shownSessions, withHidden } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
@@ -262,7 +263,9 @@ export class Board {
     this.byKey = new Map();
     this.model = { repos: [] };
     this.hasNebula = false; // nebula's db or config exists: the empty state then offers an import
-    this.nebula = []; // nebula's own sessions (lib/nebula-sessions.js), read by loadNebula
+    this.nebula = []; // resumable sessions no tab holds (lib/history.js): nebula's, and Herdr ones whose tab closed
+    this.seenSessions = null; // { address -> { row, repo, band, claude } } the sessions with a conversation at the last sync
+    this.deleting = new Set(); // addresses the user is deleting on purpose (not remembered as closed)
     this.nebulaBusy = false;
     this.nebulaAt = 0;
     this.ports = {}; // { [terminal]: [port] } its programs listen on (lib/ports.js), read by loadPorts
@@ -323,6 +326,40 @@ export class Board {
         this.portsBusy = false;
       }
     });
+  }
+
+  // The conversations open in a terminal now, so a history entry for one of them is not listed twice.
+  liveClaude() {
+    return new Set(
+      terminals()
+        .map((t) => sessionOf(t.labels?.["nebula.session"])?.id)
+        .filter(Boolean),
+    );
+  }
+
+  // A session with a known conversation whose terminal went away (its tab closed, or ⌘W on its pane, which ends
+  // it) is remembered in the history, so the board still lists it to resume. A delete from the board is not.
+  trackClosed() {
+    const now = new Map();
+    for (const repo of this.all.repos)
+      for (const band of repo.bands)
+        for (const row of band.rows) {
+          const s = row.kind !== "nebula" && row.address ? sessionOf(row.session) : null;
+          if (s?.app === "claude") now.set(row.address, { row, repo, band, claude: s.id });
+        }
+    if (this.seenSessions && terminals().length)
+      for (const [address, x] of this.seenSessions) if (!now.has(address) && !this.deleting.has(address)) this.rememberClosed(x);
+    this.seenSessions = now;
+  }
+
+  rememberClosed(x) {
+    const entry = closedEntry(x);
+    this.nebula = addToHistory(this.nebula, entry);
+    const file = `${home()}/${HISTORY}`;
+    readTextFile(file)
+      .catch(() => null)
+      .then((cur) => writeTextFile(file, `${JSON.stringify(addToHistory(parseHistory(cur ?? "") ?? [], entry))}\n`, cur))
+      .catch(() => null);
   }
 
   // Past nebula sessions, from herdr-nebula's own history file (lib/history.js). The first run copies nebula's list
@@ -927,6 +964,8 @@ export class Board {
     this.previewed = row;
     const c = focusCommand(row);
     run(c.name, c.args);
+    // A tab of its own first (terminal.keep), then show it there once it has one.
+    if (c.name === "terminal.keep") cx?.timer.after(400, () => run("agent.focus", { terminal: row.address }));
   }
 
   // Shows the agent in the main area and keeps the keys on the board. Herdr hands the keys to the terminal
@@ -1031,6 +1070,7 @@ export class Board {
   }
 
   deleteProps(row) {
+    if (row.address) this.deleting.add(row.address); // ended on purpose: not remembered as closed
     const full = buildBoard(this.boardArgs(true));
     return {
       title: row.title,
@@ -1381,7 +1421,7 @@ export class Board {
       showArchived,
       showEmpty: this.config().showEmptyWorktrees,
       changeAt: this.changeAt,
-      nebula: shownSessions(this.nebula, shared(HIDDEN)),
+      nebula: shownSessions(this.nebula, shared(HIDDEN)).filter((s) => !this.liveClaude().has(s.claude)),
       resumed: shared(RESUMED) ?? {},
       ports: this.ports,
       replies: shared(REPLIES) ?? {},
@@ -1398,6 +1438,7 @@ export class Board {
     }
     const picked = shared(REPO);
     this.all = buildBoard(this.boardArgs(this.showArchived));
+    this.trackClosed();
     const now = Date.now();
     this.entering = trackEntering(
       this.entering,

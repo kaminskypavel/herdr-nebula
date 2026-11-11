@@ -88,7 +88,7 @@ export function visibleSessions(list, resumed, live) {
 // A board row (see sessionRow in viewmodel.js). Its ball is grey (status exited) and its
 // title dim; `age` carries the words. kind "nebula" tells actionsFor and the board.
 export function nebulaRow(s) {
-  const state = s.alive ? "running in nebula" : s.status;
+  const state = s.alive ? "running in nebula" : s.source === "herdr" ? "closed" : s.status;
   return {
     id: `nebula:${s.id}`,
     kind: "nebula",
@@ -102,7 +102,7 @@ export function nebulaRow(s) {
     offers: [],
     archived: false,
     title: s.name,
-    badge: "nebula",
+    badge: s.source === "herdr" ? null : "nebula",
     program: "claude",
     model: s.model ?? "",
     effort: s.effort ?? "",

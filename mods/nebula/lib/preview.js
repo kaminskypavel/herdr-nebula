@@ -19,8 +19,11 @@ export const HOLD_MS = 1000;
 /** How often the board checks, after a preview, whether Herdr moved the keys to the agent. */
 export const POLL_MS = 25;
 
-/** The command that shows a session's agent: its pane, else (a parked agent has none) the agent itself. */
-export const focusCommand = (row) => (row.pane ? { name: "pane.focus", args: { pane: row.pane } } : { name: "agent.focus", args: { terminal: row.address } });
+/**
+ * The command that shows a session's agent: its pane, else (its tab is gone, so it has none) a tab of its own via
+ * terminal.keep. agent.focus showed such an agent as a split of the current tab, and ⌘W there ended it.
+ */
+export const focusCommand = (row) => (row.pane ? { name: "pane.focus", args: { pane: row.pane } } : { name: "terminal.keep", args: { terminal: row.address } });
 
 /**
  * The row to preview for the item under the cursor, or null. Only a live Herdr session counts: a
@@ -46,7 +49,9 @@ export function refocusDue({ focused, row, has }) {
  * the keys before the board did. -> a command { name, args } or null. `panes` is panes() from Herdr.
  */
 export function giveBackTarget({ previewed, lastPane, panes }) {
-  if (previewed && (!previewed.pane || panes.some((p) => p.pane === previewed.pane))) return focusCommand(previewed);
+  // A pane-less agent was given its own tab when shown (focusCommand), so the keys go to it by address.
+  if (previewed && !previewed.pane) return { name: "agent.focus", args: { terminal: previewed.address } };
+  if (previewed && panes.some((p) => p.pane === previewed.pane)) return focusCommand(previewed);
   if (lastPane && panes.some((p) => p.pane === lastPane)) return { name: "pane.focus", args: { pane: lastPane } };
   return null;
 }

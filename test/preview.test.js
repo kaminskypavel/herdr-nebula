@@ -11,8 +11,8 @@ test("a live session is previewed, with its pane when it has one", () => {
   assert.deepEqual(focusCommand(live), { name: "pane.focus", args: { pane: "p1" } });
 });
 
-test("a parked agent has no pane: the agent is focused instead", () => {
-  assert.deepEqual(focusCommand({ ...live, pane: null }), { name: "agent.focus", args: { terminal: "t1" } });
+test("an agent with no pane (its tab is gone) gets a tab of its own, never a split of the current one", () => {
+  assert.deepEqual(focusCommand({ ...live, pane: null }), { name: "terminal.keep", args: { terminal: "t1" } });
 });
 
 test("nothing is previewed for a nebula row, an archived row (showing it would unarchive it), a header or nothing", () => {

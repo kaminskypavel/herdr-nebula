@@ -570,7 +570,8 @@ export class Rail {
     if (!row) return;
     const c = focusCommand(row);
     run(c.name, c.args);
-    this.repick = { c, at: Date.now() + REPICK_MS };
+    // A tab of its own first (terminal.keep); the re-pick then shows the agent there.
+    this.repick = { c: c.name === "terminal.keep" ? { name: "agent.focus", args: { terminal: row.address } } : c, at: Date.now() + REPICK_MS };
   }
 
   // ⌘1 to ⌘9: shows the nth project and flashes its name; a newer pick replaces the flash.
