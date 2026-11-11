@@ -61,6 +61,7 @@ const TABS = [
   ["Updates", ["update"]],
 ];
 const TAB_NAMES = TABS.map(([name]) => name);
+const TAB_ICONS = { Board: "layout-grid", Look: "palette", Agents: "bot", Alerts: "bell", Data: "database", Updates: "refresh-cw" };
 
 export class Settings {
   init(cx) {
@@ -125,7 +126,14 @@ export class Settings {
             .cursor_pointer()
             .when(name === this.tab, (el) => el.bg(t.selected).text_color(t.foreground).font_semibold())
             .when(name !== this.tab, (el) => el.text_color(t.muted).hover((h) => h.text_color(t.foreground)))
+            .gap(6)
             .on_click((_e, cx) => this.setTab(name, cx))
+            .child(
+              svg(`mods/nebula/icons/${TAB_ICONS[name]}.svg`)
+                .size(14)
+                .flex_none()
+                .text_color(name === this.tab ? t.foreground : t.muted),
+            )
             .child(name),
         ),
       );
@@ -421,8 +429,8 @@ export class Settings {
                 this.line(
                   t,
                   at("view"),
-                  "Opens in",
-                  null,
+                  "Board view",
+                  "The same as the view buttons on the board",
                   segmented(t, "view", VIEW_OPTIONS, s.view, (v, cx) => {
                     this.go(at("view"), cx);
                     this.save({ view: v });

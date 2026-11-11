@@ -203,6 +203,10 @@ export class Board {
     this.previewed = null; // the row last shown by a preview or by stepping in: where Esc hands the keys
     this.lastPane = null; // the pane that had the keys before the board did
     this.view = viewOf(load("view", mergeSettings(shared(SETTINGS)).view)).id;
+    // Settings' Board view is this view, kept in step both ways (it used to be only the first-run default, which read
+    // as a setting that did nothing).
+    this.settingsView = this.view;
+    if (mergeSettings(shared(SETTINGS)).view !== this.view) setShared(SETTINGS, { ...(shared(SETTINGS) ?? {}), view: this.view });
     this.folded = new Set(load("tree.folded", []));
     this.bandsFolded = new Set(load("bands.folded", [])); // worktree band paths, in every view but Columns
     this.showArchived = false;
@@ -658,7 +662,9 @@ export class Board {
     this.view = id;
     this.range = null;
     localStorage.setItem("view", JSON.stringify(id));
-    cx.notify();
+    this.settingsView = id;
+    if (this.config().view !== id) setShared(SETTINGS, { ...(shared(SETTINGS) ?? {}), view: id });
+    cx?.notify();
   }
 
   setMode(mode, cx) {
@@ -1284,6 +1290,12 @@ export class Board {
   }
 
   sync() {
+    // Settings' Board view changed: show that view.
+    const asked = this.config().view;
+    if (asked !== this.settingsView) {
+      this.settingsView = asked;
+      if (asked !== this.view) this.setView(asked);
+    }
     const picked = shared(REPO);
     this.all = buildBoard(this.boardArgs(this.showArchived));
     const now = Date.now();
