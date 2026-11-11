@@ -1616,7 +1616,48 @@ export class Board {
       );
   }
 
-  // Under the toolbar: Up next as a stack of cards, across every open project. Collapsed, the top card is the one item
+  // Under the toolbar: where you are, so nothing below reads as another workspace's title. A project tab shows its
+  // icon, name and ⌘ key; All says All projects (⌘0).
+  whereHeader(t) {
+    const all = this.tab === ALL,
+      repo = all ? null : this.base.repos.find((r) => r.root === this.tab),
+      n = all ? 0 : this.tabRoots.indexOf(this.tab) + 1;
+    if (!all && !repo) return div();
+    const face = all
+      ? div()
+          .size(22)
+          .rounded(6)
+          .flex()
+          .items_center()
+          .justify_center()
+          .bg(t.raised)
+          .child(svg("mods/nebula/icons/layout-grid.svg").size(13).text_color(t.foreground))
+      : projectIcon({ icon: iconFor(shared(ICONS) ?? {}, repo.root, repo.name), size: 22 });
+    return h_flex()
+      .id("where")
+      .flex_none()
+      .h(rh(38))
+      .px(20)
+      .gap(10)
+      .items_center()
+      .border_b(1)
+      .border_color(t.border)
+      .child(face)
+      .child(
+        div()
+          .flex_1()
+          .min_w(0)
+          .truncate()
+          .text_size(fs(13))
+          .font_semibold()
+          .text_color(t.foreground)
+          .child(all ? "All projects" : repo.name),
+      )
+      .when(n >= 0 && n <= 9, (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(`\u2318${n}`)));
+  }
+
+  // Docked at the bottom, above the status line: Up next as a stack of cards, across every open project (top is where
+  // you are, bottom is what calls you). Collapsed, the top card is the one item
   // that most deserves you (a question first, else the newest finish: its project's icon, title, `project · asks you ·
   // 2m`, what the agent said) with "N more" on it and the edges of the rest peeking under it; either opens the stack.
   // Coming back to Herdr after a while (the icon bar sets shared BACK) opens it with "While you were away". The open
@@ -1624,7 +1665,15 @@ export class Board {
   upNextCard(t) {
     const u = this.upnext;
     if (!u || this.config().upNext === false) return null;
-    const wrap = v_flex().id("up-next").flex_none().px(20).py(10).border_b(1).border_color(t.border);
+    const elsewhere = this.tab !== ALL && u.item.root !== this.tab;
+    const label = div()
+      .px(2)
+      .pb(6)
+      .text_size(fs(11))
+      .font_semibold()
+      .text_color(t.dim)
+      .child(elsewhere ? "UP NEXT \u00b7 ELSEWHERE" : "UP NEXT");
+    const wrap = v_flex().id("up-next").flex_none().px(20).pt(8).pb(10).border_t(1).border_color(t.border);
     if (this.stackOpen && this.waitQueue.length) {
       const head = this.backAway ? `While you were away · ${awayText(this.backAway)}` : `Waiting on you · ${this.waitQueue.length}`;
       const off = this.stackButton(t, "up-next-off", "×", "Turn Up next off (Settings turns it back on)", (cx) => {
@@ -1664,17 +1713,20 @@ export class Board {
         .border_color(t.border)
         .bg(t.raised)
         .opacity(i === 1 ? 0.8 : 0.5);
-    return wrap.child(this.waitCard(t, u.item, true, u.more, open)).when(u.more > 0, (el) =>
-      el.child(
-        v_flex()
-          .id("up-next-peek")
-          .cursor_pointer()
-          .tooltip(`Show all ${u.more + 1}`)
-          .on_click((_e, cx) => open(cx))
-          .child(peek(1))
-          .when(u.more > 1, (p) => p.child(peek(2))),
-      ),
-    );
+    return wrap
+      .child(label)
+      .child(this.waitCard(t, u.item, true, u.more, open))
+      .when(u.more > 0, (el) =>
+        el.child(
+          v_flex()
+            .id("up-next-peek")
+            .cursor_pointer()
+            .tooltip(`Show all ${u.more + 1}`)
+            .on_click((_e, cx) => open(cx))
+            .child(peek(1))
+            .when(u.more > 1, (p) => p.child(peek(2))),
+        ),
+      );
   }
 
   // One card of the stack, the top one bigger. A click anywhere on it goes to its agent (the keys stay on the board)
@@ -1682,6 +1734,10 @@ export class Board {
   waitCard(t, entry, top, more = 0, open = null) {
     const u = upNext([entry]),
       { row, root, project } = entry;
+    // Another workspace's item says which one: its project name gets that tab's ⌘ key.
+    const n = this.tabRoots.indexOf(root) + 1;
+    if (this.tab !== ALL && root !== this.tab && n > 0 && n <= 9)
+      u.subtitle = [{ ...u.subtitle[0], text: `${u.subtitle[0].text} \u2318${n}` }, ...u.subtitle.slice(1)];
     const clear = (cx, quiet = false) => {
       setShared(CLEARED, clearRows(shared(CLEARED), [row], this.liveIds()));
       if (this.waitQueue.length <= 1) this.closeStack(); // the last one: the next arrival starts folded
@@ -1945,9 +2001,10 @@ export class Board {
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext) && this.config().upNext !== false, (el) => el.child(this.upNextCard(t)))
+      .when(this.base.repos.length > 0 && this.open.length > 0, (el) => el.child(this.whereHeader(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
+      .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext) && this.config().upNext !== false, (el) => el.child(this.upNextCard(t)))
       .child(this.statusLine(t));
   }
 }
