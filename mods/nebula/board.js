@@ -112,7 +112,7 @@ import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
-import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, whereIs, worktreeActions, worktreeSessions } from "./lib/actions.js";
+import { actionsFor, rowAction, worktreeOffer, aloneInTab, tabCommand, whereIs, worktreeActions, worktreeSessions, planForget } from "./lib/actions.js";
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { LIST_APPS, installedEditors, openIn, defaultOpen, ICON_SCRIPT, APP_ICONS, iconArgs, withIcons } from "./lib/editors.js";
@@ -1084,10 +1084,31 @@ export class Board {
     else if (action === "removeWorktree" || action === "delete") this.removeWorktree(path);
   }
 
-  // The delete confirm for a whole worktree: the same git check, its sessions ended, then `wt remove`.
+  // The delete confirm for a whole worktree: the same git check, its sessions ended, then `wt remove` (by path). A
+  // worktree whose folder is already gone only lingers through old nebula sessions: those are hidden and git prunes it.
   removeWorktree(path) {
-    const at = this.bandAt(path),
-      offer = at?.band.deletable && at.band.branch ? { root: at.root, path, branch: at.band.branch } : null;
+    const at = this.bandAt(path);
+    if (at)
+      exec("/bin/test", ["-d", path])
+        .catch(() => ({ code: 1 }))
+        .then((r) => {
+          if (r?.code === 0) this.confirmRemove(path, at);
+          else this.forgetWorktree(path, at);
+        });
+  }
+
+  // The folder is gone: hide its nebula sessions, let git forget it, and say so.
+  forgetWorktree(path, at) {
+    const plan = planForget(at.band, at.root);
+    let hidden = shared(HIDDEN);
+    for (const id of plan.hide) hidden = withHidden(hidden, id);
+    if (plan.hide.length) setShared(HIDDEN, hidden);
+    exec(plan.prune.cmd, plan.prune.args).catch(() => null);
+    notify({ title: "That worktree was already gone", body: `${tilde(path, home())} is off the board now.`, level: "info", timeout: 3500 });
+  }
+
+  confirmRemove(path, at) {
+    const offer = at.band.deletable && at.band.branch ? { root: at.root, path, branch: at.band.branch } : null;
     if (!offer) {
       notify({ title: "This checkout stays", body: "The repo's own checkout and the default branch are not removed here.", level: "info", timeout: 3500 });
       return;
@@ -1104,14 +1125,9 @@ export class Board {
     });
   }
 
-  // `d` on a band with no session: the delete confirm for the worktree itself (git check, then `wt remove`).
+  // `d` on a band with no session: the same as its right-click Remove worktree.
   deleteBand(item) {
-    const offer = bandOffer(item.root, item.band);
-    if (!offer) {
-      notify({ title: "This checkout stays", body: "The repo's own checkout and the default branch are not removed here.", level: "info", timeout: 3500 });
-      return;
-    }
-    box(520, 460, { role: "confirm", worktreeOnly: true, title: offer.branch, worktree: tilde(offer.path, home()), status: "", offer });
+    this.removeWorktree(item.band.path);
   }
 
   act(action, row, cx) {

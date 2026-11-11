@@ -115,6 +115,10 @@ test("removing a clean worktree plans wt remove without -f and without -D", () =
   const p = planRemove({ root: "/w/checkout-flow", branch: "fix-x" }, 0);
   assert.equal(p.cmd, "wt");
   assert.deepEqual(p.args, ["-C", "/w/checkout-flow", "remove", "fix-x", "-y", "--foreground"]);
+  // by path when known: the folder's name need not be its branch
+  assert.deepEqual(planRemove({ root: "/w/app", branch: "player-retry", path: "/w/app-worktrees/player-retry" }, 0).args.slice(3, 4), [
+    "/w/app-worktrees/player-retry",
+  ]);
 });
 
 test("removing a dirty worktree plans wt remove with -f and without -D", () => {
@@ -344,4 +348,15 @@ test("a worktree header's menu opens the folder and, for a linked worktree, remo
     ["t1"],
     "only live agent sessions end",
   );
+});
+
+test("a worktree whose folder is gone: hide its nebula sessions and prune git's record", async () => {
+  const { planForget } = await import("../mods/nebula/lib/actions.js");
+  const band = {
+    rows: [
+      { kind: "nebula", nebula: { id: "n1" } },
+      { kind: "agent", address: "t1" },
+    ],
+  };
+  assert.deepEqual(planForget(band, "/w/app"), { hide: ["n1"], prune: { cmd: "git", args: ["-C", "/w/app", "worktree", "prune"] } });
 });

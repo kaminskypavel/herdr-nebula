@@ -126,9 +126,17 @@ export function recheckRemove(check, st) {
   return same ? { changed: false, dirty: fresh.length } : { changed: true, files: fresh };
 }
 
+// By the worktree's path when known: a folder named like a branch may hold another branch ("No branch named ...").
 export const planRemove = (offer, dirty) => ({
   cmd: "wt",
-  args: ["-C", offer.root, "remove", offer.branch, "-y", "--foreground", ...(dirty > 0 ? ["-f"] : [])],
+  args: ["-C", offer.root, "remove", offer.path || offer.branch, "-y", "--foreground", ...(dirty > 0 ? ["-f"] : [])],
+});
+
+// A worktree whose folder is already gone (only an old nebula session still names it): nothing to remove on disk,
+// so its nebula sessions are hidden and git forgets the worktree. -> { hide: [nebula session ids], prune: { cmd, args } }.
+export const planForget = (band, root) => ({
+  hide: (band?.rows ?? []).filter((r) => r.kind === "nebula" && r.nebula?.id).map((r) => r.nebula.id),
+  prune: { cmd: "git", args: ["-C", root, "worktree", "prune"] },
 });
 
 export const aloneInTab = (panes, tab, terminal) => Boolean(tab) && !panes.some((p) => p.tab === tab && p.terminal !== terminal);
