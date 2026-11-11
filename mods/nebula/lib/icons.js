@@ -14,7 +14,7 @@ const STEMS = ["apple-touch-icon", "logo", "favicon", "icon"];
 const EXTS = ["svg", "png", "jpg", "jpeg", "webp", "ico"];
 const PREFERRED = ["apple-touch-icon.png", "logo.svg", "logo.png", "favicon.svg", "favicon.png", "icon.svg", "icon.png", "favicon.ico"];
 const NAME = /^(apple-touch-icon|logo|favicon|icon)[^/]*\.(svg|png|jpe?g|webp|ico)$/;
-const SKIP = /^(node_modules|tests?|__tests__|fixtures?|mockups?|\.?storybook)$/i;
+const SKIP = /^(node_modules|tests?|__tests__|fixtures?|mockups?|\.?storybook|releases|screenshots?)$/i; // releases: release screenshots (an icon-bar.png is no logo)
 
 // Lower is better; null when the path is no icon candidate. Exact preferred names come first
 // (the order above), then any other match by stem and extension.

@@ -137,3 +137,8 @@ test("a scan that throws or whose copy step fails gives null", async () => {
   assert.equal(await pickIcon(() => Promise.resolve(seq[calls.push(1) - 1]), "/x", home), null);
   assert.equal(await pickIcon(() => Promise.resolve({ code: 0, stdout: "\n" }), "/x", home), null);
 });
+
+test("release screenshots are never a project's icon; a logo.svg is", async () => {
+  const { rankIcons } = await import("../mods/nebula/lib/icons.js");
+  assert.deepEqual(rankIcons(["assets/releases/v0.1.0/icon-bar.png", "assets/logo.svg", "docs/screenshots/icon.png"]), ["assets/logo.svg"]);
+});

@@ -79,7 +79,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 const RAIL_W = 76;
 const REPICK_MS = 250; // after a project pick, when the bar shows its agent once more (see pick)
 const PIN_ICON = "mods/nebula/icons/pin.svg";
-const LOGO = "mods/nebula/icons/nebula-logo.png"; // assets/nebula-logo.svg, rendered at 256px
+const LOGO = "mods/nebula/icons/nebula-logo.png"; // assets/logo.svg, rendered at 256px
 const ICON = 32; // a project icon's size inside its 42px button
 
 const boardShown = () => findNode(layout(), "board")?.hidden !== true;
@@ -885,6 +885,8 @@ export class Rail {
             }),
           ),
         )
+        // A bold line between All and the projects (user: "insert here a bold separator").
+        .when(tabs.items.length > 0, (el) => el.child(div().flex_none().w(32).h(2).my(2).rounded_full().bg(t.muted).opacity(0.55)))
         // The project list scrolls when it is taller than the room; the + and the bottom group stay pinned.
         .child(
           v_flex()
