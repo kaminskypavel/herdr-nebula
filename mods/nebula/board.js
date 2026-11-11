@@ -1759,7 +1759,7 @@ export class Board {
       .pr(6)
       .rounded(10)
       .border_1()
-      .border_color(row.status === "needs" ? t.ansi1 : t.border)
+      .border_color(t.border) // red stays on "asks you", not the whole card
       .bg(t.raised)
       .cursor_pointer()
       .hover((s) => s.bg(t.hover))

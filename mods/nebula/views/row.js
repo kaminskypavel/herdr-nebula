@@ -103,7 +103,8 @@ export function metaLine(row, t, size = 12, selected = false) {
 
 // A session's title, colored by its state (lib/rowstyle.js): red and bold when it needs you, bold when it
 // finished unseen, muted once seen, dim when exited or archived. An archived one is italic with an archive icon before it.
-const TITLE_COLOR = { needs: "ansi1", unseen: "foreground", seen: "muted", plain: "foreground", dim: "dim" };
+// A row that needs you keeps a white title: red is only its dot, its left bar and "needs you" (all red read as harsh).
+const TITLE_COLOR = { needs: "foreground", unseen: "foreground", seen: "muted", plain: "foreground", dim: "dim" };
 export function title(row, t, look = rowLook(row)) {
   const text = div()
     .min_w(0)

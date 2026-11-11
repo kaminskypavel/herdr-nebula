@@ -65,7 +65,7 @@ function card(row, t, selected, click, menu, pinned, openPort, enter, width) {
     .rounded(8)
     .border_1()
     .cursor_pointer()
-    .border_color(selected || pinned ? t.accent : row.status === "needs" ? t.ansi1 : t.border)
+    .border_color(selected || pinned ? t.accent : t.border)
     .bg(selected ? t.selected : t.raised)
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
