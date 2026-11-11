@@ -22,12 +22,12 @@ def env(n, start, attack, decay, peak):
     return e
 
 
-def shimmer(dry):
+def shimmer(dry, delay=0.1):
     # master -> delay 0.1 s -> lowpass 4500 Hz (RBJ biquad, Q 1) -> x0.22 back into the delay; lowpass -> x0.16 -> out
     w = 2 * np.pi * 4500 / SR
     al, c = np.sin(w) / 2, np.cos(w)
     b0, b1, a0, a1, a2 = (1 - c) / 2, 1 - c, 1 + al, -2 * c, 1 - al
-    d = int(0.1 * SR)
+    d = int(delay * SR)
     din, lp = np.zeros(len(dry)), np.zeros(len(dry))
     for n in range(d, len(dry)):
         din[n] = dry[n - d] + 0.22 * lp[n - d]
@@ -35,16 +35,23 @@ def shimmer(dry):
     return lp
 
 
+# The chirp runs this many times faster than playwriter's recipe (user: "make chirp faster"): note spacing,
+# decays and the echo delay all shrink, the pitches stay.
+CHIRP_SPEED = 1.7
+
+
 def chirp():
+    k = 1 / CHIRP_SPEED
     n = int(SR * 1.6)
     t = np.arange(n) / SR
     dry = np.zeros(n)
     for freq, off, atk, dec, peak in [(880, 0, 0.004, 0.09, 0.06), (1108.73, 0.06, 0.004, 0.1, 0.06), (1318.51, 0.12, 0.004, 0.18, 0.07)]:
-        dur = atk + dec + 0.05
+        off, atk, dec = off * k, atk * k, dec * k
+        dur = atk + dec + 0.05 * k
         on = (t >= off) & (t < off + dur)
         dry += np.where(on, np.sin(2 * np.pi * freq * (t - off)), 0) * env(n, off, atk, dec, peak)
     dry *= 0.5  # master gain
-    return (dry + 0.16 * shimmer(dry)) * 4  # output gain
+    return (dry + 0.16 * shimmer(dry, 0.1 * k)) * 4  # output gain
 
 
 def ping():

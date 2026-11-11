@@ -49,8 +49,22 @@ const SOUND_OPTIONS = SOUND_CHOICES.map((v) => ({ value: v, label: SOUND_LABEL[v
 const TEXT_OPTIONS = TEXT_SIZES.map((p) => ({ value: p, label: textSizeLabel(p) }));
 const PICK_W = 150;
 
+// Settings in tabs, one group at a time (user: "group settings to tabs, it's hard to follow"). "h:*" stands for
+// one row per installed agent.
+/** @type {[string, string[]][]} */
+const TABS = [
+  ["Board", ["view", "newWorktree", "autoTitle", "confirmArchive", "promptLine", "showEmptyWorktrees", "preview", "presetSide", "editor"]],
+  ["Look", ["textSize", "reduceMotion"]],
+  ["Agents", ["harness", "h:*", "sleepAfter"]],
+  ["Alerts", ["upNext", "away", "sound"]],
+  ["Data", ["nebulaSessions", "import"]],
+  ["Updates", ["update"]],
+];
+const TAB_NAMES = TABS.map(([name]) => name);
+
 export class Settings {
   init(cx) {
+    this.tab = TAB_NAMES.includes(localStorage.getItem("settings.tab")) ? localStorage.getItem("settings.tab") : TAB_NAMES[0];
     this.s = mergeSettings(shared(SETTINGS));
     this.ids = [];
     this.loaded = false;
@@ -74,28 +88,47 @@ export class Settings {
   }
 
   rows() {
-    return [
-      "view",
-      "newWorktree",
-      "autoTitle",
-      "confirmArchive",
-      "promptLine",
-      "showEmptyWorktrees",
-      "preview",
-      "presetSide",
-      "editor",
-      "textSize",
-      "reduceMotion",
-      "harness",
-      ...this.ids.map((id) => `h:${id}`),
-      "sleepAfter",
-      "upNext",
-      "away",
-      "sound",
-      "nebulaSessions",
-      "import",
-      "update",
-    ];
+    const [, rows] = TABS.find(([name]) => name === this.tab) ?? TABS[0];
+    return rows.flatMap((r) => (r === "h:*" ? this.ids.map((id) => `h:${id}`) : [r]));
+  }
+
+  // Shows another tab (a click on it, or [ and ]): the keyboard row goes to its first row.
+  setTab(name, cx) {
+    this.dd = null;
+    this.tab = name;
+    this.at = 0;
+    localStorage.setItem("settings.tab", name);
+    cx?.notify();
+  }
+
+  // The tab bar under the title: one pill per group, the shown one raised.
+  tabBar(t) {
+    return h_flex()
+      .id("settings-tabs")
+      .flex_none()
+      .gap(4)
+      .p(3)
+      .rounded(9)
+      .border_1()
+      .border_color(t.border)
+      .children(
+        TAB_NAMES.map((name) =>
+          div()
+            .id(`tab-${name}`)
+            .flex_1()
+            .h(28)
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(6)
+            .text_size(fs(12))
+            .cursor_pointer()
+            .when(name === this.tab, (el) => el.bg(t.selected).text_color(t.foreground).font_semibold())
+            .when(name !== this.tab, (el) => el.text_color(t.muted).hover((h) => h.text_color(t.foreground)))
+            .on_click((_e, cx) => this.setTab(name, cx))
+            .child(name),
+        ),
+      );
   }
 
   // Settings' Update button and Enter on its row: the icon bar runs it (nebula.update, or a check first).
@@ -240,7 +273,10 @@ export class Settings {
     else if (k === "up") this.go(this.at - 1, cx);
     else if (k === "tab") this.change("harness", m.shift ? -1 : 1);
     else if (typing) return;
-    else if (k === "left" || k === "right") this.change(row, k === "right" ? 1 : -1, m.shift ? "effort" : "model");
+    else if (k === "[" || k === "]") {
+      const i = TAB_NAMES.indexOf(this.tab);
+      this.setTab(TAB_NAMES[(i + (k === "]" ? 1 : -1) + TAB_NAMES.length) % TAB_NAMES.length], cx);
+    } else if (k === "left" || k === "right") this.change(row, k === "right" ? 1 : -1, m.shift ? "effort" : "model");
     else if (k === "enter" || k === "space") {
       if (row === "harness" && this.ids.length) this.openDd("harness", cx);
       else if (row.startsWith("h:")) this.openAgent(row.slice(2), m.shift ? "effort" : "model", cx);
@@ -294,7 +330,7 @@ export class Settings {
     return v_flex()
       .gap(8)
       .flex_none()
-      .child(div().px(2).text_size(fs(12)).font_semibold().text_color(t.muted).child(title))
+      .when(Boolean(title), (el) => el.child(div().px(2).text_size(fs(12)).font_semibold().text_color(t.muted).child(title)))
       .child(v_flex().rounded(10).border_1().border_color(t.border).overflow_hidden().children(out));
   }
 
@@ -372,152 +408,165 @@ export class Settings {
       .text_color(t.foreground)
       .text_size(fs(13))
       .child(dialogTitle(t, "Settings"))
+      .child(this.tabBar(t))
       .child(
         v_flex()
           .flex_1()
           .min_h(0)
           .gap(22)
           .overflow_y_scrollbar()
-          .child(
-            this.group(t, "Board", [
-              this.line(
-                t,
-                at("view"),
-                "Opens in",
-                null,
-                segmented(t, "view", VIEW_OPTIONS, s.view, (v, cx) => {
-                  this.go(at("view"), cx);
-                  this.save({ view: v });
-                }),
-              ),
-              toggle("newWorktree"),
-              toggle("autoTitle"),
-              toggle("confirmArchive"),
-              toggle("promptLine"),
-              toggle("showEmptyWorktrees"),
-              toggle("preview"),
-              this.line(
-                t,
-                at("presetSide"),
-                "Preset text",
-                "Where a preset's text goes in the task",
-                segmented(t, "presetSide", SIDE_OPTIONS, s.presetSide, (v, cx) => {
-                  this.go(at("presetSide"), cx);
-                  this.save({ presetSide: v });
-                }),
-              ),
-              this.line(
-                t,
-                at("editor"),
-                "Open folder with",
-                "The command for Shift+Enter on a row",
-                Input.new(this.editor)
-                  .w(170)
-                  .h(30)
-                  .px(10)
-                  .rounded(7)
-                  .border_1()
-                  .border_color(this.editing() ? t.accent : t.input)
-                  .bg(t.background)
-                  .text_size(fs(12)),
-              ),
-            ]),
+          .when(this.tab === "Board", (el) =>
+            el.child(
+              this.group(t, "", [
+                this.line(
+                  t,
+                  at("view"),
+                  "Opens in",
+                  null,
+                  segmented(t, "view", VIEW_OPTIONS, s.view, (v, cx) => {
+                    this.go(at("view"), cx);
+                    this.save({ view: v });
+                  }),
+                ),
+                toggle("newWorktree"),
+                toggle("autoTitle"),
+                toggle("confirmArchive"),
+                toggle("promptLine"),
+                toggle("showEmptyWorktrees"),
+                toggle("preview"),
+                this.line(
+                  t,
+                  at("presetSide"),
+                  "Preset text",
+                  "Where a preset's text goes in the task",
+                  segmented(t, "presetSide", SIDE_OPTIONS, s.presetSide, (v, cx) => {
+                    this.go(at("presetSide"), cx);
+                    this.save({ presetSide: v });
+                  }),
+                ),
+                this.line(
+                  t,
+                  at("editor"),
+                  "Open folder with",
+                  "The command for Shift+Enter on a row",
+                  Input.new(this.editor)
+                    .w(170)
+                    .h(30)
+                    .px(10)
+                    .rounded(7)
+                    .border_1()
+                    .border_color(this.editing() ? t.accent : t.input)
+                    .bg(t.background)
+                    .text_size(fs(12)),
+                ),
+              ]),
+            ),
           )
-          .child(
-            this.group(t, "Look", [
-              this.line(
-                t,
-                at("textSize"),
-                "Text size",
-                "The panels' text, next to the terminal's size in Herdr's settings",
-                segmented(t, "textSize", TEXT_OPTIONS, s.textSize, (v, cx) => {
-                  this.go(at("textSize"), cx);
-                  this.save({ textSize: v });
-                }),
-              ),
-              toggle("reduceMotion"),
-            ]),
+          .when(this.tab === "Look", (el) =>
+            el.child(
+              this.group(t, "", [
+                this.line(
+                  t,
+                  at("textSize"),
+                  "Text size",
+                  "The panels' text, next to the terminal's size in Herdr's settings",
+                  segmented(t, "textSize", TEXT_OPTIONS, s.textSize, (v, cx) => {
+                    this.go(at("textSize"), cx);
+                    this.save({ textSize: v });
+                  }),
+                ),
+                toggle("reduceMotion"),
+              ]),
+            ),
           )
-          .child(
-            this.group(t, "Agents", [
-              this.line(
-                t,
-                at("harness"),
-                "Default agent",
-                "Picked first in the new-session box",
-                this.ids.length
-                  ? this.pick(t, "harness", { width: 170 })
-                  : div()
-                      .text_size(fs(12))
-                      .text_color(t.muted)
-                      .child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026"),
-              ),
-              ...this.ids.map(agent),
-              this.line(
-                t,
-                at("sleepAfter"),
-                "Sleep idle agents after",
-                "Frees memory; Enter resumes it",
-                segmented(t, "sleepAfter", SLEEP_OPTIONS, s.sleepAfter, (v, cx) => {
-                  this.go(at("sleepAfter"), cx);
-                  this.save({ sleepAfter: v });
-                }),
-              ),
-            ]),
+          .when(this.tab === "Agents", (el) =>
+            el.child(
+              this.group(t, "", [
+                this.line(
+                  t,
+                  at("harness"),
+                  "Default agent",
+                  "Picked first in the new-session box",
+                  this.ids.length
+                    ? this.pick(t, "harness", { width: 170 })
+                    : div()
+                        .text_size(fs(12))
+                        .text_color(t.muted)
+                        .child(this.loaded ? "No supported agent installed" : "Looking for agents\u2026"),
+                ),
+                ...this.ids.map(agent),
+                this.line(
+                  t,
+                  at("sleepAfter"),
+                  "Sleep idle agents after",
+                  "Frees memory; Enter resumes it",
+                  segmented(t, "sleepAfter", SLEEP_OPTIONS, s.sleepAfter, (v, cx) => {
+                    this.go(at("sleepAfter"), cx);
+                    this.save({ sleepAfter: v });
+                  }),
+                ),
+              ]),
+            ),
           )
-          .child(
-            this.group(t, "Alerts", [
-              toggle("upNext"),
-              this.line(
-                t,
-                at("away"),
-                v_flex()
-                  .gap(2)
-                  .child(div().truncate().text_size(fs(13)).text_color(t.foreground).child("When you're away"))
-                  .child(div().truncate().text_size(fs(12)).text_color(t.muted).child(AWAY_LABEL[s.away]))
-                  .child(div().truncate().text_size(fs(12)).text_color(t.muted).child("Herdr's own popup is unaffected")),
-                null,
-                segmented(t, "away", AWAY_OPTIONS, s.away, (v, cx) => {
-                  this.go(at("away"), cx);
-                  this.save({ away: v });
-                }),
-              ),
-              this.line(
-                t,
-                at("sound"),
-                "Sound",
-                "Plays when you pick it. Herdr: its own bundled sounds",
-                segmented(t, "sound", SOUND_OPTIONS, s.sound, (v, cx) => {
-                  this.go(at("sound"), cx);
-                  this.setSound(v);
-                }),
-              ),
-            ]),
+          .when(this.tab === "Alerts", (el) =>
+            el.child(
+              this.group(t, "", [
+                toggle("upNext"),
+                this.line(
+                  t,
+                  at("away"),
+                  v_flex()
+                    .gap(2)
+                    .child(div().truncate().text_size(fs(13)).text_color(t.foreground).child("When you're away"))
+                    .child(div().truncate().text_size(fs(12)).text_color(t.muted).child(AWAY_LABEL[s.away]))
+                    .child(div().truncate().text_size(fs(12)).text_color(t.muted).child("Herdr's own popup is unaffected")),
+                  null,
+                  segmented(t, "away", AWAY_OPTIONS, s.away, (v, cx) => {
+                    this.go(at("away"), cx);
+                    this.save({ away: v });
+                  }),
+                ),
+                this.line(
+                  t,
+                  at("sound"),
+                  "Sound",
+                  "Plays when you pick it. Herdr: its own bundled sounds",
+                  segmented(t, "sound", SOUND_OPTIONS, s.sound, (v, cx) => {
+                    this.go(at("sound"), cx);
+                    this.setSound(v);
+                  }),
+                ),
+              ]),
+            ),
           )
-          .child(
-            this.group(t, "Data", [
-              toggle("nebulaSessions"),
-              this.line(
-                t,
-                at("import"),
-                "Import from nebula",
-                "Projects and defaults from nebula's own files",
-                button(t, "st-import", "Import...", "plain", () => this.openImport()),
-              ),
-            ]),
+          .when(this.tab === "Data", (el) =>
+            el.child(
+              this.group(t, "", [
+                toggle("nebulaSessions"),
+                this.line(
+                  t,
+                  at("import"),
+                  "Import from nebula",
+                  "Projects and defaults from nebula's own files",
+                  button(t, "st-import", "Import...", "plain", () => this.openImport()),
+                ),
+              ]),
+            ),
           )
-          .child(
-            this.group(t, "Updates", [
-              this.line(
-                t,
-                at("update"),
-                "herdr-nebula",
-                updateLine(shared(UPDATE)),
-                updateState(shared(UPDATE) ?? {}) === "available"
-                  ? button(t, "st-update", "Update", "primary", () => this.updateNow())
-                  : button(t, "st-check", "Check now", "plain", () => this.updateNow()),
-              ),
-            ]),
+          .when(this.tab === "Updates", (el) =>
+            el.child(
+              this.group(t, "", [
+                this.line(
+                  t,
+                  at("update"),
+                  "herdr-nebula",
+                  updateLine(shared(UPDATE)),
+                  updateState(shared(UPDATE) ?? {}) === "available"
+                    ? button(t, "st-update", "Update", "primary", () => this.updateNow())
+                    : button(t, "st-check", "Check now", "plain", () => this.updateNow()),
+                ),
+              ]),
+            ),
           ),
       )
       .child(
