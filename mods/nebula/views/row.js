@@ -314,7 +314,7 @@ export function subLine(sub, t, { indent = 30 }) {
     .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.muted).text_size(fs(11))));
 }
 
-export function bandLine(band, t, { indent = 10, folded = false, click = null }) {
+export function bandLine(band, t, { indent = 10, folded = false, click = null, menu = null }) {
   const parts = bandStats(band);
   return h_flex()
     .h(rh(HEIGHT.band))
@@ -332,6 +332,7 @@ export function bandLine(band, t, { indent = 10, folded = false, click = null })
         .cursor_pointer()
         .on_click((_e, cx) => click(`band:${band.path}`, cx)),
     )
+    .when(Boolean(menu), (el) => el.id(`band-${band.path}`).on_mouse_down("right", (e, cx) => menu(`band:${band.path}`, e, cx)))
     .child(
       div()
         .w(10)
@@ -423,13 +424,13 @@ export const shelfLine = (text, t) =>
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null, pinned = null, promptLine = true, viewing, enters }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, menu = null, pinned = null, promptLine = true, viewing, enters }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo":
       return repoLine(item.repo, t, { folded: item.folded, selected, click });
     case "band":
-      return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click });
+      return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click, menu });
     case "session":
       return sessionLine(item.row, t, {
         selected,

@@ -317,3 +317,31 @@ test("the repo's own checkout, the default branch and a band with sessions offer
   );
   assert.equal(bandOffer("/w/checkout-flow", undefined), null);
 });
+
+test("a worktree header's menu opens the folder and, for a linked worktree, removes it naming the sessions it ends", async () => {
+  const { worktreeActions, worktreeSessions } = await import("../mods/nebula/lib/actions.js");
+  const { installedEditors } = await import("../mods/nebula/lib/editors.js");
+  const eds = installedEditors("Zed.app\n");
+  assert.deepEqual(
+    worktreeActions({ editors: eds, editor: "open", deletable: true, sessions: 2 }).map((a) => [a.id, a.label]),
+    [
+      ["folder", "Open in Zed"],
+      ["editor:finder", "Reveal in Finder"],
+      ["removeWorktree", "Remove worktree (ends 2 sessions)"],
+    ],
+  );
+  assert.equal(worktreeActions({ editors: eds, deletable: true }).at(-1).label, "Remove worktree");
+  assert.ok(!worktreeActions({ editors: eds, deletable: false }).some((a) => a.id === "removeWorktree"), "the repo's own checkout stays");
+  const band = {
+    rows: [
+      { address: "t1", tab: "tb1", title: "A" },
+      { address: "t2", tab: "tb2", title: "B", exited: true },
+      { address: "t3", kind: "nebula" },
+    ],
+  };
+  assert.deepEqual(
+    worktreeSessions(band, []).map((s) => s.terminal),
+    ["t1"],
+    "only live agent sessions end",
+  );
+});

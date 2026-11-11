@@ -10,7 +10,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, setShared, shared, theme } from "herdr";
 import { ROW_ACTION, SETTINGS } from "./lib/shared.js";
 import { iconEl } from "./ui.js";
-import { actionsFor } from "./lib/actions.js";
+import { actionsFor, worktreeActions } from "./lib/actions.js";
 import { fs } from "./lib/scale.js";
 
 export class Menu {
@@ -22,6 +22,8 @@ export class Menu {
 
   items() {
     const p = props() ?? {};
+    if (p.kind === "worktree")
+      return worktreeActions({ editors: p.editors ?? null, editor: shared(SETTINGS)?.editor, deletable: Boolean(p.deletable), sessions: p.sessions ?? 0 });
     return actionsFor(
       {
         kind: p.kind,

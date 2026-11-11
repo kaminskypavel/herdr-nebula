@@ -4,7 +4,8 @@
 // terminal (and its tab when the agent was alone in it); a failed removal keeps the
 // worktree and shows what `wt` said.
 // props: { title, worktree, status, terminal, tab, alone, offer: { root, path, branch } | null }.
-// With worktreeOnly (the board's `d` on a worktree with no session) there is no session to end:
+// With worktreeOnly (the board's `d` on a worktree, or its right-click Remove worktree) the sessions in it (props.sessions,
+// maybe none) end first:
 // the same check runs, the removal starts ticked, and Delete runs `wt remove` alone.
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -29,7 +30,7 @@ export class Confirm {
     this.check = summarizeCheck(null, null);
     this.files = [];
     this.unpushed = [];
-    this.killed = Boolean(props()?.worktreeOnly); // no session to end
+    this.killed = Boolean(props()?.worktreeOnly) && !props()?.sessions?.length; // no session to end
     this.loaded = !props()?.offer;
     this.remove = Boolean(props()?.worktreeOnly); // settled by the check below: only a known-clean worktree stays ticked
     this.busy = false;
@@ -66,7 +67,7 @@ export class Confirm {
     cx.spawn(
       async (cx) => {
         if (!this.killed) {
-          for (const step of planDelete(p)) {
+          for (const step of p.sessions?.length ? p.sessions.flatMap(planDelete) : planDelete(p)) {
             const r = await doCmd(step.name, step.args);
             // The tab may already be gone once its terminal ended.
             if (r.code !== 0 && step.name === "terminal.kill") {
@@ -163,7 +164,15 @@ export class Confirm {
             div()
               .text_size(fs(12))
               .text_color(t.muted)
-              .child(p.worktreeOnly ? "Nothing is running in it." : p.alone ? "Ends the agent and closes its tab." : "Ends the agent."),
+              .child(
+                p.sessions?.length
+                  ? `Ends ${p.sessions.length} session${p.sessions.length === 1 ? "" : "s"}: ${p.sessions.map((s) => s.title).join(", ")}`
+                  : p.worktreeOnly
+                    ? "Nothing is running in it."
+                    : p.alone
+                      ? "Ends the agent and closes its tab."
+                      : "Ends the agent.",
+              ),
           ),
       )
       .when(Boolean(p.offer), (el) =>

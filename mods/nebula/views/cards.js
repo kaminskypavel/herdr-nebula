@@ -148,7 +148,7 @@ export function body(b, t) {
     if (it.type === "session") run.push(it);
     else if (it.type !== "sub") {
       flush();
-      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, pinned: b.pinned, viewing: b.viewing, enters: b.enters }));
+      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, menu: b.menu, pinned: b.pinned, viewing: b.viewing, enters: b.enters }));
     }
   }
   flush();

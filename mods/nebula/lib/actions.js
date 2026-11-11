@@ -62,6 +62,34 @@ export function worktreeOffer(model, id) {
 // The worktree an empty band's `d` removes, or null when the board may not offer it: the band
 // has a session (use that session's delete) or buildBoard marked it undeletable (no branch to
 // name to `wt remove`, not a linked worktree, the repo's own checkout, the default branch).
+// A worktree header's right-click menu: open its folder (the editor picked in Settings, and Finder), then Remove
+// worktree for a linked one (the repo's own checkout and the default branch stay), naming the sessions it would end.
+/**
+ * @param {{ editors?: any, editor?: string, deletable?: boolean, sessions?: number }} o
+ * @returns {{ id: string, label: string, key: string, icon?: string, danger?: boolean, sep?: boolean }[]}
+ */
+export const worktreeActions = ({ editors, editor, deletable, sessions = 0 }) => [
+  ...editorItems(editors, editor).map((it) => ({ ...it, key: "" })),
+  ...(deletable
+    ? [
+        {
+          id: "removeWorktree",
+          label: sessions ? `Remove worktree (ends ${sessions} session${sessions === 1 ? "" : "s"})` : "Remove worktree",
+          key: "d",
+          danger: true,
+          sep: true,
+          icon: "mods/nebula/icons/trash.svg",
+        },
+      ]
+    : []),
+];
+
+// What removing a worktree from its header ends first: its live sessions (the confirm kills each, then runs wt remove).
+export const worktreeSessions = (band, panesNow) =>
+  (band?.rows ?? [])
+    .filter((r) => r.address && !r.exited && r.kind !== "nebula")
+    .map((r) => ({ terminal: r.address, tab: r.tab, alone: aloneInTab(panesNow, r.tab, r.address), title: r.title }));
+
 export const bandOffer = (root, band) => (band && !band.rows.length && band.deletable ? { root, path: band.path, branch: band.branch } : null);
 
 export const parseLines = (text) =>

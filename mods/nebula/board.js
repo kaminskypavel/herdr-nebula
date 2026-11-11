@@ -112,7 +112,7 @@ import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
-import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, whereIs } from "./lib/actions.js";
+import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, whereIs, worktreeActions, worktreeSessions } from "./lib/actions.js";
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { LIST_APPS, installedEditors, openIn, defaultOpen, ICON_SCRIPT, APP_ICONS, iconArgs, withIcons } from "./lib/editors.js";
@@ -548,6 +548,7 @@ export class Board {
     const picked = shared(ROW_ACTION);
     if (picked && picked.n !== this.acted) {
       this.acted = picked.n;
+      if (String(picked.id).startsWith("band:")) this.worktreeAct(String(picked.id).slice(5), picked.action, cx);
       const row = this.byKey.get(picked.id)?.row;
       if (row) this.act(picked.action, row, cx);
     }
@@ -1051,6 +1052,58 @@ export class Board {
     };
   }
 
+  // The worktree (band) at `path` in the full model (archived sessions too), with its project root, or null.
+  bandAt(path) {
+    const full = buildBoard(this.boardArgs(true));
+    for (const repo of full.repos) for (const band of repo.bands) if (band.path === path) return { band, root: repo.root };
+    return null;
+  }
+
+  // A worktree header's right-click menu (lib/actions.js worktreeActions): open its folder, or remove it.
+  worktreeMenu(path, cx) {
+    const at = this.bandAt(path);
+    if (!at) return;
+    const sessions = worktreeSessions(at.band, panes()).length,
+      list = worktreeActions({ editors: this.editors, editor: shared(SETTINGS)?.editor, deletable: at.band.deletable, sessions });
+    const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
+    openOverlay({
+      mod: "nebula-box",
+      kind: "popup",
+      at: "pointer",
+      width: 300,
+      height,
+      props: { role: "menu", kind: "worktree", id: `band:${path}`, editors: this.editors, deletable: at.band.deletable, sessions },
+    });
+    cx?.notify();
+  }
+
+  // A worktree menu's pick: open the folder, reveal it, or remove the worktree (ending its sessions first).
+  worktreeAct(path, action, cx) {
+    if (action === "folder") this.openFolder(defaultOpen(shared(SETTINGS)?.editor, this.editors, path), cx);
+    else if (action.startsWith("editor:")) this.openFolder(openIn(action.slice(7), path), cx);
+    else if (action === "removeWorktree" || action === "delete") this.removeWorktree(path);
+  }
+
+  // The delete confirm for a whole worktree: the same git check, its sessions ended, then `wt remove`.
+  removeWorktree(path) {
+    const at = this.bandAt(path),
+      offer = at?.band.deletable && at.band.branch ? { root: at.root, path, branch: at.band.branch } : null;
+    if (!offer) {
+      notify({ title: "This checkout stays", body: "The repo's own checkout and the default branch are not removed here.", level: "info", timeout: 3500 });
+      return;
+    }
+    const sessions = worktreeSessions(at.band, panes());
+    box(520, 460 + Math.min(sessions.length, 4) * 18, {
+      role: "confirm",
+      worktreeOnly: true,
+      title: offer.branch,
+      worktree: tilde(path, home()),
+      status: "",
+      offer,
+      sessions,
+    });
+  }
+
   // `d` on a band with no session: the delete confirm for the worktree itself (git check, then `wt remove`).
   deleteBand(item) {
     const offer = bandOffer(item.root, item.band);
@@ -1137,6 +1190,11 @@ export class Board {
   }
 
   rowMenu(key, _e, cx) {
+    const wt = /^(band|vacant|wt):(.+)$/.exec(String(key));
+    if (wt) {
+      this.worktreeMenu(wt[2], cx);
+      return;
+    }
     let item = this.byKey.get(key);
     if (item?.type === "sub") item = this.byKey.get(item.parent);
     if (item?.type !== "session") return;
@@ -1252,6 +1310,7 @@ export class Board {
     } else if (u && u.kind !== "row") this.undoArchive(u, cx);
     else if (act && item?.type === "session") this.act(act, item.row, cx);
     else if (act === "delete" && item?.type === "vacant") this.deleteBand(item);
+    else if (act === "delete" && item?.type === "band") this.removeWorktree(item.band.path);
     else if (k === "enter") {
       if (item?.type === "session") this.show(item.row, cx);
       else if (item?.type === "repo") this.toggle(item.repo.root);

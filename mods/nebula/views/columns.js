@@ -133,7 +133,7 @@ function statusBody(b, t) {
 }
 
 // A project or a worktree: status ball (its most urgent session), name, session count.
-function navRow(id, key, name, status, count, selected, focused, t, click) {
+function navRow(id, key, name, status, count, selected, focused, t, click, menu = null) {
   return h_flex()
     .id(id)
     .flex_none()
@@ -147,6 +147,7 @@ function navRow(id, key, name, status, count, selected, focused, t, click) {
     .when(selected, (el) => el.bg(focused ? t.selected : t.raised))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .on_click((_e, cx) => click(key, cx))
+    .when(Boolean(menu), (el) => el.on_mouse_down("right", (e, cx) => menu(key, e, cx)))
     .child(ball(status, t))
     .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(name))
     .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(String(count)));
@@ -258,7 +259,7 @@ function projectsBody(b, t) {
         column(
           1 - at,
           "WORKTREES",
-          pc.worktrees.map((w) => navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click)),
+          pc.worktrees.map((w) => navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click, b.menu)),
           "No sessions",
           col === 1,
           t,
