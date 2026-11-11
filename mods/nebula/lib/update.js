@@ -25,7 +25,7 @@ export function updateNotice(report) {
   // As Herdr's own: "<name> <version> is ready" with Update and What changed (the notes pane).
   // Named by a release only when main carries a newer tag: commits pushed after a release are still "an update".
   const first = (report.subjects ?? [])[0],
-    tag = String(report.version ?? "").replace(/-\d+-g[0-9a-f]+$/, ""),
+    tag = releaseTag(report.version),
     named = report.latestVersion && report.latestVersion !== tag ? report.latestVersion : "update";
   return {
     title: `herdr-nebula ${named} is ready`,
@@ -41,8 +41,14 @@ export function updateNotice(report) {
 }
 
 // The popup after an update landed (the version changed since the last check), with What changed.
+// The release a version is ("v0.1.0-12-gabc1234", git describe past a tag, is still v0.1.0), or "" without a tag.
+export const releaseTag = (version) => String(version ?? "").replace(/-\d+-g[0-9a-f]+$/, "");
+
+// Whether to say "updated": only when the installed release changed (a new tag), never for commits in between.
+export const releasedSince = (seenTag, report) => Boolean(seenTag) && Boolean(releaseTag(report?.version)) && releaseTag(report.version) !== seenTag;
+
 export const updatedNotice = (report) => ({
-  title: `herdr-nebula updated to ${report.version || report.head}`,
+  title: `herdr-nebula updated to ${releaseTag(report.version) || report.head}`,
   body: "Click to see what changed",
   level: "success",
   icon: LOGO,

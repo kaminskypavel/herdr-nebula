@@ -83,6 +83,11 @@ test("the notes since the installed version come from the CHANGELOG, newest firs
   assert.equal(notesOf(log, "v0.2.0-1-gdef"), "- two");
   assert.equal(notesOf(log, "abc"), null);
   assert.equal(updatedNotice({ version: "v0.2.0" }).title, "herdr-nebula updated to v0.2.0");
+  assert.equal(updatedNotice({ version: "v0.2.0-3-gabc1234" }).title, "herdr-nebula updated to v0.2.0");
+  const { releasedSince } = await import("../mods/nebula/lib/update.js");
+  assert.equal(releasedSince("v0.1.0", { version: "v0.1.0-12-g50486a5" }), false, "commits after a release are no update to announce");
+  assert.equal(releasedSince("v0.1.0", { version: "v0.2.0" }), true);
+  assert.equal(releasedSince(null, { version: "v0.2.0" }), false, "first run: nothing to compare");
 });
 
 test("a CHANGELOG section becomes headings, bullets and text for the What changed pane", async () => {

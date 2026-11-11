@@ -76,7 +76,7 @@ import {
 import { fs, setTextScale } from "./lib/scale.js";
 import { setReduceMotion, animate, markerTops, hopping, FADE, SPRING, HOP_PX } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
-import { CHECK_EVERY_MS, updateState, updateNotice, updatedNotice, shouldNotify, reportIn } from "./lib/update.js";
+import { CHECK_EVERY_MS, updateState, updateNotice, updatedNotice, shouldNotify, reportIn, releasedSince, releaseTag } from "./lib/update.js";
 import { HELP_SIZE } from "./lib/hints.js";
 import { NOTHING_WAITING } from "./lib/flash.js";
 
@@ -604,9 +604,10 @@ export class Rail {
           return;
         }
         setShared(UPDATE, { ...report, checkedAt: Date.now() });
-        const head = localStorage.getItem("update.head");
-        if (head && head !== report.head) this.popup(updatedNotice(report));
-        localStorage.setItem("update.head", report.head);
+        // "Updated" only for a new release (tag), not for every commit or reinstall in between.
+        const seen = localStorage.getItem("update.tag");
+        if (releasedSince(seen, report)) this.popup(updatedNotice(report));
+        if (releaseTag(report.version)) localStorage.setItem("update.tag", releaseTag(report.version));
         if (manual && updateState(report) === "current")
           this.popup({
             title: "herdr-nebula is up to date",
