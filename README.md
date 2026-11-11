@@ -13,7 +13,7 @@ and Herdr's own terminal next to it all.
 curl -fsSL https://raw.githubusercontent.com/kaminskypavel/herdr-nebula/main/install.sh | sh
 ```
 
-<img src="assets/board.png" alt="herdr-nebula in Herdr: project tabs, the Tree view grouping sessions by project and worktree with status dots, and the agent's terminal beside it" width="100%">
+<img src="assets/board.png" alt="herdr-nebula in Herdr: the icon bar with a red needs-you count and cyan checks for fresh finishes, the Up next card on top of the Tree view, rows that say what each agent did, and the agent's terminal beside it" width="100%">
 
 </div>
 
@@ -63,7 +63,7 @@ So herdr-nebula brings nebula's workflow into Herdr, as a layout and two mods. N
 <tr>
 <td width="33%"><img src="assets/status.png" alt="Columns view grouped by status: needs you, working, unseen, seen"></td>
 <td width="33%"><img src="assets/columns.png" alt="Columns view in nebula's Projects, Worktrees, Sessions layout"></td>
-<td width="33%"><img src="assets/settings.png" alt="Settings: default view, new worktree, auto-title, presets and per-agent model and effort"></td>
+<td width="33%"><img src="assets/settings.png" alt="Settings in tabs (Board, Look, Agents, Alerts, Data, Updates): the board view, new worktree, auto-title and more"></td>
 </tr>
 <tr>
 <td align="center">Columns by status</td>

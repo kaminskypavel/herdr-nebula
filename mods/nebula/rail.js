@@ -143,7 +143,9 @@ export class Rail {
           this.runUpdate(cx); // the update popup's click, or Settings' Update
         else if (c === "checkupdate")
           this.checkUpdate(cx, true); // Settings' Check now
-        else if (c === "changes") this.openBox("changes", 560, 600); // the release notes pane (What changed)
+        else if (c === "changes")
+          this.openBox("changes", 560, 600); // the release notes pane (What changed)
+        else if (c === "settings") this.openBox("settings", 580, 700); // the gear's Settings, for a key or herdr-app do
         cx.notify();
       }
     });
