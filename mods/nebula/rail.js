@@ -1,6 +1,6 @@
 // The icon bar: Board (shows or folds the board, the focus key's job), then the project tabs like a
 // vertical workspace switcher (All, the open projects in their shared order, calm icons with a red pill for the
-// agents that need you and a ring for a finish you have not seen, and + for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
+// agents that need you and a cyan check for a finish you have not seen, and + for the projects picker), then New window, Help and Settings pinned at the bottom. The project list
 // scrolls when it does not fit. A click selects a project (shared nebula.repo, which the board follows);
 // a right-click opens a menu with Close. It also owns the keyboard cycle and the jump chords, because a hidden board receives no key commands:
 // keys.json binds them to this mod's commands (focus, next, prev, jump), and the rail shows,
@@ -79,6 +79,7 @@ import { NOTHING_WAITING } from "./lib/flash.js";
 const RAIL_W = 76;
 const REPICK_MS = 250; // after a project pick, when the bar shows its agent once more (see pick)
 const PIN_ICON = "mods/nebula/icons/pin.svg";
+const CHECK_ICON = "mods/nebula/icons/check.svg"; // a fresh finish, on the icon's corner
 const LOGO = "mods/nebula/icons/nebula-logo.png"; // assets/logo.svg, rendered at 256px
 const ICON = 32; // a project icon's size inside its 42px button
 
@@ -679,7 +680,7 @@ export class Rail {
   }
 
   // A project's tab: its icon (the shared picture or initials), calm: a red pill with how many agents there need
-  // you, a cyan ring while a finish waits unseen (fading over its last minute), and a hop when a row just started
+  // you, a cyan check while a finish waits unseen (fading over its last minute), and a hop when a row just started
   // waiting. No status dot: four dots alike told you nothing.
   projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {},
@@ -734,7 +735,8 @@ export class Rail {
               .child(svg(PIN_ICON).size(9).text_color(t.accent)),
           )
       : icon;
-    // The ring sits 2px off the icon (the button's own background shows in the gap), and hops with it.
+    // A fresh finish: a cyan check on the icon's corner (a ring read as "selected"), fading over its last minute;
+    // the red needs-you pill wins the corner.
     const hop = hopping(this.hops[p.root], Date.now());
     const lifted = animate(
       div()
@@ -744,17 +746,22 @@ export class Rail {
         .flex_none()
         .top(hop ? -HOP_PX : 0)
         .child(shown)
-        .when(p.ring > 0, (el) =>
+        .when(p.ring > 0 && !(p.needs > 0), (el) =>
           el.child(
             div()
               .absolute()
-              .left(-4)
-              .top(-4)
-              .size(ICON + 8)
-              .rounded(9)
+              .right(-6)
+              .bottom(-6)
+              .size(17)
+              .rounded_full()
+              .bg(t.ansi6)
               .border_2()
-              .border_color(t.ansi6)
-              .opacity(p.ring),
+              .border_color(ring)
+              .flex()
+              .items_center()
+              .justify_center()
+              .opacity(p.ring)
+              .child(svg(CHECK_ICON).size(10).text_color(t.background)),
           ),
         ),
       (el) => el.spring("top", SPRING),
