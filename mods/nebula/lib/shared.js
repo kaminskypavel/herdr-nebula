@@ -20,3 +20,4 @@ export const FLASH = "nebula.flash"; // { text, n, undo? } a dialog's line for t
 export const GOTO = "nebula.goto"; // { id, n } the jump palette's pick: the board puts its cursor on that session
 export const CLEARED = "nebula.cleared"; // { [row id]: clearKey } rows cleared with e on the board (lib/waiting.js)
 export const REPLIES = "nebula.replies"; // { [row id]: { key, line } } the line an agent last said, read by the board (lib/reply.js)
+export const BACK = "nebula.back"; // { at, away } set by the icon bar when you come back to Herdr: the board opens the Up next stack
