@@ -37,6 +37,7 @@ import {
   home,
   machines,
   watchFolder,
+  readTextFile,
 } from "herdr";
 import { putToSleep } from "./sleeper.js";
 import { STATE_DIR, STATE_FILE, SYNCED, same, snapshot, parseState, stateText, archiveStep, archiveApply } from "./lib/globalstate.js";
@@ -321,9 +322,37 @@ export class Rail {
       for (;;) {
         await watchFolder(dir).catch(() => null);
         await this.readState(true);
+        await this.takeRelays();
         cx.notify();
       }
     });
+  }
+
+  // Agent alerts another Herdr window handed to this one (nebula-toast relays the ones that land in a window in the
+  // background while this one was last active): shown here, then the file goes. Stale ones (a minute) go too.
+  async takeRelays() {
+    const dir = `${home()}/${STATE_DIR}`;
+    const r = await exec("/bin/sh", ["-c", 'cd "$1" 2>/dev/null && ls -1 relay-*.json 2>/dev/null', "sh", dir]).catch(() => null);
+    for (const name of String(r?.stdout ?? "")
+      .split("\n")
+      .filter(Boolean)) {
+      const file = `${dir}/${name}`;
+      let rec = null;
+      try {
+        rec = JSON.parse((await readTextFile(file).catch(() => null)) ?? "null");
+      } catch {}
+      const mine = rec?.to === appHome();
+      if (!mine && rec && Date.now() - (rec.at ?? 0) < 60000) continue;
+      await exec("/bin/rm", ["-f", file]).catch(() => null);
+      if (mine && rec.props) notify({ ...rec.props, relayed: true });
+    }
+  }
+
+  // This window is the one in use: say so (every 5 s while it is) for the other windows' toasts (nebula-toast).
+  markActive() {
+    const file = `${home()}/${STATE_DIR}/active.json`,
+      text = JSON.stringify({ home: appHome(), at: Date.now() });
+    exec("/bin/sh", ["-c", 'printf %s "$1" > "$2.tmp" && mv "$2.tmp" "$2"', "sh", text, file]).catch(() => null);
   }
 
   // Applies the file's values here (another window's, or the first read at start). Our own writes are skipped.
@@ -419,6 +448,10 @@ export class Rail {
       cleared = shared(CLEARED),
       away = mergeSettings(shared(SETTINGS)).away,
       active = window()?.active !== false;
+    if (active && now - (this.activeAt ?? 0) > 5000) {
+      this.activeAt = now;
+      this.markActive(); // a heartbeat while this window is in use (nebula-toast relays alerts to it)
+    }
     this.syncState(now);
     if (active) this.herdrFront = true;
     else if (now - this.frontAt > FRONT_POLL_MS) {

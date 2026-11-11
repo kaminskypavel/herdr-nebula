@@ -8,7 +8,7 @@
 // without one, the second line holds the session's last prompt.
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, run, theme, terminals, exec, shared } from "herdr";
+import { props, closeOverlay, run, theme, terminals, exec, shared, window, home, appHome, readTextFile, writeTextFile } from "herdr";
 import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, replyLine, eventOf, iconOf, DOT_OF } from "./lib.js";
 
 // Reduce motion (Settings in nebula): the toast then simply appears.
@@ -46,6 +46,37 @@ function projectIcon(icon, dot, t) {
 export default class Toast extends View {
   init(_props, cx) {
     this.reply = null;
+    this.relaying = false;
+    // Herdr posts an agent alert in one of its windows, not always the one you use. Landing in a window in the
+    // background while another Herdr window was last active (~/.config/herdr-nebula/active.json, kept by the icon
+    // bar), the toast hands itself to that window (a relay file its icon bar picks up) and closes here.
+    const p0 = props() ?? {};
+    if (!p0.relayed && window()?.active === false) {
+      this.relaying = true;
+      cx.spawn(async (cx) => {
+        const dir = `${home()}/.config/herdr-nebula`;
+        let act = null;
+        try {
+          act = JSON.parse((await readTextFile(`${dir}/active.json`).catch(() => null)) ?? "null");
+        } catch {}
+        // Only to a window in use right now: its icon bar refreshes active.json every 5 s while it is active, so a
+        // closed window, or none in front (you are in another app), keeps the alert here.
+        const open = act?.home && act.home !== appHome() && Date.now() - (act.at ?? 0) < 15000;
+        if (open) {
+          const { title, body, level, icon, action, actions, timeout } = p0;
+          const rec = JSON.stringify({ to: act.home, at: Date.now(), props: { title, body, level, icon, action, actions, timeout } });
+          const sent = await writeTextFile(`${dir}/relay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.json`, rec, null)
+            .then(() => true)
+            .catch(() => false);
+          if (sent) {
+            closeOverlay(p0.overlay);
+            return;
+          }
+        }
+        this.relaying = false;
+        cx.notify();
+      });
+    }
     // The content starts 16 px right and invisible, and a beat after the first render moves to rest.
     this.in = stillOn();
     if (!this.in)
@@ -68,6 +99,7 @@ export default class Toast extends View {
   }
 
   render(_cx) {
+    if (this.relaying) return div(); // deciding whether it belongs to the window you are in
     const t = theme();
     const p = props() ?? {};
     const term = terminalOf(p, terminals()),
