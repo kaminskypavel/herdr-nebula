@@ -1,0 +1,169 @@
+// The nebula layout's notifications (its root names this mod as "toast"; Herdr's own toast mod is untouched).
+// Same look and click as Herdr's own toast (anything can post
+// one with notify({ title, body, level, icon, action }); a click runs its action and dismisses it), but
+// Herdr's agent alerts ("Claude Code finished" over "space / tab") say which session, what happened and
+// what it said: "build-wizard [done]" over "libby-agent-monorepo · <the agent's last reply>" (lib.js), or
+// "[needs you]" over the question it asked, beside the project's icon from the icon bar with the status
+// dot. The reply comes from the conversation the prompt hook saved on the terminal; until it is read, or
+// without one, the second line holds the session's last prompt.
+import { View, div, image } from "gpui-kit";
+import { v_flex, h_flex } from "gpui-base";
+import { props, closeOverlay, run, theme, terminals, exec, shared } from "herdr";
+import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, replyLine, eventOf, iconOf, DOT_OF } from "./lib.js";
+
+// Reduce motion (Settings in nebula): the toast then simply appears.
+const stillOn = () => shared("nebula.settings")?.reduceMotion === true;
+const SLIDE = { duration: 180, easing: "ease-out" };
+
+const DOT = { error: "blocked", warning: "working", success: "done", info: "accent" };
+const SIZE = 28;
+
+// The project's icon (its picture, else initials on its color) with the agent's status dot at the
+// corner, as the icon bar draws it.
+function projectIcon(icon, dot, t) {
+  const face = icon.path
+    ? image(icon.path).size(SIZE).rounded(6)
+    : div()
+        .size(SIZE)
+        .rounded(6)
+        .flex()
+        .items_center()
+        .justify_center()
+        .bg(icon.color)
+        .text_size(12)
+        .font_semibold()
+        .text_color("#ffffff")
+        .child(icon.initials);
+  const badge = div().absolute().right(-3).bottom(-3).size(11).rounded_full().bg(t.popover).flex().items_center().justify_center();
+  return div()
+    .relative()
+    .size(SIZE)
+    .flex_none()
+    .child(face)
+    .child(badge.child(div().size(7).rounded_full().bg(t[dot])));
+}
+
+export default class Toast extends View {
+  init(_props, cx) {
+    this.reply = null;
+    // The content starts 16 px right and invisible, and a beat after the first render moves to rest.
+    this.in = stillOn();
+    if (!this.in)
+      cx.timer.after(60, (cx) => {
+        this.in = true;
+        cx.notify();
+      });
+    const p = props() ?? {},
+      term = terminalOf(p, terminals()),
+      s = sessionOf(term?.labels?.["nebula.session"]);
+    if (!s) return;
+    cx.spawn(async (cx) => {
+      const r = await exec("/bin/sh", ["-c", TRANSCRIPT[s.app], "sh", s.id], { timeout: 5000 }).catch(() => null);
+      const said = r?.code === 0 ? replyLine(lastReply(r.stdout), eventOf(p.title)) : null;
+      if (said) {
+        this.reply = said;
+        cx.notify();
+      }
+    });
+  }
+
+  render(_cx) {
+    const t = theme();
+    const p = props() ?? {};
+    const term = terminalOf(p, terminals()),
+      agent = agentLines(p, term, this.reply),
+      lines = agent ?? { name: p.title ?? "", tag: null, tone: null, body: p.body ?? "" },
+      icon = agent ? iconOf(shared("nebula.icons"), term.cwd) : null;
+    const lead = icon
+      ? projectIcon(icon, DOT_OF[eventOf(p.title)], t)
+      : p.icon
+        ? image(p.icon).w(18).h(18).flex_none()
+        : div()
+            .size(8)
+            .rounded(4)
+            .flex_none()
+            .bg(t[DOT[p.level] ?? "accent"]);
+    // The content slides in from 16 px right and fades in; the card (background, hover, click) stays put.
+    const content = h_flex()
+      .id("toast-content")
+      .relative()
+      .size_full()
+      .px(18)
+      .gap(12)
+      .items_center()
+      .left(this.in ? 0 : 16)
+      .opacity(this.in ? 1 : 0)
+      .child(lead)
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w(0)
+          .overflow_hidden()
+          .child(
+            h_flex()
+              .min_w(0)
+              .gap(8)
+              .items_center()
+              .child(div().min_w(0).truncate().font_semibold().text_size(13).text_color(t.foreground).child(lines.name))
+              .when(Boolean(lines.tag), (el) =>
+                el.child(
+                  div()
+                    .flex_none()
+                    .px(5)
+                    .rounded(4)
+                    .border_1()
+                    .border_color(t[lines.tone])
+                    .text_size(11)
+                    .font_semibold()
+                    .text_color(t[lines.tone])
+                    .child(lines.tag),
+                ),
+              ),
+          )
+          .when(Boolean(lines.body), (el) => el.child(div().truncate().text_size(12).text_color(t.muted).child(lines.body))),
+      )
+      // Buttons, as Herdr's own update toast has them ("Restart", "What changed"): props.actions is
+      // [{ label, name, args?, primary? }]; each runs its command and dismisses the toast.
+      .when(Array.isArray(p.actions) && p.actions.length > 0, (el) =>
+        el.child(
+          h_flex()
+            .flex_none()
+            .gap(6)
+            .children(
+              p.actions.map((a, i) =>
+                div()
+                  .id(`toast-act-${i}`)
+                  .h(26)
+                  .px(12)
+                  .flex()
+                  .items_center()
+                  .rounded(13)
+                  .text_size(12)
+                  .font_semibold()
+                  .cursor_pointer()
+                  .when(Boolean(a.primary), (b) => b.bg(t.accent).text_color(t.accent_foreground))
+                  .when(!a.primary, (b) => b.text_color(t.accent).hover((st) => st.bg(t.hover)))
+                  .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+                  .on_click((_e, cx) => {
+                    cx.stop_propagation();
+                    if (a.name) run(a.name, a.args ?? {});
+                    closeOverlay(p.overlay);
+                  })
+                  .child(a.label),
+              ),
+            ),
+        ),
+      );
+    return h_flex()
+      .id("toast")
+      .size_full()
+      .bg(t.popover)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click(() => {
+        if (p.action?.name) run(p.action.name, p.action.args ?? {});
+        closeOverlay(p.overlay);
+      })
+      .child(stillOn() ? content : content.transition("left", SLIDE).transition("opacity", SLIDE));
+  }
+}

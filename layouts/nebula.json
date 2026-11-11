@@ -1,6 +1,7 @@
 {
   "id": "root",
   "type": "column",
+  "toast": "nebula-toast",
   "children": [
     {
       "id": "body",

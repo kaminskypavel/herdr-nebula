@@ -22,7 +22,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 target=${1:-$HOME/.config/herdr-app}
 skip="--exclude=jsconfig.json --exclude=gpui-kit.d.ts"
 
-mkdir -p "$repo/mods/nebula-box/lib" "$target/mods/nebula" "$target/mods/nebula-box/lib" "$target/layouts"
+mkdir -p "$repo/mods/nebula-box/lib" "$target/mods/nebula" "$target/mods/nebula-box/lib" "$target/mods/nebula-toast" "$target/layouts"
 
 # shellcheck disable=SC2086
 rsync -a --delete $skip --exclude=/.icons "$repo/mods/nebula/" "$target/mods/nebula/"
@@ -31,6 +31,9 @@ rsync -a --delete $skip --exclude=/lib "$repo/mods/nebula-box/" "$target/mods/ne
 rsync -a --delete "$repo/mods/nebula/lib/" "$repo/mods/nebula-box/lib/"
 # shellcheck disable=SC2086
 rsync -a --delete $skip "$repo/mods/nebula/lib/" "$target/mods/nebula-box/lib/"
+# The nebula layout's notifications ("toast": "nebula-toast" at its root): Herdr's own toast mod stays untouched.
+# shellcheck disable=SC2086
+rsync -a --delete $skip "$repo/mods/nebula-toast/" "$target/mods/nebula-toast/"
 for m in toast confirm; do
   if [ -f "$target/mods/$m/main.js" ] && grep -q "herdr-nebula" "$target/mods/$m/main.js"; then
     if [ -d "$target/backups/$m-herdr" ]; then rsync -a --delete "$target/backups/$m-herdr/" "$target/mods/$m/"; else rm -rf "$target/mods/$m"; fi
@@ -69,6 +72,7 @@ JS
 
 herdr-app check "$target/mods/nebula"
 herdr-app check "$target/mods/nebula-box"
+herdr-app check "$target/mods/nebula-toast"
 if [ "$target" = "$HOME/.config/herdr-app" ]; then
   mkdir -p "$HOME/.local/bin"
   ln -sfn "$repo/bin/herdr-nebula.mjs" "$HOME/.local/bin/herdr-nebula"
