@@ -5,19 +5,19 @@ import { editorItems } from "./editors.js";
 // resume: only where the agent has left and its conversation is known (Enter does the same);
 // live: only on an agent still running (it sleeps: its CLI stops, Enter resumes it).
 const ALL = [
-  { id: "resume", label: "Resume", key: "⇧R", resume: true },
-  { id: "sleep", label: "Sleep", key: "z", live: true },
-  { id: "rename", label: "Rename", key: "r", tab: true },
-  { id: "relaunch", label: "Relaunch with same setup", key: "⇧P", launch: true },
-  { id: "folder", label: "Open folder in editor", key: "⇧↩" },
-  { id: "archive", label: "Archive", key: "a", tab: true, sep: true },
-  { id: "unarchive", label: "Unarchive", key: "u", tab: true, sep: true },
-  { id: "delete", label: "Delete", key: "d", danger: true },
+  { id: "resume", label: "Resume", key: "⇧R", resume: true, icon: "mods/nebula/icons/play.svg" },
+  { id: "sleep", label: "Sleep", key: "z", live: true, icon: "mods/nebula/icons/moon.svg" },
+  { id: "rename", label: "Rename", key: "r", tab: true, icon: "mods/nebula/icons/pencil.svg" },
+  { id: "relaunch", label: "Relaunch with same setup", key: "⇧P", launch: true, icon: "mods/nebula/icons/rotate-ccw.svg" },
+  { id: "folder", label: "Open folder in editor", key: "⇧↩", icon: "mods/nebula/icons/folder-open.svg" },
+  { id: "archive", label: "Archive", key: "a", tab: true, sep: true, icon: "mods/nebula/icons/archive.svg" },
+  { id: "unarchive", label: "Unarchive", key: "u", tab: true, sep: true, icon: "mods/nebula/icons/undo-2.svg" },
+  { id: "delete", label: "Delete", key: "d", danger: true, icon: "mods/nebula/icons/trash.svg" },
 ];
 
 // A nebula row (kind "nebula") belongs to nebula: a click or Enter resumes it, and the one
 // action hides it from the board (a or d), since nothing here can delete nebula's session.
-const HIDE = [{ id: "hide", label: "Hide from board", key: "d" }];
+const HIDE = [{ id: "hide", label: "Hide from board", key: "d", icon: "mods/nebula/icons/eye-off.svg" }];
 // What a key or menu pick does to this row: on a nebula row, delete and archive both mean Hide.
 export const rowAction = (row, action) => (row.kind === "nebula" && (action === "delete" || action === "archive") ? "hide" : action);
 
@@ -26,7 +26,9 @@ export const actionsFor = (row, hasLaunch) => withPorts(row.ports, row.kind === 
 // "Open localhost:<port>" for the first ports the session listens on (lib/ports.js), above the rest.
 const PORTS_SHOWN = 3;
 function withPorts(ports, list) {
-  const open = (ports ?? []).slice(0, PORTS_SHOWN).map((p) => ({ id: `port:${p}`, label: `Open localhost:${p}`, key: "" }));
+  const open = (ports ?? [])
+    .slice(0, PORTS_SHOWN)
+    .map((p) => ({ id: `port:${p}`, label: `Open localhost:${p}`, key: "", icon: "mods/nebula/icons/external-link.svg" }));
   return open.length && list.length ? [...open, { ...list[0], sep: true }, ...list.slice(1)] : [...open, ...list];
 }
 
@@ -39,7 +41,7 @@ const rowActions = (row, hasLaunch) =>
       (!a.live || (row.address && !row.exited)) &&
       (a.id !== "archive" || !row.archived) &&
       (a.id !== "unarchive" || row.archived),
-  ).flatMap((a) => (a.id === "folder" && row.editors ? editorItems(row.editors) : [a])); // one item per installed editor (lib/editors.js)
+  ).flatMap((a) => (a.id === "folder" && row.editors ? editorItems(row.editors, row.editor) : [a])); // Open in <the Settings pick>, Reveal in Finder (lib/editors.js)
 
 export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
 

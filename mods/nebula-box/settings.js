@@ -1,5 +1,5 @@
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex } from "gpui-base";
 import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run, exec, appHome, playSound } from "herdr";
 import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
@@ -18,6 +18,9 @@ import {
 } from "./lib/settings.js";
 import { applySound, soundPreview } from "./lib/sounds.js";
 import { SETTINGS, UPDATE } from "./lib/shared.js";
+import { LIST_APPS, installedEditors, chosenEditor, ICON_SCRIPT, APP_ICONS, iconArgs, withIcons, FINDER } from "./lib/editors.js";
+
+const EDITOR_ICON = "mods/nebula/icons/square-code.svg";
 import { updateLine, updateState } from "./lib/update.js";
 import { SLEEP_CHOICES, sleepLabel } from "./lib/sleep.js";
 import { button, dialogTitle, switchControl, segmented, dropdown, agentIcon } from "./ui.js";
@@ -73,12 +76,13 @@ export class Settings {
     this.dd = null; // the open dropdown: { key: "harness" | "<agent>:model" | "<agent>:effort", hi }
     this.handle = cx.focus_handle();
     this.handle.focus();
-    cx.timer.after(300, () => {
-      if (!this.editing()) this.handle.focus();
-    });
-    this.editor = InputState.new({ value: this.s.editor === "open" ? "" : this.s.editor, placeholder: "open" });
-    this.editor.on("change", (_e, cx) => {
-      this.saveEditor();
+    cx.timer.after(300, () => this.handle.focus());
+    this.editors = [FINDER]; // the installed editors with their app icons, for "Open folder with" (lib/editors.js)
+    cx.spawn(async (cx) => {
+      const r = await exec("/bin/sh", ["-c", LIST_APPS]).catch(() => null);
+      const installed = installedEditors(r?.stdout ?? "");
+      const icons = await exec("/bin/sh", ["-c", ICON_SCRIPT, "sh", `${appHome()}/${APP_ICONS}`, ...iconArgs(installed)], { timeout: 20000 }).catch(() => null);
+      this.editors = withIcons(installed, icons?.stdout);
       cx.notify();
     });
     cx.spawn(async (cx) => {
@@ -146,13 +150,8 @@ export class Settings {
 
   // Closes this overlay first: it would otherwise save its older copy over the import.
   openImport() {
-    this.saveEditor();
     closeOverlay(props()?.overlay);
     openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 520, height: 420, props: { role: "import" } });
-  }
-
-  editing() {
-    return this.rows()[this.at] === "editor";
   }
 
   save(patch) {
@@ -180,16 +179,11 @@ export class Settings {
     await exec("/bin/sh", ["-c", 'printf %s "$1" > "$2.tmp" && mv "$2.tmp" "$2"', "sh", json, path]);
   }
 
-  saveEditor() {
-    this.save({ editor: this.editor.value() });
-  }
-
   go(i, cx) {
     const n = this.rows().length;
     this.at = (i + n) % n;
     this.dd = null;
-    if (this.editing()) this.editor.focus();
-    else this.handle.focus();
+    this.handle.focus();
     cx.notify();
   }
 
@@ -204,6 +198,14 @@ export class Settings {
     else if (row === "sleepAfter") this.save({ sleepAfter: cycleOf(SLEEP_CHOICES, this.s.sleepAfter, dir) });
     else if (row === "away") this.save({ away: cycleOf(AWAY_CHOICES, this.s.away, dir) });
     else if (row === "sound") this.setSound(cycleOf(SOUND_CHOICES, this.s.sound, dir));
+    else if (row === "editor")
+      this.save({
+        editor: cycleOf(
+          this.editors.map((e) => e.id),
+          chosenEditor(this.s.editor, this.editors).id,
+          dir,
+        ),
+      });
     else if (row === "textSize") this.save({ textSize: cycleOf(TEXT_SIZES, this.s.textSize, dir) });
     else if (row in TOGGLES) this.save({ [row]: !this.s[row] });
     else if (row.startsWith("h:")) {
@@ -216,6 +218,11 @@ export class Settings {
 
   // Dropdown data. A key is "harness" or "<agent>:<model|effort>".
   items(key) {
+    if (key === "editor") {
+      const cur = chosenEditor(this.s.editor, this.editors);
+      const list = this.editors.map((e) => ({ value: e.id, label: e.id === "finder" ? "Finder (reveal)" : e.label, icon: e.icon ?? EDITOR_ICON }));
+      return cur.custom ? [...list, { value: "custom", label: cur.custom }] : list;
+    }
     if (key === "harness") return this.ids.map((id) => ({ value: id, label: HARNESSES[id].label, icon: agentIcon(id) }));
     const [id, part] = key.split(":"),
       h = HARNESSES[id];
@@ -223,6 +230,7 @@ export class Settings {
   }
 
   valueOf(key) {
+    if (key === "editor") return chosenEditor(this.s.editor, this.editors).id;
     if (key === "harness") return defaultHarness(this.s, this.ids);
     const [id, part] = key.split(":");
     return harnessChoice(this.s, id)[part];
@@ -234,7 +242,7 @@ export class Settings {
       cx.notify();
       return;
     }
-    const row = key === "harness" ? "harness" : `h:${key.split(":")[0]}`;
+    const row = key === "harness" || key === "editor" ? key : `h:${key.split(":")[0]}`;
     this.go(this.rows().indexOf(row), cx);
     const hi = this.items(key).findIndex((i) => i.value === this.valueOf(key));
     this.dd = { key, hi: Math.max(hi, 0) };
@@ -249,7 +257,9 @@ export class Settings {
   }
 
   pickDd(key, value, cx) {
-    if (key === "harness") this.save({ harness: value });
+    if (key === "editor") {
+      if (value !== "custom") this.save({ editor: value });
+    } else if (key === "harness") this.save({ harness: value });
     else {
       const [id, part] = key.split(":");
       this.setHarnessChoice(id, part, value);
@@ -271,22 +281,20 @@ export class Settings {
   key(e, cx) {
     const m = e.modifiers ?? {},
       k = e.key,
-      row = this.rows()[this.at],
-      typing = row === "editor";
+      row = this.rows()[this.at];
     if (this.dd) this.ddKey(k, cx);
     else if (k === "escape") {
-      this.saveEditor();
       closeOverlay(props()?.overlay);
     } else if (k === "down") this.go(this.at + 1, cx);
     else if (k === "up") this.go(this.at - 1, cx);
     else if (k === "tab") this.change("harness", m.shift ? -1 : 1);
-    else if (typing) return;
     else if (k === "[" || k === "]") {
       const i = TAB_NAMES.indexOf(this.tab);
       this.setTab(TAB_NAMES[(i + (k === "]" ? 1 : -1) + TAB_NAMES.length) % TAB_NAMES.length], cx);
     } else if (k === "left" || k === "right") this.change(row, k === "right" ? 1 : -1, m.shift ? "effort" : "model");
     else if (k === "enter" || k === "space") {
       if (row === "harness" && this.ids.length) this.openDd("harness", cx);
+      else if (row === "editor") this.openDd("editor", cx);
       else if (row.startsWith("h:")) this.openAgent(row.slice(2), m.shift ? "effort" : "model", cx);
       else if (row === "import") this.openImport();
       else if (row === "update") this.updateNow();
@@ -452,21 +460,7 @@ export class Settings {
                     this.save({ presetSide: v });
                   }),
                 ),
-                this.line(
-                  t,
-                  at("editor"),
-                  "Open folder with",
-                  "The command for Shift+Enter on a row",
-                  Input.new(this.editor)
-                    .w(170)
-                    .h(30)
-                    .px(10)
-                    .rounded(7)
-                    .border_1()
-                    .border_color(this.editing() ? t.accent : t.input)
-                    .bg(t.background)
-                    .text_size(fs(12)),
-                ),
+                this.line(t, at("editor"), "Open folder with", "The editor for Shift+Enter and the right-click menu", this.pick(t, "editor")),
               ]),
             ),
           )

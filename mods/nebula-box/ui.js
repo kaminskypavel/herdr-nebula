@@ -1,4 +1,4 @@
-import { div, svg } from "gpui-kit";
+import { div, svg, image } from "gpui-kit";
 import { h_flex, v_flex, Switch, Select, Popup } from "gpui-base";
 import { closeOverlay, exec } from "herdr";
 import { fs, rh } from "./lib/scale.js";
@@ -81,6 +81,10 @@ export const doCmd = (name, args) => exec("herdr-app", ["do", name, JSON.stringi
 // dropdown, the open state and highlighted item) and passes handlers.
 
 export const agentIcon = (id) => `icons/${id}.svg`;
+
+// An icon at `size`: a picture as it is (an app's .png icon), else an svg tinted with `color`.
+export const iconEl = (path, size, color) =>
+  String(path).endsWith(".png") ? image(path).size(size).flex_none() : svg(path).size(size).flex_none().text_color(color);
 const CHEVRON = "mods/workspace-chrome/chevron-down.svg";
 const CHECK = "mods/workspace-chrome/check.svg";
 
@@ -199,7 +203,7 @@ export function dropdown(t, o) {
       ),
     )
     .when(Boolean(o.lead), (el) => el.child(o.lead))
-    .when(!o.lead && Boolean(cur?.icon), (el) => el.child(svg(cur.icon).size(14).flex_none().text_color(t.foreground)))
+    .when(!o.lead && Boolean(cur?.icon), (el) => el.child(iconEl(cur.icon, 14, t.foreground)))
     .child(
       div()
         .flex_1()
@@ -243,7 +247,7 @@ export function dropdown(t, o) {
             o.onPick(it.value, cx);
             cx.notify();
           })
-          .when(Boolean(it.icon), (el) => el.child(svg(it.icon).size(14).flex_none().text_color(t.foreground)))
+          .when(Boolean(it.icon), (el) => el.child(iconEl(it.icon, 14, t.foreground)))
           .child(
             div()
               .flex_1()

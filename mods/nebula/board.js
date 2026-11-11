@@ -22,8 +22,8 @@
 // while the board keeps the keys (lib/preview.js; the setting "Preview while moving"); Enter or a
 // double click steps in, Esc hands the keys back to the terminal. The cursor is a session's address,
 // never an index. At the top sits the Up next card: the one item across all open projects that most deserves you
-// (lib/upnext.js), with Go and Clear. The bottom strip is the status line: key hints for where you are, or what the last
-// action did for a few seconds.
+// (lib/upnext.js); a click goes to it and clears it. The bottom strip is the status line: key hints for where you
+// are, or what the last action did for a few seconds.
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, VirtualListScrollHandle, InputState, Input } from "gpui-base";
 import {
@@ -114,7 +114,7 @@ import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
 import { actionsFor, rowAction, worktreeOffer, bandOffer, aloneInTab, tabCommand, whereIs } from "./lib/actions.js";
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
-import { LIST_APPS, installedEditors, openIn, defaultOpen } from "./lib/editors.js";
+import { LIST_APPS, installedEditors, openIn, defaultOpen, ICON_SCRIPT, APP_ICONS, iconArgs, withIcons } from "./lib/editors.js";
 import { PORT_HIT } from "./views/row.js";
 import { waitingRows, clearRows } from "./lib/waiting.js";
 import { upNext, readsDue, mergeReplies, MAX_READS } from "./lib/upnext.js";
@@ -1092,7 +1092,12 @@ export class Board {
   findEditors(cx) {
     cx.spawn(async (cx) => {
       const r = await exec("/bin/sh", ["-c", LIST_APPS]).catch(() => null);
-      this.editors = installedEditors(r?.stdout ?? "");
+      const installed = installedEditors(r?.stdout ?? "");
+      this.editors = installed;
+      cx.notify();
+      // Their app icons for the menu (made once, then kept under the Herdr home).
+      const icons = await exec("/bin/sh", ["-c", ICON_SCRIPT, "sh", `${appHome()}/${APP_ICONS}`, ...iconArgs(installed)], { timeout: 20000 }).catch(() => null);
+      this.editors = withIcons(installed, icons?.stdout);
       cx.notify();
     });
   }
@@ -1111,7 +1116,7 @@ export class Board {
     this.col = 2;
     this.place(item.key);
     const row = item.row,
-      list = actionsFor({ ...row, editors: this.editors }, Boolean(row.launch));
+      list = actionsFor({ ...row, editors: this.editors, editor: shared(SETTINGS)?.editor }, Boolean(row.launch));
     const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
     openOverlay({
       mod: "nebula-box",
@@ -1520,19 +1525,19 @@ export class Board {
 
   // Under the toolbar: Up next as a stack of cards, across every open project. Collapsed, the top card is the one item
   // that most deserves you (a question first, else the newest finish: its project's icon, title, `project · asks you ·
-  // 2m`, what the agent said, Go and Clear) with the edges of the rest peeking under it; a click on the edges opens
-  // the stack. Coming back to Herdr after a while (the icon bar sets shared BACK) opens it with "While you were away".
-  // Its × turns Up next off (Settings, Up next stack, turns it back on). Nothing waits: nothing here, no empty box.
+  // 2m`, what the agent said) with "N more" on it and the edges of the rest peeking under it; either opens the stack.
+  // Coming back to Herdr after a while (the icon bar sets shared BACK) opens it with "While you were away". The open
+  // stack's × turns Up next off (Settings, Up next stack, turns it back on). Nothing waits: nothing here, no empty box.
   upNextCard(t) {
     const u = this.upnext;
     if (!u || this.config().upNext === false) return null;
-    const close = this.stackButton(t, "up-next-off", "×", "Turn Up next off (Settings turns it back on)", (cx) => {
-      setShared(SETTINGS, { ...(shared(SETTINGS) ?? {}), upNext: false });
-      this.say("Up next is off: Settings, Up next stack, turns it back on", undefined, cx);
-    });
     const wrap = v_flex().id("up-next").flex_none().px(20).py(10).border_b(1).border_color(t.border);
     if (this.stackOpen && this.waitQueue.length) {
       const head = this.backAway ? `While you were away · ${awayText(this.backAway)}` : `Waiting on you · ${this.waitQueue.length}`;
+      const off = this.stackButton(t, "up-next-off", "×", "Turn Up next off (Settings turns it back on)", (cx) => {
+        setShared(SETTINGS, { ...(shared(SETTINGS) ?? {}), upNext: false });
+        this.say("Up next is off: Settings, Up next stack, turns it back on", undefined, cx);
+      });
       return wrap
         .gap(6)
         .child(
@@ -1541,7 +1546,7 @@ export class Board {
             .gap(8)
             .child(div().flex_1().min_w(0).truncate().text_size(fs(12)).font_semibold().text_color(t.muted).child(head))
             .child(this.stackButton(t, "up-next-less", "Show less", "Back to one card", (cx) => this.closeStack(cx)))
-            .child(close),
+            .child(off),
         )
         .child(
           v_flex()
@@ -1552,68 +1557,69 @@ export class Board {
             .children(this.waitQueue.map((entry, i) => this.waitCard(t, entry, i === 0))),
         );
     }
-    const peek = (i, h, text) =>
+    const open = (cx) => {
+      this.stackOpen = true;
+      cx.notify();
+    };
+    const peek = (i) =>
       div()
-        .mx(12 * i)
-        .h(h)
-        .flex()
-        .items_center()
-        .justify_end()
-        .px(10)
-        .rounded_b(8)
+        .mx(14 * i)
+        .h(5)
+        .rounded_b(6)
         .border_x(1)
         .border_b(1)
         .border_color(t.border)
         .bg(t.raised)
-        .opacity(i === 1 ? 0.8 : 0.55)
-        .text_size(fs(11))
-        .text_color(t.muted)
-        .child(text);
-    return wrap.child(this.waitCard(t, u.item, true, close)).when(u.more > 0, (el) =>
+        .opacity(i === 1 ? 0.8 : 0.5);
+    return wrap.child(this.waitCard(t, u.item, true, u.more, open)).when(u.more > 0, (el) =>
       el.child(
         v_flex()
           .id("up-next-peek")
           .cursor_pointer()
           .tooltip(`Show all ${u.more + 1}`)
-          .on_click((_e, cx) => {
-            this.stackOpen = true;
-            cx.notify();
-          })
-          .child(peek(1, rh(18), `${u.more} more`))
-          .when(u.more > 1, (p) => p.child(peek(2, 6, ""))),
+          .on_click((_e, cx) => open(cx))
+          .child(peek(1))
+          .when(u.more > 1, (p) => p.child(peek(2))),
       ),
     );
   }
 
-  // One card of the stack: the top one is big with Go and Clear buttons (and the stack's × when given); the rest are
-  // compact with a Clear. A click on a card goes to its agent and leaves the keys on the board.
-  waitCard(t, entry, top, close = null) {
+  // One card of the stack, the top one bigger. A click anywhere on it goes to its agent (the keys stay on the board)
+  // and clears the card; its × only clears it (e for the top one). `more` > 0 adds "N more", which runs `open`.
+  waitCard(t, entry, top, more = 0, open = null) {
     const u = upNext([entry]),
       { row, root, project } = entry;
-    const label = shortcutLabel(keys(), window()?.platform === "macos");
+    const clear = (cx, quiet = false) => {
+      setShared(CLEARED, clearRows(shared(CLEARED), [row], this.liveIds()));
+      if (this.waitQueue.length <= 1) this.closeStack(); // the last one: the next arrival starts folded
+      if (!quiet) this.say(`Cleared ${row.title}`, undefined, cx);
+      cx.notify();
+    };
     const go = (cx) => {
       this.handle.focus();
       this.goTo(row.id, cx);
       this.showKeep(row, cx);
-      cx.notify();
-    };
-    const clear = (cx) => {
-      setShared(CLEARED, clearRows(shared(CLEARED), [row], this.liveIds()));
-      this.say(`Cleared ${row.title}`, undefined, cx);
-      cx.notify();
+      clear(cx, true);
     };
     return h_flex()
       .id(`up-next-${row.id}`)
-      .items_center()
+      .items_start()
       .gap(top ? 12 : 10)
-      .p(top ? 12 : 9)
+      .py(top ? 11 : 8)
+      .pl(top ? 12 : 10)
+      .pr(6)
       .rounded(10)
       .border_1()
       .border_color(row.status === "needs" ? t.ansi1 : t.border)
       .bg(t.raised)
       .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
       .on_click((_e, cx) => go(cx))
-      .child(projectIcon({ icon: iconFor(shared(ICONS) ?? {}, root, project), size: top ? 32 : 24 }))
+      .child(
+        div()
+          .mt(2)
+          .child(projectIcon({ icon: iconFor(shared(ICONS) ?? {}, root, project), size: top ? 28 : 22 })),
+      )
       .child(
         v_flex()
           .flex_1()
@@ -1623,7 +1629,7 @@ export class Board {
             div()
               .min_w(0)
               .truncate()
-              .text_size(fs(top ? 15 : 13))
+              .text_size(fs(top ? 14 : 13))
               .font_semibold()
               .text_color(t.foreground)
               .child(u.title),
@@ -1634,38 +1640,11 @@ export class Board {
       .child(
         h_flex()
           .flex_none()
-          .gap(6)
-          .when(top, (el) => el.child(this.keyButton(t, "up-next-go", "Go", label({ action: "nebula.next", def: "⌘]" }), true, go)))
-          .child(this.keyButton(t, `up-next-clear-${row.id}`, "Clear", top ? "e" : null, false, clear)),
-      )
-      .when(Boolean(close), (el) => el.child(div().self_start().child(close)));
-  }
-
-  // A button with an optional keycap, for the stack's cards; its press never reaches the card under it.
-  keyButton(t, id, text, hint, accent, action) {
-    return h_flex()
-      .id(id)
-      .h(rh(26))
-      .flex_none()
-      .items_center()
-      .gap(7)
-      .pl(10)
-      .pr(hint ? 6 : 10)
-      .rounded(6)
-      .border_1()
-      .border_color(accent ? t.accent : t.border)
-      .bg(t.background)
-      .text_size(fs(12))
-      .text_color(t.foreground)
-      .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-      .on_click((_e, cx) => {
-        cx.stop_propagation();
-        action(cx);
-      })
-      .child(div().child(text))
-      .when(Boolean(hint), (el) => el.child(div().px(4).border_1().border_color(t.selected).rounded(3).text_size(fs(11)).text_color(t.muted).child(hint)));
+          .items_center()
+          .gap(2)
+          .when(more > 0, (el) => el.child(this.stackButton(t, "up-next-more", `${more} more`, `Show all ${more + 1}`, open)))
+          .child(this.stackButton(t, `up-next-clear-${row.id}`, "×", top ? "Clear · e" : "Clear", (cx) => clear(cx))),
+      );
   }
 
   // A quiet text button for the stack (×, Show less); its press never reaches the card under it.

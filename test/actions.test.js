@@ -251,7 +251,7 @@ test("a nebula row offers only Hide from board", () => {
 });
 
 test("a nebula row's Hide is on d, and delete or archive on it both mean hide", () => {
-  assert.deepEqual(actionsFor({ kind: "nebula" }, true), [{ id: "hide", label: "Hide from board", key: "d" }]);
+  assert.deepEqual(actionsFor({ kind: "nebula" }, true), [{ id: "hide", label: "Hide from board", key: "d", icon: "mods/nebula/icons/eye-off.svg" }]);
   const row = { kind: "nebula" };
   assert.equal(rowAction(row, "delete"), "hide");
   assert.equal(rowAction(row, "archive"), "hide");

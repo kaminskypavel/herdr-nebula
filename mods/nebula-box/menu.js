@@ -1,13 +1,15 @@
 // The right-click menu on a session row, a pointer popup: the row actions with their keys.
 // props: { id (the session), archived, tab, launch (it has a launch label to repeat), exited, session
 // (its conversation id is known: it can resume), ports (it listens on: each gets an Open item),
-// editors (the installed ones, lib/editors.js: one Open in item each) }.
+// editors (the installed ones with their app icons, lib/editors.js: Open in the Settings pick, and Reveal in Finder) }.
+// Each item has an icon: the app's own for the editors, else a lucide one.
 // A choice goes to the board through the shared value nebula.rowAction ({ id, action, n }),
 // so the board does the work in one place whether a key or the menu asked.
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, setShared, theme } from "herdr";
-import { ROW_ACTION } from "./lib/shared.js";
+import { props, closeOverlay, setShared, shared, theme } from "herdr";
+import { ROW_ACTION, SETTINGS } from "./lib/shared.js";
+import { iconEl } from "./ui.js";
 import { actionsFor } from "./lib/actions.js";
 import { fs } from "./lib/scale.js";
 
@@ -30,6 +32,7 @@ export class Menu {
         session: p.session ?? null,
         ports: p.ports,
         editors: p.editors ?? null,
+        editor: shared(SETTINGS)?.editor,
       },
       Boolean(p.launch),
     );
@@ -78,6 +81,15 @@ export class Menu {
                 .when(i === this.at, (el) => el.bg(t.selected))
                 .hover((s) => s.bg(t.hover))
                 .on_click(() => this.choose(i))
+                .child(
+                  div()
+                    .size(16)
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(Boolean(a.icon), (el) => el.child(iconEl(a.icon, a.icon?.endsWith(".png") ? 16 : 14, a.danger ? t.blocked : t.muted))),
+                )
                 .child(div().flex_1().child(a.label))
                 .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(a.key)),
             ),
