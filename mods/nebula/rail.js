@@ -34,8 +34,12 @@ import {
   settings,
   window,
   appHome,
+  home,
+  machines,
+  watchFolder,
 } from "herdr";
 import { putToSleep } from "./sleeper.js";
+import { STATE_DIR, STATE_FILE, SYNCED, same, snapshot, parseState, stateText, archiveStep, archiveApply } from "./lib/globalstate.js";
 import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
 import { mergeSettings } from "./lib/settings.js";
 import { groupSessions } from "./lib/projects.js";
@@ -110,6 +114,7 @@ export class Rail {
     if (!Array.isArray(shared(PINNED_PROJECTS))) setShared(PINNED_PROJECTS, savedPins());
     this.pinsKey = JSON.stringify(shared(PINNED_PROJECTS));
     this.lastIn = {}; // { [project root]: the terminal last focused there }, so picking the project goes back to it
+    this.startState(cx);
     this.hops = {}; // { [project root]: when its icon last began to hop }, for a row that just started waiting
     this.seenStatus = null; // each row's status at the last look (lib/alerts.js trackArrivals)
     this.awayAt = null; // when no Herdr window was in front any more, or null while one is
@@ -302,11 +307,91 @@ export class Rail {
   // What changed around the window since the last tick. A row that just started waiting hops its project's icon
   // (not with Reduce motion) and, with the window in the background and the setting on macOS, posts a macOS
   // notification. The window coming back after AWAY_MS opens the welcome-back card for what began waiting meanwhile.
+  // One state for every Herdr window (lib/globalstate.js): read ~/.config/herdr-nebula/state.json now and whenever
+  // another window writes it.
+  startState(cx) {
+    this.gs = { ready: false, keys: null, archived: [], before: null, incoming: null, pending: null, wroteAt: 0, writing: false, again: false, at: 0 };
+    const dir = `${home()}/${STATE_DIR}`;
+    cx.spawn(async (cx) => {
+      await exec("/bin/mkdir", ["-p", dir]).catch(() => null);
+      await this.readState(false);
+      for (;;) {
+        await watchFolder(dir).catch(() => null);
+        await this.readState(true);
+        cx.notify();
+      }
+    });
+  }
+
+  // Applies the file's values here (another window's, or the first read at start). Our own writes are skipped.
+  async readState(external) {
+    const r = await exec("/bin/cat", [`${home()}/${STATE_DIR}/${STATE_FILE}`]).catch(() => null);
+    const st = parseState(r?.code === 0 ? r.stdout : "");
+    if (st && !(external && st.from === appHome() && st.at <= this.gs.wroteAt)) {
+      for (const [k, v] of Object.entries(st.keys)) if (SYNCED.includes(k) && v !== null && !same(shared(k), v)) setShared(k, v);
+      this.gs.keys = snapshot(shared);
+      this.gs.incoming = st.archived;
+    }
+    this.gs.ready = true;
+  }
+
+  // Each second: keeps archived tabs and the shared values in step with the file (lib/globalstate.js). Waits for the
+  // tabs to load, and for its own settle and unsettle commands to show, so it never mistakes them for the user's.
+  syncState(now) {
+    const g = this.gs;
+    if (!g.ready || now - g.at < 1000 || machines().some((m) => m.layout === "loading")) return;
+    g.at = now;
+    const tabs = spaces().flatMap((s) => s.tabs),
+      ids = tabs.map((x) => x.id),
+      settled = tabs.filter((x) => x.settled).map((x) => x.id);
+    if (g.pending && now < g.pending.until && (g.pending.settle.some((id) => !settled.includes(id)) || g.pending.unsettle.some((id) => settled.includes(id))))
+      return;
+    g.pending = null;
+    const step =
+      g.incoming && g.before !== null
+        ? archiveApply({ archived: g.incoming, settled, tabs: ids })
+        : archiveStep({ archived: g.incoming ?? g.archived, settled, before: g.before, tabs: ids });
+    g.incoming = null;
+    for (const id of step.settle) run("tab.settle", { id });
+    for (const id of step.unsettle) run("tab.unsettle", { id });
+    if (step.settle.length || step.unsettle.length) g.pending = { settle: step.settle, unsettle: step.unsettle, until: now + 2000 };
+    g.before = [...new Set([...settled.filter((id) => !step.unsettle.includes(id)), ...step.settle])];
+    const keys = snapshot(shared);
+    if (!same(keys, g.keys) || !same(step.archived, g.archived)) {
+      g.keys = keys;
+      g.archived = step.archived;
+      this.writeState();
+    }
+  }
+
+  // Writes the file whole (temp file, then mv); a write asked for while one runs follows it.
+  writeState() {
+    const g = this.gs;
+    if (g.writing) {
+      g.again = true;
+      return;
+    }
+    g.writing = true;
+    g.wroteAt = Date.now();
+    const file = `${home()}/${STATE_DIR}/${STATE_FILE}`,
+      text = stateText({ keys: g.keys, archived: g.archived, from: appHome(), at: g.wroteAt });
+    exec("/bin/sh", ["-c", 'mkdir -p "$(dirname "$2")" && printf %s "$1" > "$2.tmp" && mv "$2.tmp" "$2"', "sh", text, file])
+      .catch(() => null)
+      .finally(() => {
+        g.writing = false;
+        if (g.again) {
+          g.again = false;
+          this.writeState();
+        }
+      });
+  }
+
   look(cx) {
     const now = Date.now(),
       cleared = shared(CLEARED),
       away = mergeSettings(shared(SETTINGS)).away,
       active = window()?.active !== false;
+    this.syncState(now);
     if (active) this.herdrFront = true;
     else if (now - this.frontAt > FRONT_POLL_MS) {
       this.frontAt = now;
