@@ -56,6 +56,7 @@ import { putToSleep, hasExited } from "./sleeper.js";
 import { canResume, resumeCommand } from "./lib/resume.js";
 import { sleepVerdict } from "./lib/sleep.js";
 import { ASLEEP } from "./lib/labels.js";
+import { railOrder } from "./lib/rail.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
 import { nebulaFiles } from "./lib/nebula-import.js";
@@ -81,6 +82,7 @@ import {
   CLEARED,
   BACK,
   BOARD_UI,
+  PINNED_PROJECTS,
   REPLIES,
 } from "./lib/shared.js";
 import { PREVIEW_MS, HOLD_MS, POLL_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
@@ -1616,12 +1618,17 @@ export class Board {
       );
   }
 
+  // A project's ⌘ digit as the icon bar draws it (pins first, lib/rail.js railOrder), or 0 when it has none.
+  railDigit(root) {
+    return railOrder(this.open, shared(PINNED_PROJECTS) ?? []).indexOf(root) + 1;
+  }
+
   // Under the toolbar: where you are, so nothing below reads as another workspace's title. A project tab shows its
   // icon, name and ⌘ key; All says All projects (⌘0).
   whereHeader(t) {
     const all = this.tab === ALL,
       repo = all ? null : this.base.repos.find((r) => r.root === this.tab),
-      n = all ? 0 : this.tabRoots.indexOf(this.tab) + 1;
+      n = all ? 0 : this.railDigit(this.tab);
     if (!all && !repo) return div();
     const face = all
       ? div()
@@ -1653,7 +1660,7 @@ export class Board {
           .text_color(t.foreground)
           .child(all ? "All projects" : repo.name),
       )
-      .when(n >= 0 && n <= 9, (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(`\u2318${n}`)));
+      .when(all || (n > 0 && n <= 9), (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(`\u2318${n}`)));
   }
 
   // Docked at the bottom, above the status line: Up next as a stack of cards, across every open project (top is where
@@ -1735,7 +1742,7 @@ export class Board {
     const u = upNext([entry]),
       { row, root, project } = entry;
     // Another workspace's item says which one: its project name gets that tab's ⌘ key.
-    const n = this.tabRoots.indexOf(root) + 1;
+    const n = this.railDigit(root);
     if (this.tab !== ALL && root !== this.tab && n > 0 && n <= 9)
       u.subtitle = [{ ...u.subtitle[0], text: `${u.subtitle[0].text} \u2318${n}` }, ...u.subtitle.slice(1)];
     const clear = (cx, quiet = false) => {

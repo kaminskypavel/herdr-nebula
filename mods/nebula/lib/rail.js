@@ -9,11 +9,17 @@ import { ALL, tabOf } from "./tabs.js";
 // -> { all (the All tab is selected), items: [{ root, name, status, needs, ring, on, pinned }] }. A root missing
 // from the summary is left out. Pinned projects come first, in pin order; the rest keep the open list's
 // order: picking a project never moves it.
+// The icon bar's order, the one its ⌘ digits follow: pinned projects first (pin order), then the rest as opened.
+export const railOrder = (open, pinned) => {
+  const pins = (pinned ?? []).filter((r) => open.includes(r));
+  return [...pins, ...open.filter((r) => !pins.includes(r))];
+};
+
 export function railTabs({ summary, open, selected, pinned = [] }) {
   const tab = tabOf(open, selected),
     by = new Map(summary.map((p) => [p.root, p]));
   const pins = pinned.filter((r) => open.includes(r));
-  const items = [...pins, ...open.filter((r) => !pins.includes(r))]
+  const items = railOrder(open, pinned)
     .filter((r) => by.has(r))
     .map((root) => ({
       root,

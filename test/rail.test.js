@@ -114,3 +114,9 @@ test("dragging a tab reorders it; dropping among the pins pins it, below them un
   assert.equal(dropSlot(3, 10, 42), 3);
   assert.equal(dropSlot(3, 30, 42), 4);
 });
+
+test("the ⌘ digits follow the icon bar: pins first, then the open order", async () => {
+  const { railOrder } = await import("../mods/nebula/lib/rail.js");
+  assert.deepEqual(railOrder(["/a", "/b", "/c", "/d"], ["/c", "/gone", "/a"]), ["/c", "/a", "/b", "/d"]);
+  assert.deepEqual(railOrder(["/a"], undefined), ["/a"]);
+});
