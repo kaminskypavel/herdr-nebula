@@ -2,13 +2,13 @@
 // settled ("archived") tabs per screen, so closing a project or archiving a session in one window was lost when
 // Herdr next opened the other. The icon bar keeps ~/.config/herdr-nebula/state.json in step with this window: it
 // writes what changed here and applies what another window wrote (watchFolder). Pure; no herdr imports.
-import { PROJECTS, OPEN, PINNED_PROJECTS, PINNED, HIDDEN, SETTINGS, CLEARED } from "./shared.js";
+import { PROJECTS, OPEN, PINNED_PROJECTS, PINNED, HIDDEN, SETTINGS, CLEARED, BOARD_UI } from "./shared.js";
 
 // Under home().
 export const STATE_DIR = ".config/herdr-nebula";
 export const STATE_FILE = "state.json";
 // The shared values every window shares (not the selected tab, icons, drafts or anything per screen).
-export const SYNCED = [PROJECTS, OPEN, PINNED_PROJECTS, PINNED, HIDDEN, SETTINGS, CLEARED];
+export const SYNCED = [PROJECTS, OPEN, PINNED_PROJECTS, PINNED, HIDDEN, SETTINGS, CLEARED, BOARD_UI];
 
 export const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 

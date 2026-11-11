@@ -89,6 +89,7 @@ import {
   GOTO,
   CLEARED,
   BACK,
+  BOARD_UI,
   REPLIES,
 } from "./lib/shared.js";
 import { PREVIEW_MS, HOLD_MS, POLL_MS, focusCommand, previewTarget, refocusDue, giveBackTarget } from "./lib/preview.js";
@@ -207,10 +208,13 @@ export class Board {
     // as a setting that did nothing).
     this.settingsView = this.view;
     if (mergeSettings(shared(SETTINGS)).view !== this.view) setShared(SETTINGS, { ...(shared(SETTINGS) ?? {}), view: this.view });
-    this.folded = new Set(load("tree.folded", []));
-    this.bandsFolded = new Set(load("bands.folded", [])); // worktree band paths, in every view but Columns
+    // Folds, sort and Columns mode are shared by every window (BOARD_UI, kept in step by lib/globalstate.js);
+    // this window's localStorage is the fallback from before.
+    const ui = shared(BOARD_UI) ?? {};
+    this.folded = new Set(ui.folded ?? load("tree.folded", []));
+    this.bandsFolded = new Set(ui.bandsFolded ?? load("bands.folded", [])); // worktree band paths, in every view but Columns
     this.showArchived = false;
-    this.sort = cleanSort(load("sort", "status"));
+    this.sort = cleanSort(ui.sort ?? load("sort", "status"));
     this.filter = ""; // not persisted
     this.filtering = false; // the filter input has the keyboard
     this.leftAt = 0;
@@ -228,7 +232,9 @@ export class Board {
       cx.notify();
     });
     this.input.on("submit", (_e, cx) => this.leaveFilter(cx, true));
-    this.colMode = load("columns.mode", "status") === "projects" ? "projects" : "status";
+    this.colMode = (ui.colMode ?? load("columns.mode", "status")) === "projects" ? "projects" : "status";
+    this.uiKey = JSON.stringify(ui);
+    if (!shared(BOARD_UI)) this.saveUi(); // first run: this window's own folds become the shared ones
     this.col = 0;
     this.cols = {};
     this.pc = null;
@@ -667,17 +673,37 @@ export class Board {
     cx?.notify();
   }
 
+  // Shares the folds, sort and Columns mode with every window (and keeps them in localStorage too).
+  saveUi() {
+    const ui = { folded: [...this.folded], bandsFolded: [...this.bandsFolded], sort: this.sort, colMode: this.colMode };
+    this.uiKey = JSON.stringify(ui);
+    setShared(BOARD_UI, ui);
+  }
+
+  // Another window changed them: take its folds, sort and Columns mode.
+  takeUi() {
+    const ui = shared(BOARD_UI);
+    if (!ui || JSON.stringify(ui) === this.uiKey) return;
+    this.uiKey = JSON.stringify(ui);
+    this.folded = new Set(ui.folded ?? []);
+    this.bandsFolded = new Set(ui.bandsFolded ?? []);
+    this.sort = cleanSort(ui.sort ?? this.sort);
+    this.colMode = ui.colMode === "projects" ? "projects" : "status";
+  }
+
   setMode(mode, cx) {
     this.colMode = mode;
     this.col = 0;
     this.place(null);
     localStorage.setItem("columns.mode", JSON.stringify(mode));
+    this.saveUi();
     cx.notify();
   }
 
   setSort(sort, cx) {
     this.sort = sort;
     localStorage.setItem("sort", JSON.stringify(sort));
+    this.saveUi();
     cx.notify();
   }
 
@@ -720,9 +746,11 @@ export class Board {
 
   persistFolds() {
     localStorage.setItem("tree.folded", JSON.stringify([...this.folded]));
+    this.saveUi();
   }
   persistBands() {
     localStorage.setItem("bands.folded", JSON.stringify([...this.bandsFolded]));
+    this.saveUi();
   }
   unfoldBand(path) {
     if (this.bandsFolded.delete(path)) this.persistBands();
@@ -1295,6 +1323,7 @@ export class Board {
   }
 
   sync() {
+    this.takeUi();
     // Settings' Board view changed: show that view.
     const asked = this.config().view;
     if (asked !== this.settingsView) {
