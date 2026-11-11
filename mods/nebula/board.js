@@ -1861,7 +1861,7 @@ export class Board {
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))
-      .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext), (el) => el.child(this.upNextCard(t)))
+      .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext) && this.config().upNext !== false, (el) => el.child(this.upNextCard(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
       .child(this.statusLine(t));
