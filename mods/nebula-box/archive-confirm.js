@@ -54,7 +54,12 @@ export class ArchiveConfirm {
               .font_medium()
               .child(p.title ?? ""),
           )
-          .child(div().text_size(fs(12)).text_color(t.muted).child("Hides the tab. The agent keeps running and the tab returns when it needs you.")),
+          .child(
+            div()
+              .text_size(fs(12))
+              .text_color(t.muted)
+              .child("Puts the agent to sleep and hides it. The Archived bar under the list (or A) shows it; u brings it back and resumes it."),
+          ),
       )
       .child(div().flex_1())
       .child(

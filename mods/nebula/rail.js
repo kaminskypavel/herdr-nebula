@@ -359,7 +359,10 @@ export class Rail {
   async readState(external) {
     const r = await exec("/bin/cat", [`${home()}/${STATE_DIR}/${STATE_FILE}`]).catch(() => null);
     const st = parseState(r?.code === 0 ? r.stdout : "");
-    if (st && !(external && st.from === appHome() && st.at <= this.gs.wroteAt)) {
+    // Only a file newer than any this window applied or wrote: the folder also changes for the active-window
+    // heartbeat and relays, and re-applying an older file un-archived a tab archived a moment before.
+    if (st && !(external && st.at <= Math.max(this.gs.wroteAt, this.gs.seenAt ?? 0))) {
+      this.gs.seenAt = st.at;
       for (const [k, v] of Object.entries(st.keys)) if (SYNCED.includes(k) && v !== null && !same(shared(k), v)) setShared(k, v);
       this.gs.keys = snapshot(shared);
       this.gs.incoming = st.archived;

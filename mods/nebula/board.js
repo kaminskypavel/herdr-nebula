@@ -1214,7 +1214,8 @@ export class Board {
       this.say(HIDDEN_TEXT, undefined, cx);
     } else if (action === "resume") this.show(row, cx);
     else if (action === "rename") box(460, 190, { role: "rename", tab: row.tab, name: row.title === NEW_SESSION ? "" : (row.tabName ?? row.title) });
-    else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive) box(440, 190, { role: "archive-confirm", tab: row.tab, title: row.title });
+    else if (action === "archive" && mergeSettings(shared(SETTINGS)).confirmArchive)
+      box(460, 150 + rh(110), { role: "archive-confirm", tab: row.tab, title: row.title });
     else if (action === "archive" || action === "unarchive") {
       const c = tabCommand(action, row.tab);
       run(c.name, c.args);
