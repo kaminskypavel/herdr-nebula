@@ -235,11 +235,12 @@ export const vacantHint = (band) => `nothing running · ⌘K new session${band.d
 function bandItems(repo, folded) {
   return repo.bands.flatMap((b) => [
     ...(b.label ? [{ key: `band:${b.path}`, type: "band", band: b, folded: folded.has(b.path) }] : []),
-    ...(b.label && !b.rows.length && !folded.has(b.path) ? [{ key: `vacant:${b.path}`, type: "vacant", band: b, root: repo.root }] : []),
+    ...(b.label && !b.rows.length && !folded.has(b.path) ? [{ key: `vacant:${b.path}`, type: "vacant", band: b, root: repo.root, guide: true }] : []),
     ...(b.label && folded.has(b.path) ? [] : b.rows).flatMap((row, i, rows) => [
       ...(row.archived && !rows[i - 1]?.archived ? [{ key: `archived:${b.path}`, type: "shelf", text: "Archived", open: true }] : []),
-      { key: row.id, type: "session", row },
-      ...row.subs.map((sub) => ({ key: `sub:${sub.key}`, type: "sub", sub, parent: row.id })),
+      // guide: the line down the left of a worktree's sessions (views/row.js); a session outside any worktree has none
+      { key: row.id, type: "session", row, guide: Boolean(b.label) },
+      ...row.subs.map((sub) => ({ key: `sub:${sub.key}`, type: "sub", sub, parent: row.id, guide: Boolean(b.label) })),
     ]),
   ]);
 }

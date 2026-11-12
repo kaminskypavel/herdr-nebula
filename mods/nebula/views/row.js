@@ -215,7 +215,11 @@ const edgeBar = (color, height, breathe = false) =>
     breathe,
   );
 
-export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set(), enter = null }) {
+export function sessionLine(
+  row,
+  t,
+  { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set(), enter = null, guide = null },
+) {
   const meta = metaLine(row, t, 12, selected),
     ports = portCells(row, t),
     look = rowLook(row);
@@ -243,6 +247,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
         .cursor_pointer()
         .on_click((_e, cx) => click(row.id, cx)),
     )
+    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height, !viewing.has(row.id))))
     .when(selected && look.bar !== "needs", (el) => el.child(edgeBar(t.accent, height)))
     .child(
@@ -278,8 +283,10 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
 }
 
 // The line under a band with no session: it can hold the cursor, `p` and `d` act on it.
-export function vacantLine(item, t, { selected, indent = 14, click = null }) {
+export function vacantLine(item, t, { selected, indent = 14, click = null, guide = null }) {
   return h_flex()
+    .relative()
+    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .h(rh(HEIGHT.vacant))
     .flex_none()
     .items_center()
@@ -299,8 +306,10 @@ export function vacantLine(item, t, { selected, indent = 14, click = null }) {
     .child(div().min_w(0).truncate().child(vacantHint(item.band)));
 }
 
-export function subLine(sub, t, { indent = 30 }) {
+export function subLine(sub, t, { indent = 30, guide = null }) {
   return h_flex()
+    .relative()
+    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .h(rh(HEIGHT.sub))
     .flex_none()
     .items_center()
@@ -314,6 +323,14 @@ export function subLine(sub, t, { indent = 30 }) {
     .when(Boolean(sub.badge), (el) => el.child(badge(sub.badge, t)))
     .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.muted).text_size(fs(11))));
 }
+
+// A worktree's header: its branch icon and name (bright), the ahead and diff counts as small chips; its sessions get a
+// guide line down their left (guideLine), like a file tree.
+const BRANCH_ICON = "mods/nebula/icons/git-branch.svg";
+export const GUIDE_STEP = 12; // how far a worktree's lines move right to make room for the guide
+
+/** The guide line down the left of a worktree's rows, at `x` (just right of the header's chevron). */
+const guideLine = (t, x) => div().absolute().left(x).top(0).bottom(0).w(2).rounded(1).bg(t.border);
 
 export function bandLine(band, t, { indent = 10, folded = false, click = null, menu = null }) {
   const parts = bandStats(band);
@@ -342,16 +359,17 @@ export function bandLine(band, t, { indent = 10, folded = false, click = null, m
         .text_color(t.dim)
         .child(folded ? "▸" : "▾"),
     )
-    .child(div().flex_none().child(band.label))
+    .child(svg(BRANCH_ICON).size(12).flex_none().text_color(t.muted))
+    .child(div().flex_none().font_medium().text_color(t.foreground).child(band.label))
     .when(parts.length > 0, (el) =>
       el.child(
         h_flex()
           .flex_none()
-          .gap(5)
-          .children(parts.map((p) => div().flex_none().text_color(t[BAND_COLOR[p.kind]]).child(p.text))),
+          .gap(4)
+          .children(parts.map((p) => div().flex_none().px(5).rounded(4).bg(t.raised).text_color(t[BAND_COLOR[p.kind]]).child(p.text))),
       ),
     )
-    .child(div().flex_1().h(1).bg(t.border))
+    .child(div().flex_1())
     .when(folded, (el) =>
       el.child(
         h_flex()
@@ -452,7 +470,8 @@ export function drawItem(item, t, { cursor, deep = false, click = null, menu = n
     case "session":
       return sessionLine(item.row, t, {
         selected,
-        indent: deep ? 32 : 14,
+        indent: (deep ? 32 : 14) + (item.guide ? GUIDE_STEP : 0),
+        guide: item.guide ? (deep ? 24 : 10) + 4 : null,
         click,
         pinned: item.row.id === pinned,
         promptLine,
@@ -460,9 +479,14 @@ export function drawItem(item, t, { cursor, deep = false, click = null, menu = n
         enter: enters?.get(item.row.id),
       });
     case "vacant":
-      return vacantLine(item, t, { selected, indent: deep ? 32 : 14, click });
+      return vacantLine(item, t, {
+        selected,
+        indent: (deep ? 32 : 14) + (item.guide ? GUIDE_STEP : 0),
+        click,
+        guide: item.guide ? (deep ? 24 : 10) + 4 : null,
+      });
     case "sub":
-      return subLine(item.sub, t, { indent: deep ? 48 : 30 });
+      return subLine(item.sub, t, { indent: (deep ? 48 : 30) + (item.guide ? GUIDE_STEP : 0), guide: item.guide ? (deep ? 24 : 10) + 4 : null });
     case "shelf":
       return shelfLine(item, t, click);
     default:
