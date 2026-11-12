@@ -136,7 +136,7 @@ test("nebulaRow: grey dim row with a nebula badge, words in age, only Hide", () 
   assert.equal(nebulaRow({ id: "y", name: "n", summary: "s", alive: true, forked: true }).age, "running in nebula (forked)");
   assert.deepEqual(
     actionsFor(idle, true).map((a) => a.id),
-    ["hide"],
+    ["resume", "hide"],
   );
 });
 

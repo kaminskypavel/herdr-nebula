@@ -17,7 +17,10 @@ const ALL = [
 
 // A nebula row (kind "nebula") belongs to nebula: a click or Enter resumes it, and the one
 // action hides it from the board (a or d), since nothing here can delete nebula's session.
-const HIDE = [{ id: "hide", label: "Hide from board", key: "d", icon: "mods/nebula/icons/eye-off.svg" }];
+const HIDE = [
+  { id: "resume", label: "Resume", key: "\u21a9", icon: "mods/nebula/icons/play.svg" },
+  { id: "hide", label: "Hide from board", key: "d", icon: "mods/nebula/icons/eye-off.svg", sep: true },
+];
 // What a key or menu pick does to this row: on a nebula row, delete and archive both mean Hide.
 export const rowAction = (row, action) => (row.kind === "nebula" && (action === "delete" || action === "archive") ? "hide" : action);
 

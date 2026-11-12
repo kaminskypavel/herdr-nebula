@@ -247,15 +247,21 @@ test("a failed re-check or an unknown first check never allows -f", () => {
   assert.equal(recheckRemove(unknown, ok(" M a")).changed, true);
 });
 
-test("a nebula row offers only Hide from board", () => {
+test("a nebula (or closed) row offers Resume and Hide from board", () => {
   assert.deepEqual(
     actionsFor({ kind: "nebula" }, false).map((a) => a.id),
-    ["hide"],
+    ["resume", "hide"],
   );
 });
 
 test("a nebula row's Hide is on d, and delete or archive on it both mean hide", () => {
-  assert.deepEqual(actionsFor({ kind: "nebula" }, true), [{ id: "hide", label: "Hide from board", key: "d", icon: "mods/nebula/icons/eye-off.svg" }]);
+  assert.deepEqual(actionsFor({ kind: "nebula" }, true).at(-1), {
+    id: "hide",
+    label: "Hide from board",
+    key: "d",
+    icon: "mods/nebula/icons/eye-off.svg",
+    sep: true,
+  });
   const row = { kind: "nebula" };
   assert.equal(rowAction(row, "delete"), "hide");
   assert.equal(rowAction(row, "archive"), "hide");

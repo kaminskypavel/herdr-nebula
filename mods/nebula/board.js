@@ -55,7 +55,7 @@ import {
 import { putToSleep, hasExited } from "./sleeper.js";
 import { canResume, resumeCommand } from "./lib/resume.js";
 import { sleepVerdict } from "./lib/sleep.js";
-import { ASLEEP } from "./lib/labels.js";
+import { ASLEEP, SESSION, AUTOTITLE, CLAUDETITLE } from "./lib/labels.js";
 import { railOrder } from "./lib/rail.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
@@ -266,6 +266,8 @@ export class Board {
     this.nebula = []; // resumable sessions no tab holds (lib/history.js): nebula's, and Herdr ones whose tab closed
     this.seenSessions = null; // { address -> { row, repo, band, claude } } the sessions with a conversation at the last sync
     this.deleting = new Set(); // addresses the user is deleting on purpose (not remembered as closed)
+    this.sleepingNow = new Set(); // archived agents being put to sleep (sleepArchived)
+    this.archSleptAt = 0;
     this.nebulaBusy = false;
     this.nebulaAt = 0;
     this.ports = {}; // { [terminal]: [port] } its programs listen on (lib/ports.js), read by loadPorts
@@ -476,7 +478,26 @@ export class Board {
     });
   }
 
+  // Archived sessions sleep (the user's model: put away, not running, restorable): every few seconds an archived
+  // agent that can sleep (idle or done, with a conversation to resume) is put to sleep. Unarchive resumes it.
+  sleepArchived(cx) {
+    const now = Date.now();
+    if (now - this.archSleptAt < 5000) return;
+    this.archSleptAt = now;
+    const full = buildBoard(this.boardArgs(true));
+    for (const repo of full.repos)
+      for (const row of repo.rows) {
+        if (!row.archived || row.exited || sleepVerdict(row) || this.sleepingNow.has(row.address)) continue;
+        this.sleepingNow.add(row.address);
+        cx.spawn(async (cx) => {
+          await putToSleep(row.address, cx).catch(() => null);
+          this.sleepingNow.delete(row.address);
+        });
+      }
+  }
+
   watch(cx) {
+    this.sleepArchived(cx);
     // Shared writes happen here, not in render, where Herdr does not keep them reliably.
     if (this.pendingOpen) {
       const o = this.pendingOpen;
@@ -894,6 +915,9 @@ export class Board {
         return;
       }
       setShared(RESUMED, recordResumed(shared(RESUMED), s.id, r.terminal, new Set(terminals().map((t) => t.address))));
+      // Its conversation and name, so the row is titled right and it can sleep again (the prompt hook would only
+      // write the session on the next prompt).
+      if (s.claude) await hc(["label", r.terminal, `${SESSION}=claude:${s.claude}`, `${AUTOTITLE}=${s.name}`, `${CLAUDETITLE}=${s.name}`]).catch(() => null);
       const ask = () => run("pane.focus", { terminal: r.terminal });
       ask();
       for (const ms of REFOCUS_MS) cx.timer.after(ms, ask);
@@ -972,8 +996,13 @@ export class Board {
   // it shows, a beat later, so the board asks for them back with Herdr's own pane.go, now and once more after
   // that beat. A nebula row or an exited agent steps in instead: showing it starts or resumes something.
   showKeep(row, cx) {
+    // A stopped session (asleep, exited, closed) is only selected by a click: resuming starts an agent, so it takes
+    // Enter, a double click or the menu's Resume.
+    if (row.kind === "nebula" || canResume(row)) {
+      this.say(`${row.title} is stopped \u00b7 \u21a9 resumes it`, undefined, cx);
+      return;
+    }
     this.show(row, cx);
-    if (row.kind === "nebula" || canResume(row)) return;
     const back = () => run("pane.go", { direction: "left" });
     back();
     cx.timer.after(KEEP_MS, back);
@@ -1186,6 +1215,7 @@ export class Board {
       else {
         if (this.undo?.tab === row.tab) this.undo = null;
         this.say(unarchivedFlash(row.title), undefined, cx);
+        if (canResume(row)) this.resumeHere(row, cx); // archived sessions sleep: bringing one back resumes it
       }
     } else if (action === "delete") {
       const p = this.deleteProps(row);

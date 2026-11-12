@@ -19,7 +19,7 @@ const short = (s) => {
   return t.length > MAX ? `${t.slice(0, MAX - 1)}…` : t;
 };
 
-export const archivedFlash = (title) => `Archived '${short(title)}' · u undo`;
+export const archivedFlash = (title) => `Archived '${short(title)}' · u undo`; // it also sleeps (board.js sleepArchived)
 export const unarchivedFlash = (title) => `Unarchived '${short(title)}'`;
 export const asleepFlash = (title) => `Asleep: ${short(title)}`;
 export const resumingFlash = (title) => `Resuming ${short(title)}`;
