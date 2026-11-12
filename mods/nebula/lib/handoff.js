@@ -14,7 +14,7 @@ export function continueTargets(model, id) {
 
 /** The "Move to ›" submenu: ‹ Back, then one item per target worktree. */
 export const continueItems = (targets, max = 12) => [
-  { id: "back", label: "\u2039 Back", key: "", icon: null },
+  { id: "back", label: "Back", key: "\u2190", icon: "mods/nebula/icons/chevron-left.svg" },
   ...(targets ?? []).slice(0, max).map((x, i) => ({
     id: `continue:${x.path}`,
     label: x.label,

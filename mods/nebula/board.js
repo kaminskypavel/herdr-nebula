@@ -1762,6 +1762,8 @@ export class Board {
         this.handle.focus();
         this.setSort(cycleOf(SORTS, this.sort, 1), cx);
       })
+      .gap(5)
+      .child(svg("mods/nebula/icons/arrow-up-down.svg").size(12).flex_none())
       .child(SORT_TITLE[this.sort]);
   }
 
@@ -1972,13 +1974,18 @@ export class Board {
   }
 
   // A quiet text button for the stack (×, Show less); its press never reaches the card under it.
+  // A quiet text button for the stack with an icon: × is the x icon alone, "N more" gets layers, Show less a chevron.
   stackButton(t, id, text, tip, action) {
-    return div()
+    const icon = text === "\u00d7" ? "x" : /more$/.test(text) ? "layers" : /^Show less/.test(text) ? "chevron-up" : null;
+    return h_flex()
       .id(id)
       .flex_none()
+      .items_center()
+      .gap(4)
       .px(6)
+      .py(2)
       .rounded(5)
-      .text_size(fs(text.length > 1 ? 11 : 15))
+      .text_size(fs(11))
       .text_color(t.muted)
       .cursor_pointer()
       .tooltip(tip)
@@ -1988,7 +1995,14 @@ export class Board {
         cx.stop_propagation();
         action(cx);
       })
-      .child(text);
+      .when(Boolean(icon), (el) =>
+        el.child(
+          svg(`mods/nebula/icons/${icon}.svg`)
+            .size(icon === "x" ? 13 : 12)
+            .flex_none(),
+        ),
+      )
+      .when(icon !== "x", (el) => el.child(text));
   }
 
   // Back to one card: the stack folds and forgets "While you were away".

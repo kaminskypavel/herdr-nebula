@@ -9,8 +9,30 @@ const BUTTON = {
   danger: (t) => [t.blocked, t.blocked, t.background],
 };
 
+// Every dialog button gets an icon from its label (user: "I'm missing icons on buttons"), in one place.
+/** @type {[RegExp, string][]} */
+const BUTTON_ICONS = [
+  [/^(cancel|close)/i, "x"],
+  [/^archive/i, "archive"],
+  [/^(delete|deleting|remove)/i, "trash"],
+  [/^(update|import)/i, "download"],
+  [/^(check|checking)/i, "refresh-cw"],
+  [/^what changed/i, "list"],
+  [/^keep both/i, "copy"],
+  [/^continue/i, "arrow-right"],
+  [/^(save|saving)/i, "check"],
+  [/^(add|new)/i, "plus"],
+  [/^choose/i, "folder-open"],
+  [/^(rename)/i, "pencil"],
+];
+export const buttonIcon = (text) => {
+  const hit = BUTTON_ICONS.find(([re]) => re.test(String(text ?? "")));
+  return hit ? `mods/nebula/icons/${hit[1]}.svg` : null;
+};
+
 export function button(t, id, text, kind, action) {
   const [line, bg, color] = BUTTON[kind](t);
+  const icon = buttonIcon(text);
   return h_flex()
     .id(id)
     .h(32)
@@ -27,6 +49,8 @@ export function button(t, id, text, kind, action) {
     .cursor_pointer()
     .hover((s) => s.opacity(0.88))
     .on_click(action)
+    .gap(6)
+    .when(Boolean(icon), (el) => el.child(svg(icon).size(13).flex_none().text_color(color)))
     .child(text);
 }
 

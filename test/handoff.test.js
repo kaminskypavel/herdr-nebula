@@ -21,7 +21,7 @@ test("a session can continue in its project's other worktrees, not its own", () 
   assert.deepEqual(
     continueItems(continueTargets(model, "t1")).map((i) => [i.id, i.label]),
     [
-      ["back", "\u2039 Back"],
+      ["back", "Back"],
       ["continue:/r/app-worktrees/fix-x", "fix-x"],
     ],
   );
