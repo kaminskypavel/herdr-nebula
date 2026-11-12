@@ -268,6 +268,7 @@ export class Board {
     this.deleting = new Set(); // addresses the user is deleting on purpose (not remembered as closed)
     this.sleepingNow = new Set(); // archived agents being put to sleep (sleepArchived)
     this.archSleptAt = 0;
+    this.archivedCounts = {}; // { [project root]: archived sessions } for the Archived bar
     this.nebulaBusy = false;
     this.nebulaAt = 0;
     this.ports = {}; // { [terminal]: [port] } its programs listen on (lib/ports.js), read by loadPorts
@@ -485,6 +486,12 @@ export class Board {
     if (now - this.archSleptAt < 5000) return;
     this.archSleptAt = now;
     const full = buildBoard(this.boardArgs(true));
+    const counts = {};
+    for (const repo of full.repos) counts[repo.root] = repo.rows.filter((r) => r.archived).length;
+    if (JSON.stringify(counts) !== JSON.stringify(this.archivedCounts)) {
+      this.archivedCounts = counts;
+      cx.notify();
+    }
     for (const repo of full.repos)
       for (const row of repo.rows) {
         if (!row.archived || row.exited || sleepVerdict(row) || this.sleepingNow.has(row.address)) continue;
@@ -1689,6 +1696,58 @@ export class Board {
       );
   }
 
+  // The archived sessions in what the board shows: the shown project, or every open one on All.
+  archivedHere() {
+    const roots = this.tab === ALL ? this.open : [this.tab];
+    return roots.reduce((n, r) => n + (this.archivedCounts[r] ?? 0), 0);
+  }
+
+  // A quiet bar under the list: "Archived · 3". A click shows them in the list (asleep, marked archived), again
+  // hides them; the same as A. Nothing archived: no bar.
+  archivedBar(t) {
+    const n = this.archivedHere();
+    return h_flex()
+      .id("archived-bar")
+      .flex_none()
+      .h(rh(30))
+      .px(20)
+      .gap(8)
+      .items_center()
+      .border_t(1)
+      .border_color(t.border)
+      .cursor_pointer()
+      .text_size(fs(12))
+      .text_color(t.muted)
+      .hover((s) => s.text_color(t.foreground).bg(t.hover))
+      .on_click((_e, cx) => {
+        this.showArchived = !this.showArchived;
+        this.sync();
+        cx.notify();
+      })
+      .child(
+        div()
+          .flex_none()
+          .w(10)
+          .text_color(t.dim)
+          .child(this.showArchived ? "\u25be" : "\u25b8"),
+      )
+      .child(svg("mods/nebula/icons/archive.svg").size(13).flex_none().text_color(t.muted))
+      .child(
+        div()
+          .flex_1()
+          .min_w(0)
+          .truncate()
+          .child(`Archived \u00b7 ${n}${this.showArchived ? " \u00b7 shown, asleep until brought back" : ""}`),
+      )
+      .child(
+        div()
+          .flex_none()
+          .text_size(fs(11))
+          .text_color(t.dim)
+          .child(this.showArchived ? "A hide" : "A show"),
+      );
+  }
+
   // A project's ⌘ digit as the icon bar draws it (pins first, lib/rail.js railOrder), or 0 when it has none.
   railDigit(root) {
     return railOrder(this.open, shared(PINNED_PROJECTS) ?? []).indexOf(root) + 1;
@@ -2082,6 +2141,7 @@ export class Board {
       .when(this.base.repos.length > 0 && this.open.length > 0, (el) => el.child(this.whereHeader(t)))
       .when(!this.base.repos.length || !this.open.length, (el) => el.child(this.noProjects(t, !this.base.repos.length, projectList(store()).length > 0)))
       .when(this.base.repos.length > 0, (el) => el.child(v_flex().flex_1().min_h(0).child(viewOf(this.view).view.body(this, t))))
+      .when(this.base.repos.length > 0 && (this.archivedHere() > 0 || this.showArchived), (el) => el.child(this.archivedBar(t)))
       .when(this.base.repos.length > 0 && this.open.length > 0 && Boolean(this.upnext) && this.config().upNext !== false, (el) => el.child(this.upNextCard(t)))
       .child(this.statusLine(t));
   }
