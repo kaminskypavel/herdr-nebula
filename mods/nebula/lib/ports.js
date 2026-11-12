@@ -3,12 +3,22 @@
 // ran included), so one `lsof` for the listening sockets plus `ps eww` for those pids' environment
 // maps each port to a terminal. Pure, so node can test it. No herdr imports.
 
-// Prints "<address> <port>" lines, one per listening socket whose process belongs to a Herdr terminal.
-// ponytail: one system-wide lsof per poll; per-terminal pid trees if it ever shows up in a profile.
+// Prints "<address> <port>" lines, one per listening socket whose process belongs to a Herdr terminal and that
+// serves a page: the agent's own listeners (Claude Code, Codex), apps an MCP tool opened and other non-web or
+// empty ports were listed and opened to nothing, so a port shows only if http://127.0.0.1:<port>/ answers 2xx,
+// 3xx, 401 or 403 within half a second.
+// ponytail: one system-wide lsof per poll plus a short curl per candidate port; per-terminal pid trees if it ever
+// shows up in a profile.
 export const PORTS_SCRIPT = `for p in $(lsof -nP -iTCP -sTCP:LISTEN -t 2>/dev/null | sort -u); do
-  t=$(ps eww -o command= -p "$p" 2>/dev/null | grep -oE 'HC_TERMINAL_ID=[^ ]+' | head -n 1)
+  cmd=$(ps eww -o command= -p "$p" 2>/dev/null)
+  t=$(printf %s "$cmd" | grep -oE 'HC_TERMINAL_ID=[^ ]+' | head -n 1)
   [ -n "$t" ] || continue
-  lsof -nP -a -p "$p" -iTCP -sTCP:LISTEN -F n 2>/dev/null | sed -n "s/^n.*:\\([0-9][0-9]*\\)$/\${t#HC_TERMINAL_ID=} \\1/p"
+  prog=$(ps -o command= -p "$p" 2>/dev/null | awk '{print $1}')
+  case "\${prog##*/}" in claude|codex) continue ;; esac
+  for port in $(lsof -nP -a -p "$p" -iTCP -sTCP:LISTEN -F n 2>/dev/null | sed -n "s/^n.*:\\([0-9][0-9]*\\)$/\\1/p" | sort -u); do
+    code=$(curl -s -m 0.5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/" 2>/dev/null)
+    case "$code" in 2??|3??|401|403) echo "\${t#HC_TERMINAL_ID=} $port" ;; esac
+  done
 done`;
 
 // -> { [address]: [port, ...] } sorted, without repeats (IPv4 and IPv6 listen on the same port).

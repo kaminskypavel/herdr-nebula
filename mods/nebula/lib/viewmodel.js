@@ -237,18 +237,23 @@ function bandItems(repo, folded) {
     ...(b.label ? [{ key: `band:${b.path}`, type: "band", band: b, folded: folded.has(b.path) }] : []),
     ...(b.label && !b.rows.length && !folded.has(b.path) ? [{ key: `vacant:${b.path}`, type: "vacant", band: b, root: repo.root }] : []),
     ...(b.label && folded.has(b.path) ? [] : b.rows).flatMap((row, i, rows) => [
-      ...(row.archived && !rows[i - 1]?.archived ? [{ key: `archived:${b.path}`, type: "shelf", text: "Archived" }] : []),
+      ...(row.archived && !rows[i - 1]?.archived ? [{ key: `archived:${b.path}`, type: "shelf", text: "Archived", open: true }] : []),
       { key: row.id, type: "session", row },
       ...row.subs.map((sub) => ({ key: `sub:${sub.key}`, type: "sub", sub, parent: row.id })),
     ]),
   ]);
 }
 
+// The folded line that stands for a project's hidden archived sessions (repo.archivedHidden, set by the board): a
+// click shows them (each band then gets an open "Archived" line above its archived rows).
+const archivedFold = (repo) =>
+  repo.archivedHidden > 0 ? [{ key: `archived:${repo.root}`, type: "shelf", text: `Archived \u00b7 ${repo.archivedHidden}`, open: false }] : [];
+
 export function treeItems(model, folded, empty = "No repos yet", bands = new Set()) {
   if (!model.repos.length) return [{ key: "empty", type: "empty", text: empty }];
   return model.repos.flatMap((repo) => [
     { key: repoKey(repo), type: "repo", repo, folded: folded.has(repo.root) },
-    ...(folded.has(repo.root) ? [] : bandItems(repo, bands)),
+    ...(folded.has(repo.root) ? [] : [...bandItems(repo, bands), ...archivedFold(repo)]),
   ]);
 }
 
@@ -258,7 +263,7 @@ export function listItems(model, { all = false, empty = "No repos yet", bands = 
   if (all) return treeItems(model, folded, empty, bands);
   const repo = model.repos[0];
   if (!repo) return [{ key: "empty", type: "empty", text: empty }];
-  return repo.bands.length ? bandItems(repo, bands) : [{ key: "empty", type: "empty", text: "No sessions" }];
+  return repo.bands.length ? [...bandItems(repo, bands), ...archivedFold(repo)] : [{ key: "empty", type: "empty", text: "No sessions" }, ...archivedFold(repo)];
 }
 
 const columnsMemo = new WeakMap();

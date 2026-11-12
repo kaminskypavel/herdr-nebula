@@ -409,7 +409,10 @@ export function repoLine(repo, t, { folded, selected, click = null }) {
     .child(chips(repo, t));
 }
 
-export const shelfLine = (text, t) =>
+// An "Archived" line: open (above a band's archived rows, ▾) or folded ("Archived · N" for a project's hidden ones,
+// ▸). Both are clickable (the board shows or hides the archived sessions); lists without per-row handlers send the
+// click through on_item_click with the item's key.
+export const shelfLine = (item, t, click = null) =>
   h_flex()
     .h(rh(HEIGHT.shelf))
     .flex_none()
@@ -420,7 +423,21 @@ export const shelfLine = (text, t) =>
     .pr(10)
     .text_size(fs(11))
     .text_color(t.muted)
-    .child(div().flex_none().child(text))
+    .when(Boolean(click), (el) =>
+      el
+        .id(`shelf-${item.key}`)
+        .cursor_pointer()
+        .hover((s) => s.text_color(t.foreground))
+        .on_click((_e, cx) => click(item.key, cx)),
+    )
+    .child(
+      div()
+        .flex_none()
+        .w(10)
+        .text_color(t.dim)
+        .child(item.open ? "\u25be" : "\u25b8"),
+    )
+    .child(div().flex_none().child(item.text))
     .child(div().flex_1().h(1).bg(t.border));
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
@@ -447,7 +464,7 @@ export function drawItem(item, t, { cursor, deep = false, click = null, menu = n
     case "sub":
       return subLine(item.sub, t, { indent: deep ? 48 : 30 });
     case "shelf":
-      return shelfLine(item.text, t);
+      return shelfLine(item, t, click);
     default:
       return emptyLine(item.text ?? "", t);
   }
