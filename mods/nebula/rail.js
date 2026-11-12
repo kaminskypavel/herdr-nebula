@@ -118,6 +118,7 @@ export class Rail {
     this.lastIn = {}; // { [project root]: the terminal last focused there }, so picking the project goes back to it
     this.startState(cx);
     this.hops = {}; // { [project root]: when its icon last began to hop }, for a row that just started waiting
+    this.seenProject = {}; // { [project root]: when its tab was last selected }: an older finish shows no check
     this.seenStatus = null; // each row's status at the last look (lib/alerts.js trackArrivals)
     this.awayAt = null; // when no Herdr window was in front any more, or null while one is
     this.herdrFront = true; // whether a Herdr window (this or another) is the front app, polled while this one is not
@@ -298,7 +299,13 @@ export class Rail {
       cleared = shared(CLEARED),
       now = Date.now(),
       rowsOf = new Map(model.repos.map((r) => [r.root, r.rows]));
-    const summary = summarize(model).map((p) => ({ ...p, ...projectAlerts(rowsOf.get(p.root) ?? [], cleared, now) }));
+    // The project in front never rings (you are looking at it), and visiting a project clears its check.
+    const shown = shared(REPO);
+    if (shown && shown !== ALL) this.seenProject[shown] = now;
+    const summary = summarize(model).map((p) => ({
+      ...p,
+      ...projectAlerts(rowsOf.get(p.root) ?? [], cleared, now, p.root === shown ? now : (this.seenProject[p.root] ?? 0)),
+    }));
     return { ...railTabs({ summary, open, selected: shared(REPO), pinned }), open, plus: closedNeeding(model, open, shared(CLEARED) ?? {}) };
   }
 

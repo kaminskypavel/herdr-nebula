@@ -14,13 +14,15 @@ export function ringOpacity(row, now) {
 }
 
 /** A project's alerts from its rows: { needs (agents that need you), ring (the ring's opacity, 0 for none) }. */
-export function projectAlerts(rows, cleared, now) {
+// `seenAt`: when you last had this project in front (its tab selected). A finish before that does not ring: you
+// have seen the project since (all icons wore a check at once otherwise). 0: never.
+export function projectAlerts(rows, cleared, now, seenAt = 0) {
   let needs = 0,
     ring = 0;
   for (const r of rows) {
     if (!waits(r, cleared)) continue;
     if (r.status === "needs") needs++;
-    else if (ringing(r, now)) ring = Math.max(ring, ringOpacity(r, now));
+    else if (ringing(r, now) && (r.changedAt || r.stateSince || 0) > seenAt) ring = Math.max(ring, ringOpacity(r, now));
   }
   return { needs, ring };
 }

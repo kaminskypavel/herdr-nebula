@@ -8,7 +8,7 @@
 // without one, the second line holds the session's last prompt.
 import { View, div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, run, theme, terminals, exec, shared, window, home, appHome, readTextFile, writeTextFile } from "herdr";
+import { props, closeOverlay, run, theme, terminals, exec, shared, setShared, window, home, appHome, readTextFile, writeTextFile } from "herdr";
 import { agentLines, terminalOf, sessionOf, TRANSCRIPT, lastReply, replyLine, eventOf, iconOf, DOT_OF } from "./lib.js";
 
 // Reduce motion (Settings in nebula): the toast then simply appears.
@@ -47,6 +47,18 @@ export default class Toast extends View {
   init(_props, cx) {
     this.reply = null;
     this.relaying = false;
+    // The same alert twice in this window (Herdr posts it here, and another window relays its copy): the second one
+    // within 15 s closes at once. shared "nebula.recentToasts" (lib/shared.js RECENT_TOASTS) is per window.
+    const p1 = props() ?? {},
+      key = `${p1.title ?? ""}|${p1.body ?? ""}`,
+      now = Date.now(),
+      recent = shared("nebula.recentToasts") ?? {};
+    if (now - (recent[key] ?? 0) < 15000) {
+      this.relaying = true; // draws nothing
+      closeOverlay(p1.overlay);
+      return;
+    }
+    setShared("nebula.recentToasts", { ...Object.fromEntries(Object.entries(recent).filter(([, at]) => now - at < 60000)), [key]: now });
     // Herdr posts an agent alert in one of its windows, not always the one you use. Landing in a window in the
     // background while another Herdr window was last active (~/.config/herdr-nebula/active.json, kept by the icon
     // bar), the toast hands itself to that window (a relay file its icon bar picks up) and closes here.

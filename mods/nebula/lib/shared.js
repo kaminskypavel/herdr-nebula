@@ -22,3 +22,4 @@ export const CLEARED = "nebula.cleared"; // { [row id]: clearKey } rows cleared 
 export const REPLIES = "nebula.replies"; // { [row id]: { key, line } } the line an agent last said, read by the board (lib/reply.js)
 export const BOARD_UI = "nebula.boardUi"; // { folded, bandsFolded, sort, colMode } the board's folds, sort and Columns mode, shared by every window
 export const BACK = "nebula.back"; // { at, away } set by the icon bar when you come back to Herdr: the board opens the Up next stack
+export const RECENT_TOASTS = "nebula.recentToasts"; // { [title|body]: ms } alerts this window showed, so a second copy (Herdr's own and a relayed one) is dropped

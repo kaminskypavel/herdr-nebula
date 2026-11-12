@@ -90,3 +90,11 @@ test("away text: minutes, then hours", () => {
   assert.equal(awayText(60 * 60000), "1 h");
   assert.equal(awayText(65 * 60000), "1 h 5 min");
 });
+
+test("a finish rings only if it came after you last had its project in front", async () => {
+  const { projectAlerts } = await import("../mods/nebula/lib/alerts.js");
+  const r = { id: "a", kind: "agent", status: "unseen", changedAt: 1000, stateSince: 1000, archived: false, exited: false };
+  assert.ok(projectAlerts([r], {}, 2000, 0).ring > 0);
+  assert.equal(projectAlerts([r], {}, 2000, 1500).ring, 0, "visited after it finished: no check");
+  assert.ok(projectAlerts([r], {}, 2000, 500).ring > 0, "visited before it finished: still a check");
+});

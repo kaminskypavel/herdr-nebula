@@ -22,6 +22,7 @@ const PER_WINDOW = new Set([
   K.GOTO,
   K.REPLIES, // a cache of agents' lines, read again per window
   K.BACK, // this window's return from away
+  K.RECENT_TOASTS, // alerts this window showed (dedupe)
 ]);
 
 test("every nebula.* shared key is declared shared by all windows (SYNCED) or per window, not both", () => {
