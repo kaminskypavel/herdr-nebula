@@ -61,6 +61,7 @@ import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, ti
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
 import { nebulaFiles } from "./lib/nebula-import.js";
 import { HISTORY, parseHistory, readNebulaSessions, closedEntry, addToHistory } from "./lib/history.js";
+import { continueTargets, handoffTask } from "./lib/handoff.js";
 import { sessionOf } from "./lib/reply.js";
 import { resumeArgv, recordResumed, resumedTerminal, shownSessions, withHidden } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
@@ -257,6 +258,12 @@ export class Board {
     this.order = "";
     this.click = (key, c) => this.onClick(key, c);
     this.menu = (key, e, c) => this.rowMenu(key, e, c);
+    // Drag a session onto another worktree (Cards and Columns, where rows are their own elements): continue it there.
+    this.drag = null; // { id, x, y, moved }
+    this.dragStart = (id, e) => {
+      this.drag = { id, x: e.position?.x ?? 0, y: e.position?.y ?? 0, moved: false };
+    };
+    this.dropOn = (key, cx) => this.dropSession(key, cx);
     this.openPort = (port, c) => this.openUrl(portUrl(port), c);
     this.items = [];
     this.stops = [];
@@ -965,6 +972,67 @@ export class Board {
     });
   }
 
+  // Continue a session in another worktree of its project: asks first (archive the original, or keep both).
+  askContinue(row, path) {
+    const to = continueTargets(this.all, row.id).find((x) => x.path === path);
+    const from = whereIs(this.all, row.id)?.band;
+    if (!to || !from) return;
+    box(480, 150 + rh(120), { role: "continue", id: row.id, title: row.title, from: from.label || from.path, to: to.label, path });
+  }
+
+  // The new session in `path`, told where this one got to (lib/handoff.js); the original is archived (it sleeps)
+  // when asked, so it reads as a move, or kept (both run).
+  continueIn(row, path, archive, cx) {
+    const from = whereIs(this.all, row.id)?.band,
+      to = continueTargets(this.all, row.id).find((x) => x.path === path);
+    if (!from || !to) return;
+    const launch = (() => {
+      try {
+        return typeof row.launch === "object" && row.launch ? row.launch : (JSON.parse(row.launch ?? "null") ?? {});
+      } catch {
+        return {};
+      }
+    })();
+    const task = handoffTask({ title: row.title, prompt: row.prompt, said: row.said, fromPath: from.path, fromLabel: from.label || from.path });
+    const plan = planLaunch({
+      checkouts: this.repos().flatMap((r) => r.checkouts),
+      checkout: path,
+      spaces: placedSpaces(spaces(), panes()),
+      harness: launch.harness ?? "claude",
+      model: launch.model ?? null,
+      effort: launch.effort ?? null,
+      task,
+      name: row.title,
+      from: "board",
+    });
+    this.say(`Continuing ${row.title} in ${to.label}`, undefined, cx);
+    cx.spawn(async (cx) => {
+      const r = await runSteps(plan.steps, exec);
+      if (r.error || !r.terminal) {
+        notify({ title: `Could not continue in ${to.label}`, body: r.error || row.title, level: "error", timeout: 5000 });
+        return;
+      }
+      if (archive && row.tab) {
+        const c = tabCommand("archive", row.tab);
+        run(c.name, c.args); // it sleeps too (sleepArchived)
+      }
+      cx.notify();
+    });
+  }
+
+  // A session dropped on a worktree (its header in Cards, or the WORKTREES column): continue it there.
+  dropSession(key, cx) {
+    const d = this.drag;
+    this.drag = null;
+    if (!d?.moved) return;
+    const path = String(key).replace(/^(band|wt|vacant):/, "");
+    const row = this.byKey.get(d.id)?.row ?? this.all.repos.flatMap((r) => r.rows).find((r) => r.id === d.id);
+    if (!row || row.kind === "nebula") return;
+    if (whereIs(this.all, row.id)?.band.path === path) return; // dropped on its own worktree
+    this.askContinue(row, path);
+    cx.notify();
+  }
+
   // `z`: the agent's CLI exits (its shell stays) and Enter later resumes the conversation. Only
   // an agent that is done, with a conversation to resume; otherwise a toast says why.
   sleep(row, cx) {
@@ -1207,6 +1275,15 @@ export class Board {
   act(action, row, cx) {
     const launch = row.launch;
     action = rowAction(row, action);
+    if (action.startsWith("continue:")) {
+      this.askContinue(row, action.slice("continue:".length));
+      return;
+    }
+    if (action.startsWith("continue-go:")) {
+      const [, mode, ...path] = action.split(":");
+      this.continueIn(row, path.join(":"), mode === "archive", cx);
+      return;
+    }
     if (action.startsWith("editor:")) {
       this.openFolder(openIn(action.slice(7), whereIs(this.model, row.id)?.band.path || row.cwd), cx);
       return;
@@ -1294,7 +1371,8 @@ export class Board {
     this.col = 2;
     this.place(item.key);
     const row = item.row,
-      list = actionsFor({ ...row, editors: this.editors, editor: shared(SETTINGS)?.editor }, Boolean(row.launch));
+      continueTo = continueTargets(this.all, row.id),
+      list = actionsFor({ ...row, editors: this.editors, editor: shared(SETTINGS)?.editor, continueTo }, Boolean(row.launch));
     const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
     openOverlay({
       mod: "nebula-box",
@@ -1313,6 +1391,7 @@ export class Board {
         session: row.session,
         ports: row.ports,
         editors: this.editors,
+        continueTo,
       },
     });
     cx.notify();
@@ -2093,6 +2172,17 @@ export class Board {
       .on_mouse_down("left", (e) => {
         this.shift = Boolean(e.modifiers?.shift);
         this.handle.focus();
+      })
+      .on_mouse_move((e, cx) => {
+        const d = this.drag;
+        if (!d || d.moved) return;
+        if (Math.abs((e.position?.x ?? 0) - d.x) + Math.abs((e.position?.y ?? 0) - d.y) > 8) {
+          d.moved = true;
+          this.say("Drop on another worktree to continue the session there", undefined, cx);
+        }
+      })
+      .on_mouse_up("left", () => {
+        this.drag = null; // a drop target, if any, ran first
       })
       .on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t))

@@ -49,7 +49,7 @@ function bodyBlock(row, t, width) {
     .children((text ? clampLines(text, bodyChars(width ?? 560), BODY_LINES).split("\n") : []).map((l) => div().min_w(0).truncate().child(l)));
 }
 
-function card(row, t, selected, click, menu, pinned, openPort, enter, width) {
+function card(row, t, selected, click, menu, pinned, openPort, enter, width, dragStart = null) {
   const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row),
@@ -70,6 +70,7 @@ function card(row, t, selected, click, menu, pinned, openPort, enter, width) {
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
+    .when(Boolean(dragStart), (el) => el.on_mouse_down("left", (e) => dragStart(row.id, e)))
     .child(
       h_flex()
         .h(rh(TITLE_H))
@@ -137,7 +138,9 @@ export function body(b, t) {
           .py(3)
           .items_start()
           .children(
-            pair.map((it) => card(it.row, t, b.cursor === it.key, b.click, b.menu, b.pinned === it.row.id, b.openPort, b.enters?.get(it.row.id), b.width)),
+            pair.map((it) =>
+              card(it.row, t, b.cursor === it.key, b.click, b.menu, b.pinned === it.row.id, b.openPort, b.enters?.get(it.row.id), b.width, b.dragStart),
+            ),
           )
           .when(pair.length === 1, (el) => el.child(div().flex_1())),
       );
@@ -148,7 +151,7 @@ export function body(b, t) {
     if (it.type === "session") run.push(it);
     else if (it.type !== "sub") {
       flush();
-      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, menu: b.menu, pinned: b.pinned, viewing: b.viewing, enters: b.enters }));
+      out.push(drawItem(it, t, { cursor: b.cursor, click: b.click, menu: b.menu, drop: b.dropOn, pinned: b.pinned, viewing: b.viewing, enters: b.enters }));
     }
   }
   flush();

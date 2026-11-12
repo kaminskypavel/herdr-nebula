@@ -35,6 +35,7 @@ export class Menu {
         ports: p.ports,
         editors: p.editors ?? null,
         editor: shared(SETTINGS)?.editor,
+        continueTo: p.continueTo ?? null,
       },
       Boolean(p.launch),
     );

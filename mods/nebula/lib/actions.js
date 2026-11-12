@@ -1,6 +1,7 @@
 import { inside, norm } from "./projects.js";
 import { canResume } from "./resume.js";
 import { editorItems } from "./editors.js";
+import { continueItems } from "./handoff.js";
 
 // resume: only where the agent has left and its conversation is known (Enter does the same);
 // live: only on an agent still running (it sleeps: its CLI stops, Enter resumes it).
@@ -24,7 +25,15 @@ const HIDE = [
 // What a key or menu pick does to this row: on a nebula row, delete and archive both mean Hide.
 export const rowAction = (row, action) => (row.kind === "nebula" && (action === "delete" || action === "archive") ? "hide" : action);
 
-export const actionsFor = (row, hasLaunch) => withPorts(row.ports, row.kind === "nebula" ? HIDE : rowActions(row, hasLaunch));
+export const actionsFor = (row, hasLaunch) => withPorts(row.ports, row.kind === "nebula" ? HIDE : withContinue(row.continueTo, rowActions(row, hasLaunch)));
+
+// "Continue in <worktree>" for the project's other worktrees (lib/handoff.js), before Archive.
+function withContinue(targets, list) {
+  const items = continueItems(targets);
+  if (!items.length) return list;
+  const at = list.findIndex((a) => a.id === "archive" || a.id === "unarchive" || a.id === "delete");
+  return at < 0 ? [...list, ...items] : [...list.slice(0, at), ...items, ...list.slice(at)];
+}
 
 // "Open localhost:<port>" for the first ports the session listens on (lib/ports.js), above the rest.
 const PORTS_SHOWN = 3;

@@ -133,7 +133,7 @@ function statusBody(b, t) {
 }
 
 // A project or a worktree: status ball (its most urgent session), name, session count.
-function navRow(id, key, name, status, count, selected, focused, t, click, menu = null) {
+function navRow(id, key, name, status, count, selected, focused, t, click, menu = null, drop = null) {
   return h_flex()
     .id(id)
     .flex_none()
@@ -148,13 +148,14 @@ function navRow(id, key, name, status, count, selected, focused, t, click, menu 
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .on_click((_e, cx) => click(key, cx))
     .when(Boolean(menu), (el) => el.on_mouse_down("right", (e, cx) => menu(key, e, cx)))
+    .when(Boolean(drop), (el) => el.on_mouse_up("left", (_e, cx) => drop(key, cx)))
     .child(ball(status, t))
     .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).child(name))
     .child(div().flex_none().text_size(fs(11)).text_color(t.muted).child(String(count)));
 }
 
 // A session: title on the first line, agent icon, model, effort and age under it, so it fits a narrow column.
-function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort, viewing, enter) {
+function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort, viewing, enter, dragStart = null) {
   const meta = metaLine(row, t, 11, selected),
     ports = portLinks(row, t, openPort),
     look = rowLook(row);
@@ -173,6 +174,7 @@ function sessionRowLine(row, t, selected, focused, click, menu, pinned, openPort
     .when(Boolean(row.prompt), (el) => el.tooltip(row.prompt))
     .on_click((_e, cx) => click(row.id, cx))
     .on_mouse_down("right", (e, cx) => menu(row.id, e, cx))
+    .when(Boolean(dragStart), (el) => el.on_mouse_down("left", (e) => dragStart(row.id, e)))
     .when(look.bar === "needs", (el) => el.child(breathing(div().absolute().left(0).top(6).bottom(6).w(3).rounded(2).bg(t.ansi1), !viewing.has(row.id))))
     .child(
       h_flex()
@@ -259,7 +261,9 @@ function projectsBody(b, t) {
         column(
           1 - at,
           "WORKTREES",
-          pc.worktrees.map((w) => navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click, b.menu)),
+          pc.worktrees.map((w) =>
+            navRow(`wt-${w.key}`, `wt:${w.key}`, w.label, w.status, w.count, w.key === sel.worktree, col === 1, t, b.click, b.menu, b.dropOn),
+          ),
           "No sessions",
           col === 1,
           t,
@@ -271,7 +275,7 @@ function projectsBody(b, t) {
         2 - at - (pc.single ? 1 : 0),
         pc.single && pc.worktrees[0] ? `SESSIONS · ${pc.worktrees[0].label}` : "SESSIONS",
         pc.sessions.map((r) =>
-          sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing, b.enters?.get(r.id)),
+          sessionRowLine(r, t, b.cursor === r.id, col === 2, b.click, b.menu, b.pinned === r.id, b.openPort, b.viewing, b.enters?.get(r.id), b.dragStart),
         ),
         "No sessions",
         col === 2,

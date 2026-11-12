@@ -332,7 +332,7 @@ export const GUIDE_STEP = 12; // how far a worktree's lines move right to make r
 /** The guide line down the left of a worktree's rows, at `x` (just right of the header's chevron). */
 const guideLine = (t, x) => div().absolute().left(x).top(0).bottom(0).w(2).rounded(1).bg(t.border);
 
-export function bandLine(band, t, { indent = 10, folded = false, click = null, menu = null }) {
+export function bandLine(band, t, { indent = 10, folded = false, click = null, menu = null, drop = null }) {
   const parts = bandStats(band);
   return h_flex()
     .h(rh(HEIGHT.band))
@@ -351,6 +351,7 @@ export function bandLine(band, t, { indent = 10, folded = false, click = null, m
         .on_click((_e, cx) => click(`band:${band.path}`, cx)),
     )
     .when(Boolean(menu), (el) => el.id(`band-${band.path}`).on_mouse_down("right", (e, cx) => menu(`band:${band.path}`, e, cx)))
+    .when(Boolean(drop), (el) => el.id(`band-${band.path}`).on_mouse_up("left", (_e, cx) => drop(`band:${band.path}`, cx)))
     .child(
       div()
         .w(10)
@@ -460,13 +461,13 @@ export const shelfLine = (item, t, click = null) =>
 
 export const emptyLine = (text, t) => h_flex().h(rh(HEIGHT.empty)).flex_none().items_center().px(14).text_size(fs(12)).text_color(t.muted).child(text);
 
-export function drawItem(item, t, { cursor, deep = false, click = null, menu = null, pinned = null, promptLine = true, viewing, enters }) {
+export function drawItem(item, t, { cursor, deep = false, click = null, menu = null, drop = null, pinned = null, promptLine = true, viewing, enters }) {
   const selected = cursor === item.key;
   switch (item.type) {
     case "repo":
       return repoLine(item.repo, t, { folded: item.folded, selected, click });
     case "band":
-      return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click, menu });
+      return bandLine(item.band, t, { indent: deep ? 24 : 10, folded: item.folded, click, menu, drop });
     case "session":
       return sessionLine(item.row, t, {
         selected,
