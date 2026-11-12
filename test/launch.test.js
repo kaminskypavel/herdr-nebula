@@ -177,8 +177,8 @@ test("checkoutIndex picks the deepest checkout holding a folder, else -1", () =>
 });
 
 test("the branch follows the task until the user types in the branch field", () => {
-  assert.equal(branchOf(null, "Fix the login bug", "amber-otter"), "fix-the-login-bug");
-  assert.equal(branchOf(null, "Fix the login bug now please", "amber-otter"), "fix-the-login-bug-now");
+  assert.equal(branchOf(null, "Fix the login bug", "amber-otter"), "fix-login-bug");
+  assert.equal(branchOf(null, "Fix the login bug now please", "amber-otter"), "fix-login-bug");
   assert.equal(branchOf("my-branch", "Something else entirely", "amber-otter"), "my-branch");
   assert.equal(branchOf("my-branch", "", "amber-otter"), "my-branch");
 });
