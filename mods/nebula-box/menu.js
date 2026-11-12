@@ -11,17 +11,20 @@ import { props, closeOverlay, setShared, shared, theme } from "herdr";
 import { ROW_ACTION, SETTINGS } from "./lib/shared.js";
 import { iconEl } from "./ui.js";
 import { actionsFor, worktreeActions } from "./lib/actions.js";
+import { continueItems } from "./lib/handoff.js";
 import { fs } from "./lib/scale.js";
 
 export class Menu {
   init(cx) {
     this.at = 0;
+    this.sub = null; // "move": the Move to › submenu is shown in place of the menu
     this.handle = cx.focus_handle();
     this.handle.focus();
   }
 
   items() {
     const p = props() ?? {};
+    if (this.sub === "move") return continueItems(p.continueTo ?? []);
     if (p.kind === "worktree")
       return worktreeActions({ editors: p.editors ?? null, editor: shared(SETTINGS)?.editor, deletable: Boolean(p.deletable), sessions: p.sessions ?? 0 });
     return actionsFor(
@@ -41,9 +44,22 @@ export class Menu {
     );
   }
 
-  choose(i) {
+  choose(i, cx) {
     const it = this.items()[i],
       p = props() ?? {};
+    // Move to › opens its worktrees in place; ‹ Back returns.
+    if (it?.id === "move" || it?.id === "back") {
+      this.sub = it.id === "move" ? "move" : null;
+      this.at =
+        it.id === "move"
+          ? 1
+          : Math.max(
+              0,
+              this.items().findIndex((x) => x.id === "move"),
+            );
+      cx?.notify();
+      return;
+    }
     closeOverlay(p.overlay);
     if (it && p.id) setShared(ROW_ACTION, { id: p.id, action: it.id, n: Date.now() });
   }
@@ -62,7 +78,10 @@ export class Menu {
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;
-        else if (e.key === "enter") this.choose(this.at);
+        else if (e.key === "enter") this.choose(this.at, cx);
+        else if (e.key === "right" && list[this.at]?.id === "move") this.choose(this.at, cx);
+        else if ((e.key === "left" || e.key === "escape") && this.sub)
+          this.choose(0, cx); // ‹ Back
         else if (e.key === "escape") closeOverlay(props()?.overlay);
         else return;
         cx.notify();
@@ -83,7 +102,7 @@ export class Menu {
                 .text_color(a.danger ? t.blocked : t.foreground)
                 .when(i === this.at, (el) => el.bg(t.selected))
                 .hover((s) => s.bg(t.hover))
-                .on_click(() => this.choose(i))
+                .on_click((_e, cx) => this.choose(i, cx))
                 .child(
                   div()
                     .size(16)

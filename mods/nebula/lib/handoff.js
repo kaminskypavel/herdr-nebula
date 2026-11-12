@@ -12,15 +12,17 @@ export function continueTargets(model, id) {
   return [];
 }
 
-/** The menu items for those targets: "Continue in <worktree>", at most `max`. */
-export const continueItems = (targets, max = 4) =>
-  (targets ?? []).slice(0, max).map((x, i) => ({
+/** The "Move to ›" submenu: ‹ Back, then one item per target worktree. */
+export const continueItems = (targets, max = 12) => [
+  { id: "back", label: "\u2039 Back", key: "", icon: null },
+  ...(targets ?? []).slice(0, max).map((x, i) => ({
     id: `continue:${x.path}`,
-    label: `Continue in ${x.label}`,
+    label: x.label,
     key: "",
     icon: "mods/nebula/icons/git-branch.svg",
     sep: i === 0,
-  }));
+  })),
+];
 
 /**
  * The new session's task: what the first session was doing, where it got to, and that its changes live in the other

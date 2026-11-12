@@ -1,7 +1,6 @@
 import { inside, norm } from "./projects.js";
 import { canResume } from "./resume.js";
 import { editorItems } from "./editors.js";
-import { continueItems } from "./handoff.js";
 
 // resume: only where the agent has left and its conversation is known (Enter does the same);
 // live: only on an agent still running (it sleeps: its CLI stops, Enter resumes it).
@@ -27,9 +26,10 @@ export const rowAction = (row, action) => (row.kind === "nebula" && (action === 
 
 export const actionsFor = (row, hasLaunch) => withPorts(row.ports, row.kind === "nebula" ? HIDE : withContinue(row.continueTo, rowActions(row, hasLaunch)));
 
-// "Continue in <worktree>" for the project's other worktrees (lib/handoff.js), before Archive.
+// "Move to ›" (a submenu of the project's other worktrees, lib/handoff.js) before Archive.
+export const MOVE = { id: "move", label: "Move to", key: "\u203a", icon: "mods/nebula/icons/git-branch.svg", sep: true };
 function withContinue(targets, list) {
-  const items = continueItems(targets);
+  const items = targets?.length ? [MOVE] : [];
   if (!items.length) return list;
   const at = list.findIndex((a) => a.id === "archive" || a.id === "unarchive" || a.id === "delete");
   return at < 0 ? [...list, ...items] : [...list.slice(0, at), ...items, ...list.slice(at)];

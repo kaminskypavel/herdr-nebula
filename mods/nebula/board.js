@@ -61,7 +61,7 @@ import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, ti
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
 import { nebulaFiles } from "./lib/nebula-import.js";
 import { HISTORY, parseHistory, readNebulaSessions, closedEntry, addToHistory } from "./lib/history.js";
-import { continueTargets, handoffTask } from "./lib/handoff.js";
+import { continueTargets, continueItems, handoffTask } from "./lib/handoff.js";
 import { sessionOf } from "./lib/reply.js";
 import { resumeArgv, recordResumed, resumedTerminal, shownSessions, withHidden } from "./lib/nebula-sessions.js";
 import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
@@ -1373,7 +1373,8 @@ export class Board {
     const row = item.row,
       continueTo = continueTargets(this.all, row.id),
       list = actionsFor({ ...row, editors: this.editors, editor: shared(SETTINGS)?.editor, continueTo }, Boolean(row.launch));
-    const height = 10 + list.length * 31 + list.filter((a) => a.sep).length * 9;
+    const sub = continueItems(continueTo); // the Move to › submenu, shown in the same popup
+    const height = 10 + Math.max(list.length * 31 + list.filter((a) => a.sep).length * 9, continueTo.length ? sub.length * 31 + 9 : 0);
     openOverlay({
       mod: "nebula-box",
       kind: "popup",
