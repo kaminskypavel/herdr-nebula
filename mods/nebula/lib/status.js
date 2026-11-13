@@ -15,6 +15,13 @@ export function statusOf(t) {
   return FROM_HERDR[t?.status] ?? null;
 }
 
+// terminals() keeps the core's word, so an agent that finished stays "done" there after you looked;
+// agents() turns it "idle" once someone looks on any Herdr client. Take that seen verdict.
+export function withSeen(terminals, agents) {
+  const said = new Map(agents.map((a) => [a.address, a.status]));
+  return terminals.map((t) => (t.status === "done" && said.get(t.address) === "idle" ? { ...t, status: "idle" } : t));
+}
+
 export const STATUS_ORDER = ["needs", "working", "unseen", "seen"];
 
 export function tally(statuses) {

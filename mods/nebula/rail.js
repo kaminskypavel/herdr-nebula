@@ -46,7 +46,7 @@ import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
 import { mergeSettings } from "./lib/settings.js";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
-import { statusOf } from "./lib/status.js";
+import { statusOf, withSeen } from "./lib/status.js";
 import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
@@ -563,7 +563,7 @@ export class Rail {
   jump(dir) {
     const f = focused();
     const changed = Object.fromEntries(this.model.repos.flatMap((r) => r.rows.map((x) => [x.id, x.changedAt])));
-    const to = jumpTarget(terminals(), this.repos(), f?.terminal ?? f?.agent ?? null, dir, { cleared: shared(CLEARED), changed });
+    const to = jumpTarget(withSeen(terminals(), agents()), this.repos(), f?.terminal ?? f?.agent ?? null, dir, { cleared: shared(CLEARED), changed });
     if (to) run("agent.focus", { terminal: to });
     else notify({ title: NOTHING_WAITING, level: "info", timeout: 2000 }); // the board may be folded, so no status line to say it
   }

@@ -1,5 +1,5 @@
 import { groupSessions, bestBand, norm, baseName } from "./projects.js";
-import { statusOf, tally, COLOR, STATUS_ORDER } from "./status.js";
+import { statusOf, tally, withSeen, COLOR, STATUS_ORDER } from "./status.js";
 import { readLabels } from "./labels.js";
 import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subRow } from "./subagents.js";
 import { nextAttention } from "./order.js";
@@ -152,6 +152,7 @@ export function buildBoard({
   ports = {},
   replies = {},
 }) {
+  terminals = withSeen(terminals, agents);
   const where = tabLookup(agents, panes, spaces);
   const g = groupSessions(
     terminals.filter((t) => showArchived || !where.get(t.address)?.tab?.settled),

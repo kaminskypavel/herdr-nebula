@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { statusOf, COLOR } from "../mods/nebula/lib/status.js";
+import { statusOf, withSeen, COLOR } from "../mods/nebula/lib/status.js";
 
 test("Herdr statuses blocked, working, done and idle map to needs you, working, unseen and seen", () => {
   assert.equal(statusOf({ status: "blocked" }), "needs");
@@ -33,4 +33,20 @@ test("a plain shell terminal that nobody launched from the board is not a sessio
 
 test("each status has a theme color; exited uses the theme's unknown", () => {
   assert.deepEqual(COLOR, { needs: "ansi1", working: "ansi3", unseen: "ansi6", seen: "ansi2", exited: "unknown" });
+});
+
+test("withSeen: a done agent you looked at reads idle, the rest stay as the core says", () => {
+  const ts = [
+    { address: "t1", status: "done" },
+    { address: "t2", status: "done" },
+    { address: "t3", status: "working" },
+  ];
+  const out = withSeen(ts, [
+    { address: "t1", status: "idle" },
+    { address: "t2", status: "done" },
+  ]);
+  assert.deepEqual(
+    out.map((t) => t.status),
+    ["idle", "done", "working"],
+  );
 });
