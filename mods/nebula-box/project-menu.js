@@ -14,7 +14,7 @@ import { fs } from "./lib/scale.js";
 const items = (pinned) => [
   { id: "pin", label: pinned ? "Unpin" : "Pin to top" },
   { id: "close", label: "Close" },
-  { id: "remove", label: "Remove from list...", danger: true },
+  { id: "remove", label: "Remove", danger: true },
 ];
 
 export class ProjectMenu {
