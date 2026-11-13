@@ -212,3 +212,20 @@ export async function runSteps(steps, exec, onStep = () => {}) {
   }
   return { terminal, error: "" };
 }
+
+// The repo's default branch (main or master) as a checkout pick even when no folder has it checked out (the repo's
+// own folder may sit on another branch): picking it makes a worktree for that existing branch. `def` is the default
+// branch's name, or null. -> { value: "@default:<branch>", label } or null when a checkout already has it.
+export function defaultBranchItem(list, def) {
+  if (!def || (list ?? []).some((c) => c.branch === def)) return null;
+  return { value: `@default:${def}`, label: `${def} (new worktree)` };
+}
+
+// The default branch from git's answers: origin/HEAD ("origin/main"), else the first of main and master that exists.
+export function defaultBranchOf(originHead, has = {}) {
+  const head = String(originHead ?? "")
+    .trim()
+    .replace(/^origin\//, "");
+  if (head) return head;
+  return ["main", "master"].find((b) => has[b]) ?? null;
+}

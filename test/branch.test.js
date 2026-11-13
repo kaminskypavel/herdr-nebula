@@ -32,3 +32,7 @@ test("an empty task gets a random two-word name", () => {
 test("punctuation never leaves a leading, trailing or doubled dash", () => {
   assert.equal(slug("  ...Fix: the (login) bug!!  "), "fix-login-bug");
 });
+
+test("links in the task are left out of the name", () => {
+  assert.equal(slug("take a look on this model https://huggingface.co/taobao-mnn/MNN-Pocket-0.3B is it multilingual"), "take-model-multilingual");
+});

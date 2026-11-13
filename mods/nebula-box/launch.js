@@ -36,6 +36,8 @@ import {
   seedTask,
   draftOf,
   goneText,
+  defaultBranchItem,
+  defaultBranchOf,
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
 import { PASTE_DIR, pasteName, stalePastes, clipScript, splitImages, taskWithImages, pasteFile } from "./lib/paste.js";
@@ -76,6 +78,7 @@ export class Launch {
     this.lists = {};
     this.plain = {};
     this.checkout = null;
+    this.defaults = {}; // { [repo root]: its default branch (main or master) }, for the checkout list
     this.ids = [];
     this.harness = null;
     this.model = null;
@@ -256,6 +259,17 @@ export class Launch {
     const list = await listCheckouts(exec, r.root);
     this.plain[r.root] = !list;
     this.lists[r.root] = list ?? [{ path: r.root, branch: null }];
+    if (list) this.defaults[r.root] = await this.defaultBranch(r.root);
+  }
+
+  // The repo's default branch (origin/HEAD, else main or master), so the checkout list always offers it.
+  async defaultBranch(root) {
+    const head = await exec("git", ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], { cwd: root }).catch(() => null);
+    if (head?.code === 0 && head.stdout.trim()) return defaultBranchOf(head.stdout);
+    const has = {};
+    for (const b of ["main", "master"])
+      has[b] = (await exec("git", ["show-ref", "--verify", "--quiet", `refs/heads/${b}`], { cwd: root }).catch(() => null))?.code === 0;
+    return defaultBranchOf("", has);
   }
 
   effective() {
@@ -320,7 +334,10 @@ export class Launch {
     if (key === "repo") return this.repos.length ? this.repos.map((p) => ({ value: p.root, label: p.name })) : none(this.ready ? "No project" : "Loading…");
     if (key === "checkout") {
       const own = this.list().map((c) => ({ value: c.path, label: c.branch ?? (c.path === r?.root ? "main checkout" : c.path.split("/").pop()) }));
-      return this.wt() ? [{ value: "@new", label: `New: ${this.effective()}` }, ...own] : own;
+      // main or master is always there: when no folder has it checked out, picking it makes its worktree.
+      const def = defaultBranchItem(this.list(), this.defaults[r?.root]);
+      const mid = def ? [def] : [];
+      return this.wt() ? [{ value: "@new", label: `New: ${this.effective()}` }, ...mid, ...own] : [...mid, ...own];
     }
     if (key === "harness") {
       const tail = [this.model, this.effort].filter(Boolean).join(" · ");
@@ -365,7 +382,13 @@ export class Launch {
       const i = this.repos.findIndex((p) => p.root === value);
       if (i >= 0 && i !== this.r) this.cycle("repo", i - this.r, cx);
     } else if (key === "checkout") {
-      if (value && value !== "@new") {
+      if (value?.startsWith("@default:")) {
+        // The default branch, checked out nowhere: a new worktree for that existing branch.
+        const b = value.slice("@default:".length);
+        this.newWt = true;
+        this.typed = b;
+        this.branch.set_value(b);
+      } else if (value && value !== "@new") {
         this.checkout = value;
         this.newWt = false;
       }

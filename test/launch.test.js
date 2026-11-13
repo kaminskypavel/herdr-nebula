@@ -328,3 +328,14 @@ test("a launch names its tab from the task's first words, a placeholder the agen
   assert.equal(named.steps.find((s) => s.type === "labels").name, null);
   assert.equal(plan({ task: "" }).steps.find((s) => s.type === "labels").name, null);
 });
+
+test("the default branch is offered even when no checkout has it, as a new worktree for it", async () => {
+  const { defaultBranchItem, defaultBranchOf } = await import("../mods/nebula/lib/launch.js");
+  const list = [{ path: "/r/app", branch: "experiment/voice" }];
+  assert.deepEqual(defaultBranchItem(list, "main"), { value: "@default:main", label: "main (new worktree)" });
+  assert.equal(defaultBranchItem([...list, { path: "/r/app-worktrees/main", branch: "main" }], "main"), null);
+  assert.equal(defaultBranchItem(list, null), null);
+  assert.equal(defaultBranchOf("origin/main\n"), "main");
+  assert.equal(defaultBranchOf("", { master: true }), "master");
+  assert.equal(defaultBranchOf("", {}), null);
+});

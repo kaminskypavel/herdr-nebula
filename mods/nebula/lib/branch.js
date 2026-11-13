@@ -17,6 +17,7 @@ const FILLER = new Set(
 
 export const slug = (task) => {
   const words = String(task ?? "")
+    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, " ") // a link is no name ("take-model-https-huggingface")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((w) => w && !FILLER.has(w));
