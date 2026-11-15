@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.2.0 (2026-11-15)
+
+Attention first: Up next shows who waits on you, alerts reach the window you are using, and every Herdr window shares one state.
+
+### Attention
+- Up next, docked at the bottom of the board: what waits on you, most urgent first, as a stack of cards ("N more", and × hides it; Settings › Alerts brings it back). Coming back after a while opens it.
+- A fresh finish puts a cyan check on its project's icon until you visit the project; otherwise the icon bar stays calm.
+- While you are away: macOS notifications, the Stack, or off (Settings › Alerts). Alerts show the project icon and what the agent said.
+- A sound picker, Chirp included.
+- An agent you already looked at shows seen, not a lingering blue dot.
+- With two Herdr windows an alert shows once, in the window you are using.
+
+### Board
+- A header names the project you are in, with its ⌘ digit.
+- Archived sessions fold inside each project ("Archived · N"); they sleep, and Enter resumes them.
+- Right-click a worktree to open it or remove it.
+- Continue a session in another worktree: Move to › in its menu, or drag it in Cards and Columns, then keep both or archive this one.
+- Cards are all one size; menus, dialog buttons and the toolbar have icons.
+- Ports show only pages that answer, never the agent's own.
+- Prompt lines show pasted text, not `<pasted_content>` tags.
+
+### New session
+- New worktree is the last choice in the ⌃T branch list (or press ⌃N). Its branch is named from the task's meaningful words, links left out.
+- main or master is always in the branch list.
+- The task is saved as you type; Cancel drops it.
+
+### Settings and state
+- Settings in tabs: Board, Look, Agents, Alerts, Data, Updates.
+- One state for every Herdr window: open projects, pins, settings, sounds, cleared items, archived sessions and board folds. It survives a restart.
+- Open in uses the editor picked in Settings, with its app icon.
+- The project menu says Close (hides the icon; + reopens it) and Remove.
+- herdr-nebula no longer reads nebula's files: Settings › Data imports its sessions and presets once.
+
+### Fixes
+- A session never splits your tab or gets lost when its pane closes (⌘W).
+- A click never resumes a stopped session, and a resumed one keeps its name.
+- An archived session stays archived, and clearing an Up next item holds in every window.
+- Remove worktree works by path; a worktree whose folder is gone just leaves the board.
+- Turning Up next off no longer breaks the board.
+- "Updated to" shows only for a new release, not for every reinstall.
+
 ## v0.1.0 (2026-11-10)
 
 The first tagged release: nebula's mission control as a Herdr layout, the `nebula` and `nebula-box` mods, and the `herdr-nebula` command.
