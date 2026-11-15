@@ -16,6 +16,9 @@ import {
 import { buildBoard, treeItems, listItems, columnsModel, projectColumns, agentOrder, attentionTarget, OTHER } from "../mods/nebula/lib/viewmodel.js";
 import { actionsFor } from "../mods/nebula/lib/actions.js";
 import { planLaunch, placedSpaces } from "../mods/nebula/lib/launch.js";
+import { HARNESSES } from "../mods/nebula/lib/harness.js";
+
+const N = HARNESSES.claude.pre;
 
 const cli = (sessions) => JSON.stringify({ sessions });
 const S = (id, o = {}) => ({
@@ -104,18 +107,19 @@ test("visibleSessions hides an idle session while its resumed terminal exists, k
 });
 
 test("resumeArgv: --resume, --fork-session only when alive, model and effort in buildArgv order", () => {
-  assert.deepEqual(resumeArgv({ claude: "c1", alive: false, model: null, effort: null }), ["claude", "--resume", "c1"]);
+  assert.deepEqual(resumeArgv({ claude: "c1", alive: false, model: null, effort: null }), ["claude", "--resume", "c1", ...N]);
   assert.deepEqual(resumeArgv({ claude: "c1", alive: true, model: "opus", effort: "high" }), [
     "claude",
     "--resume",
     "c1",
     "--fork-session",
+    ...N,
     "--model",
     "opus",
     "--effort",
     "high",
   ]);
-  assert.deepEqual(resumeArgv({ claude: "c1", alive: false, model: "default", effort: "max" }), ["claude", "--resume", "c1", "--effort", "max"]);
+  assert.deepEqual(resumeArgv({ claude: "c1", alive: false, model: "default", effort: "max" }), ["claude", "--resume", "c1", ...N, "--effort", "max"]);
 });
 
 test("recordResumed adds the new terminal and drops entries whose terminal is gone", () => {
@@ -275,7 +279,7 @@ test("resume plan: tab.new in the space showing that worktree, named after the s
   assert.deepEqual(launch.args, {
     space: "sp1",
     folder: "/w/app-worktrees/fix",
-    argv: ["claude", "--resume", "conv-w1", "--fork-session", "--model", "opus"],
+    argv: ["claude", "--resume", "conv-w1", "--fork-session", ...N, "--model", "opus"],
     name: "name w1",
   });
 });
@@ -293,12 +297,12 @@ test("resume plan with no matching space starts a space whose first tab carries 
   });
   const launch = plan.steps.find((x) => x.launch);
   assert.equal(launch.name, "space.new");
-  assert.deepEqual(launch.args, { folder: "/elsewhere/x", argv: ["claude", "--resume", "conv-o1", "--model", "opus"], tab: "name o1" });
+  assert.deepEqual(launch.args, { folder: "/elsewhere/x", argv: ["claude", "--resume", "conv-o1", ...N, "--model", "opus"], tab: "name o1" });
 });
 
 test("planLaunch without argv or name builds the argv and names the tab from the task", () => {
   const plan = planLaunch({ checkouts: [{ path: "/w/app" }], checkout: "/w/app", spaces: [], harness: "claude", task: "Fix", from: "board" });
-  assert.deepEqual(plan.steps.find((x) => x.launch).args, { folder: "/w/app", argv: ["claude", "Fix"], tab: "Fix" });
+  assert.deepEqual(plan.steps.find((x) => x.launch).args, { folder: "/w/app", argv: ["claude", ...N, "Fix"], tab: "Fix" });
 });
 
 test("resumedTerminal finds the copy already resumed here, only while its terminal exists", () => {

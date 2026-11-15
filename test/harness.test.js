@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildArgv, HARNESSES } from "../mods/nebula/lib/harness.js";
 
+const N = HARNESSES.claude.pre;
+
 test("Claude with model opus and effort high builds claude --model opus --effort high <task>", () => {
   assert.deepEqual(buildArgv({ harness: "claude", model: "opus", effort: "high", task: "fix it" }), [
     "claude",
+    ...N,
     "--model",
     "opus",
     "--effort",
@@ -34,17 +37,17 @@ test("OpenCode puts the task after --prompt", () => {
 });
 
 test("an empty task leaves the trailing argument off", () => {
-  assert.deepEqual(buildArgv({ harness: "claude", task: "" }), ["claude"]);
+  assert.deepEqual(buildArgv({ harness: "claude", task: "" }), ["claude", ...N]);
   assert.deepEqual(buildArgv({ harness: "opencode", task: "  \n " }), ["opencode"]);
 });
 
 test("model and effort of default pass no flag", () => {
-  assert.deepEqual(buildArgv({ harness: "claude", model: "default", effort: "default", task: "go" }), ["claude", "go"]);
-  assert.deepEqual(buildArgv({ harness: "claude", model: null, effort: undefined, task: "go" }), ["claude", "go"]);
+  assert.deepEqual(buildArgv({ harness: "claude", model: "default", effort: "default", task: "go" }), ["claude", ...N, "go"]);
+  assert.deepEqual(buildArgv({ harness: "claude", model: null, effort: undefined, task: "go" }), ["claude", ...N, "go"]);
 });
 
 test("a multi-line task stays one argv item", () => {
-  assert.deepEqual(buildArgv({ harness: "claude", task: "line one\nline two\n" }), ["claude", "line one\nline two"]);
+  assert.deepEqual(buildArgv({ harness: "claude", task: "line one\nline two\n" }), ["claude", ...N, "line one\nline two"]);
 });
 
 test("Cursor joins model and effort into one id and drops an effort with no model", () => {
@@ -63,6 +66,6 @@ test("the table lists the model and effort choices pickers offer", () => {
 
 test("Codex ends its options with -- before a task that starts with a dash", () => {
   assert.deepEqual(buildArgv({ harness: "codex", task: "- fix the bug" }), ["codex", "--no-daemon", "--", "- fix the bug"]);
-  assert.deepEqual(buildArgv({ harness: "claude", task: "- fix the bug" }), ["claude", "- fix the bug"]);
+  assert.deepEqual(buildArgv({ harness: "claude", task: "- fix the bug" }), ["claude", ...N, "- fix the bug"]);
   assert.deepEqual(buildArgv({ harness: "opencode", task: "- fix" }), ["opencode", "--prompt", "- fix"]);
 });

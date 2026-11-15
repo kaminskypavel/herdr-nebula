@@ -18,6 +18,9 @@ import {
   checkoutIndex,
 } from "../mods/nebula/lib/launch.js";
 import { launchLabels } from "../mods/nebula/lib/labels.js";
+import { HARNESSES } from "../mods/nebula/lib/harness.js";
+
+const N = HARNESSES.claude.pre;
 
 const repo = { root: "/w/app", name: "app" };
 const checkouts = [
@@ -48,7 +51,7 @@ test("a checkout already shown in a space plans tab.new in that space", () => {
     p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
     ["space.select", "tab.new", "labels", "keys"],
   );
-  assert.deepEqual(launchStep(p).args, { space: "s1", folder: "/w/app", argv: ["claude", "Fix X"], name: "Fix X" });
+  assert.deepEqual(launchStep(p).args, { space: "s1", folder: "/w/app", argv: ["claude", ...N, "Fix X"], name: "Fix X" });
 });
 
 test("a space inside a deeper checkout does not count for the outer one", () => {
@@ -66,7 +69,7 @@ test("a checkout with no space plans space.new at its path", () => {
     p.steps.map((s) => (s.type === "do" ? s.name : s.type)),
     ["space.new", "labels", "keys"],
   );
-  assert.deepEqual(launchStep(p).args, { folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"], tab: "Fix X" });
+  assert.deepEqual(launchStep(p).args, { folder: "/w/app-worktrees/fix-x", argv: ["claude", ...N, "Fix X"], tab: "Fix X" });
 });
 
 test("^N with a new branch plans wt switch --create, then space.new at the path wt returns", () => {
@@ -87,32 +90,32 @@ test("^N with a branch that exists without a worktree plans wt switch without --
 test("^N with a branch that already has a worktree plans no wt call and reuses it", () => {
   const p = plan({ newWorktree: true, branch: "fix-x", branchExists: true, spaces: [{ id: "s2", path: "/w/app-worktrees/fix-x" }] });
   assert.ok(!p.steps.some((s) => s.type === "wt"));
-  assert.deepEqual(launchStep(p).args, { space: "s2", folder: "/w/app-worktrees/fix-x", argv: ["claude", "Fix X"], name: "Fix X" });
+  assert.deepEqual(launchStep(p).args, { space: "s2", folder: "/w/app-worktrees/fix-x", argv: ["claude", ...N, "Fix X"], name: "Fix X" });
   assert.equal(p.existing, true);
 });
 
 test("an empty task plans the bare harness argv", () => {
-  assert.deepEqual(launchStep(plan({ task: "  " })).args.argv, ["claude"]);
+  assert.deepEqual(launchStep(plan({ task: "  " })).args.argv, ["claude", ...N]);
 });
 
 test("a multi-line task stays one trailing argv item", () => {
-  assert.deepEqual(launchStep(plan({ task: "a\nb" })).args.argv, ["claude", "a\nb"]);
+  assert.deepEqual(launchStep(plan({ task: "a\nb" })).args.argv, ["claude", ...N, "a\nb"]);
 });
 
 test("a preset with prefix 'Think first' and task 'Fix X' composes prefix, a blank line, then the task", () => {
   const p = plan({ preset: { name: "Careful", prefix: "Think first", postfix: "" } });
-  assert.deepEqual(launchStep(p).args.argv, ["claude", "Think first\n\nFix X"]);
+  assert.deepEqual(launchStep(p).args.argv, ["claude", ...N, "Think first\n\nFix X"]);
   assert.equal(p.steps.find((s) => s.type === "labels").launch.preset, "Careful");
 });
 
 test("a preset that skips the task leaves the typed task out", () => {
   const p = plan({ preset: { name: "Just go", prefix: "Go", postfix: "", skip_task: true } });
-  assert.deepEqual(launchStep(p).args.argv, ["claude", "Go"]);
+  assert.deepEqual(launchStep(p).args.argv, ["claude", ...N, "Go"]);
 });
 
 test("model and effort reach the argv and the launch label", () => {
   const p = plan({ model: "opus", effort: "high" });
-  assert.deepEqual(launchStep(p).args.argv, ["claude", "--model", "opus", "--effort", "high", "Fix X"]);
+  assert.deepEqual(launchStep(p).args.argv, ["claude", ...N, "--model", "opus", "--effort", "high", "Fix X"]);
   assert.deepEqual(p.steps.find((s) => s.type === "labels").launch, { harness: "claude", model: "opus", effort: "high", preset: null, checkout: "/w/app" });
   assert.ok(launchLabels(p.steps.find((s) => s.type === "labels").launch)["nebula.board"]);
 });
@@ -222,14 +225,14 @@ test("pasted images end the launched task, after a preset's wrapping, and never 
   const imgs = ["/h/nebula-pastes/1.png", "/h/nebula-pastes/2.png"];
   const line = "Images: /h/nebula-pastes/1.png /h/nebula-pastes/2.png";
   const p = plan({ images: imgs });
-  assert.deepEqual(launchStep(p).args.argv, ["claude", `Fix X\n${line}`]);
+  assert.deepEqual(launchStep(p).args.argv, ["claude", ...N, `Fix X\n${line}`]);
   assert.equal(launchStep(p).args.tab, "Fix X");
   const wrapped = plan({ images: imgs, preset: { name: "p", prefix: "Be brief.", postfix: "Run tests." } });
-  assert.deepEqual(launchStep(wrapped).args.argv, ["claude", `Be brief.\n\nFix X\n\nRun tests.\n${line}`]);
+  assert.deepEqual(launchStep(wrapped).args.argv, ["claude", ...N, `Be brief.\n\nFix X\n\nRun tests.\n${line}`]);
   const only = plan({ task: "", images: imgs });
-  assert.deepEqual(launchStep(only).args.argv, ["claude", line]);
+  assert.deepEqual(launchStep(only).args.argv, ["claude", ...N, line]);
   assert.equal(launchStep(only).args.tab, undefined);
-  assert.deepEqual(launchStep(plan({})).args.argv, ["claude", "Fix X"]);
+  assert.deepEqual(launchStep(plan({})).args.argv, ["claude", ...N, "Fix X"]);
 });
 
 test("an Enter that came before the box was ready leaves no line break in the queued task", () => {

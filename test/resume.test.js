@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseSession, nextSession, resumeCommand, canResume, resumeHint, sessionValue } from "../mods/nebula/lib/resume.js";
+import { HEBREW_NOTE } from "../mods/nebula/lib/harness.js";
+
+const NQ = `--append-system-prompt '${HEBREW_NOTE}'`;
 
 const ID = "11111111-2222-3333-4444-555555555555";
 
@@ -45,8 +48,8 @@ test("a payload without a usable id stores nothing, and an unknown app stores no
 });
 
 test("Claude resumes with --resume <id> and the launch model and effort", () => {
-  assert.equal(resumeCommand(`claude:${ID}`, { harness: "claude", model: "opus", effort: "high" }), `claude --resume ${ID} --model opus --effort high`);
-  assert.equal(resumeCommand(`claude:${ID}`, { harness: "claude", model: "default", effort: null }), `claude --resume ${ID}`);
+  assert.equal(resumeCommand(`claude:${ID}`, { harness: "claude", model: "opus", effort: "high" }), `claude --resume ${ID} ${NQ} --model opus --effort high`);
+  assert.equal(resumeCommand(`claude:${ID}`, { harness: "claude", model: "default", effort: null }), `claude --resume ${ID} ${NQ}`);
 });
 
 test("Codex resumes with the resume subcommand, then its flags", () => {
@@ -58,12 +61,12 @@ test("Codex resumes with the resume subcommand, then its flags", () => {
 });
 
 test("the launch flags are used only when the same app launched it", () => {
-  assert.equal(resumeCommand("claude:s1", { harness: "codex", model: "gpt-5.5", effort: "low" }), "claude --resume s1");
-  assert.equal(resumeCommand("claude:s1", undefined), "claude --resume s1");
+  assert.equal(resumeCommand("claude:s1", { harness: "codex", model: "gpt-5.5", effort: "low" }), `claude --resume s1 ${NQ}`);
+  assert.equal(resumeCommand("claude:s1", undefined), `claude --resume s1 ${NQ}`);
 });
 
 test("a value that is not a plain token is quoted, an unreadable label gives no command", () => {
-  assert.equal(resumeCommand("claude:s1", { harness: "claude", model: "my model; x", effort: null }), "claude --resume s1 --model 'my model; x'");
+  assert.equal(resumeCommand("claude:s1", { harness: "claude", model: "my model; x", effort: null }), `claude --resume s1 ${NQ} --model 'my model; x'`);
   assert.equal(resumeCommand("claude:s1;rm -rf ~", null), null);
   assert.equal(resumeCommand(null, null), null);
 });

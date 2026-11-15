@@ -9,10 +9,13 @@
 // prompt where the positional is something else (OpenCode's is the project path).
 // models/efforts: the choices a picker offers, before "default".
 const list = (s) => s.split(" ");
+// Herdr draws Hebrew left to right (no bidi), so quoted Hebrew reads backwards; the meaning keeps it readable.
+export const HEBREW_NOTE = "Quoting Hebrew in chat? Add its English meaning in brackets.";
 export const HARNESSES = {
   claude: {
     label: "Claude",
     program: "claude",
+    pre: ["--append-system-prompt", HEBREW_NOTE],
     model: "--model",
     effort: { flag: "--effort" },
     models: list("fable opus sonnet haiku"),
