@@ -18,7 +18,7 @@ import { ALL, REPO, OPEN, SETTINGS, FOCUS_BOARD, LAUNCHED, DRAFT, FLASH, ICONS }
 import { openList, readPresetFile } from "./presets.js";
 import { iconFor } from "./lib/icons.js";
 import { projectIcon } from "./lib/icon-view.js";
-import { button, dialogTitle, dropdown, agentIcon, keyHint, heroCard, accentButton, soft } from "./ui.js";
+import { button, buttonIcon, dialogTitle, dropdown, agentIcon, keyHint, heroCard, accentButton, soft } from "./ui.js";
 import {
   planLaunch,
   runSteps,
@@ -337,7 +337,9 @@ export class Launch {
       // main or master is always there: when no folder has it checked out, picking it makes its worktree.
       const def = defaultBranchItem(this.list(), this.defaults[r?.root]);
       const mid = def ? [def] : [];
-      return this.wt() ? [{ value: "@new", label: `New: ${this.effective()}` }, ...mid, ...own] : [...mid, ...own];
+      // A new worktree is the list's last choice; picking it shows the name field.
+      const add = this.git() ? [{ value: "@new", label: this.wt() ? `New: ${this.effective()}` : "New worktree", icon: buttonIcon("New") }] : [];
+      return [...mid, ...own, ...add];
     }
     if (key === "harness") {
       const tail = [this.model, this.effort].filter(Boolean).join(" · ");
@@ -388,7 +390,10 @@ export class Launch {
         this.newWt = true;
         this.typed = b;
         this.branch.set_value(b);
-      } else if (value && value !== "@new") {
+      } else if (value === "@new") {
+        if (!this.wt()) this.cycle("worktree", 1, cx);
+        return;
+      } else if (value) {
         this.checkout = value;
         this.newWt = false;
       }
@@ -746,35 +751,10 @@ export class Launch {
     });
   }
 
-  // The worktree pill: dashed when off, the branch input inline when on.
+  // The new worktree's name field, shown while a new worktree is picked (⌃T list or ⌃N); its label turns it off.
   worktreeChip(t, busy) {
     const toggle = (_e, cx) => this.cycle("worktree", 1, cx);
-    if (!this.git()) return h_flex().h(28).px(10).items_center().text_size(fs(12)).text_color(t.dim).child("New worktree · Not a git repo");
-    const label = (text) =>
-      div()
-        .id("ln-wt-lb")
-        .flex_none()
-        .cursor_pointer()
-        .text_color(this.wt() ? t.foreground : t.muted)
-        .on_click(toggle)
-        .child(text);
-    if (!this.wt())
-      return h_flex()
-        .id("ln-wt")
-        .h(28)
-        .px(10)
-        .gap(6)
-        .items_center()
-        .rounded(14)
-        .border_1()
-        .border_dashed()
-        .border_color(t.input)
-        .text_size(fs(12))
-        .cursor_pointer()
-        .hover((s) => s.bg(t.hover))
-        .on_click(toggle)
-        .child(div().text_color(t.muted).child("+ New worktree"))
-        .child(keyHint(t, "⌃N"));
+    const label = (text) => div().id("ln-wt-lb").flex_none().cursor_pointer().text_color(t.foreground).on_click(toggle).child(text);
     return h_flex()
       .id("ln-wt")
       .h(28)
@@ -894,7 +874,7 @@ export class Launch {
               .child(this.chipOf(t, "checkout", "⌃T", { lead: svg(BRANCH).size(14).flex_none().text_color(t.muted) }))
               .child(this.chipOf(t, "harness", "Tab"))
               .child(this.chipOf(t, "preset", "⌃O", { prefix: "Preset" }))
-              .child(this.worktreeChip(t, busy)), // images come by ⌘V or ⌘⇧V, no pill
+              .when(this.wt(), (el) => el.child(this.worktreeChip(t, busy))), // images come by ⌘V or ⌘⇧V, no pill
           )
           .when(this.wt(), (el) =>
             el.child(

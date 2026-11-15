@@ -5,7 +5,12 @@
 // title and gets the line dim under it (the "Prompt line on rows" setting turns that line off). Pure; no herdr imports.
 import { NEW_SESSION } from "./viewmodel.js";
 
-const clean = (s) => String(s ?? "").trim();
+// A paste the CLI wrapped (<pasted_content id="ac93">...</pasted_content>) shows as its text, not the tags.
+const clean = (s) =>
+  String(s ?? "")
+    .replace(/<\/?pasted_content\b[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /** -> { title, sub }: `sub` is the second line's text or "" for none. */
 export function rowText(row, promptLine = true) {

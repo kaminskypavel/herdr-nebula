@@ -48,3 +48,8 @@ test("subSummary is one line: the count and the names", () => {
   assert.equal(subSummary([{ text: "sonnet-high-worker" }, { text: "sonnet-high-worker" }]), "2 subagents · sonnet-high-worker");
   assert.equal(subSummary([{ text: "a" }]), "1 subagent · a");
 });
+
+test("a pasted block shows its text, not the CLI's pasted_content tags", () => {
+  const row = { title: "Admin Dashboard", prompt: '<pasted_content id="ac93">first line\nsecond</pasted_content> then mine' };
+  assert.equal(rowText(row).sub, "first line second then mine");
+});
