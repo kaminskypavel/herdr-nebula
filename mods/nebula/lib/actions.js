@@ -55,7 +55,10 @@ const rowActions = (row, hasLaunch) =>
       (a.id !== "unarchive" || row.archived),
   ).flatMap((a) => (a.id === "folder" && row.editors ? editorItems(row.editors, row.editor) : [a])); // Open in <the Settings pick>, Reveal in Finder (lib/editors.js)
 
-export const isLinked = (root, path) => norm(path) !== `${norm(root)}-worktrees` && inside(path, `${norm(root)}-worktrees`);
+// A worktree the board may remove: one in <repo>-worktrees/ (wt's folder) or <repo>/.claude/worktrees/ (Claude Code's).
+// A checkout anywhere else was made by hand, so the board leaves it alone.
+const WORKTREE_DIRS = (root) => [`${norm(root)}-worktrees`, `${norm(root)}/.claude/worktrees`];
+export const isLinked = (root, path) => WORKTREE_DIRS(root).some((d) => norm(path) !== d && inside(path, d));
 
 export function whereIs(model, id) {
   for (const repo of model.repos) for (const band of repo.bands) if (band.rows.some((r) => r.id === id)) return { repo, band };

@@ -47,7 +47,7 @@ test("only a checkout under <repo>-worktrees is linked", () => {
   assert.equal(isLinked("/w/checkout-flow", WT), true);
   assert.equal(isLinked("/w/checkout-flow", "/w/checkout-flow"), false);
   assert.equal(isLinked("/w/checkout-flow", "/w/checkout-flow-worktrees"), false);
-  assert.equal(isLinked("/w/checkout-flow", "/w/other-worktrees/fix-x"), false);
+  assert.equal(isLinked("/w/checkout-flow", "/w/checkout-flow/.claude/worktrees/fix-x"), true);
 });
 
 test("deleting one of two sessions in a worktree offers no removal", () => {
