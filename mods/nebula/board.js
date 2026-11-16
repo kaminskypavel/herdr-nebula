@@ -1073,11 +1073,19 @@ export class Board {
   showKeep(row, cx) {
     // A stopped session (asleep, exited, closed) is only selected by a click: resuming starts an agent, so it takes
     // Enter, a double click or the menu's Resume.
-    if (row.kind === "nebula" || canResume(row)) {
+    // One that still has a pane is shown as it is (a sleeping one holds its last exchange, sleeper.js), not resumed.
+    if (row.kind === "nebula" || (canResume(row) && !row.pane)) {
       this.say(`${row.title} is stopped \u00b7 \u21a9 resumes it`, undefined, cx);
       return;
     }
-    this.show(row, cx);
+    if (canResume(row)) {
+      this.previewToken++;
+      this.epoch++;
+      this.holdUntil = 0;
+      this.previewed = row;
+      run("pane.focus", { pane: row.pane });
+      this.say(`${row.title} is ${row.asleep ? "asleep" : "stopped"} \u00b7 \u21a9 resumes it`, undefined, cx);
+    } else this.show(row, cx);
     const back = () => run("pane.go", { direction: "left" });
     back();
     cx.timer.after(KEEP_MS, back);

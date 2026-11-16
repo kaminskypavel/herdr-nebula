@@ -11,10 +11,12 @@ export function sessionOf(label) {
 }
 
 // The shell command that prints the tail of that conversation's transcript ($1 is the id).
-export const TRANSCRIPT = {
-  claude: 'f=$(ls "$HOME"/.claude/projects/*/"$1".jsonl 2>/dev/null | head -n 1); [ -n "$f" ] && tail -c 300000 "$f"',
-  codex: 'f=$(ls -t "$HOME"/.codex/sessions/*/*/*/*"$1".jsonl 2>/dev/null | head -n 1); [ -n "$f" ] && tail -c 300000 "$f"',
-};
+// A session that ends on large attachment lines has no reply in the default tail; the recap reads a longer one.
+export const transcriptTail = (bytes = 300000) => ({
+  claude: `f=$(ls "$HOME"/.claude/projects/*/"$1".jsonl 2>/dev/null | head -n 1); [ -n "$f" ] && tail -c ${bytes} "$f"`,
+  codex: `f=$(ls -t "$HOME"/.codex/sessions/*/*/*/*"$1".jsonl 2>/dev/null | head -n 1); [ -n "$f" ] && tail -c ${bytes} "$f"`,
+});
+export const TRANSCRIPT = transcriptTail();
 
 // The agent's last reply in a transcript tail (JSON lines; the first may be cut), or null.
 // Claude: { type: "assistant", message: { content: [{ type: "text", text }] } }. Codex:
@@ -32,6 +34,40 @@ export function lastReply(text) {
     if (said) return said;
   }
   return null;
+}
+
+// What the user last typed in a Claude transcript tail (not a tool result, a command wrapper or a hook note), or null.
+export function lastPrompt(text) {
+  const lines = String(text ?? "").split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let d;
+    try {
+      d = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    if (d?.type === "last-prompt" && typeof d.lastPrompt === "string" && d.lastPrompt.trim()) return d.lastPrompt.trim();
+    if (d?.type !== "user" || d.isMeta) continue;
+    const c = d.message?.content;
+    const said = typeof c === "string" ? c : lastText(c, "text");
+    if (said?.trim() && !said.trimStart().startsWith("<")) return said.trim();
+  }
+  return null;
+}
+
+// What a sleeping agent's shell shows in place of the screen its CLI cleared: the last prompt and the last reply.
+export function recap(text) {
+  const you = lastPrompt(text),
+    said = lastReply(text);
+  if (!you && !said) return null;
+  const cut = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+  return [you && `You: ${cut(you, 600)}`, said && cut(said.trim(), 4000), "Asleep. Enter on the board resumes this conversation."].filter(Boolean).join("\n\n");
+}
+
+// The shell line the board types into a sleeping agent's shell to print that recap, or null. The id is a plain token (sessionOf).
+export function recapCommand(label) {
+  const s = sessionOf(label);
+  return s ? `command -v herdr-nebula >/dev/null 2>&1 && clear && herdr-nebula recap ${s.app}:${s.id}` : null;
 }
 
 function replyIn(d) {

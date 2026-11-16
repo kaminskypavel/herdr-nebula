@@ -4,6 +4,7 @@
 //   herdr-nebula title <3-4 Title Case words>   the agent names its own tab, only while unnamed
 //   herdr-nebula hook prompt claude|codex       the UserPromptSubmit hook (stdin: the hook JSON)
 //   herdr-nebula hook subagent claude start|stop  the SubagentStart / SubagentStop hooks (stdin: the hook JSON)
+//   herdr-nebula recap <app>:<id>               print a conversation's last prompt and reply (a sleeping agent's shell)
 //   herdr-nebula install-hooks                  merge the hooks into Claude and Codex settings
 //   herdr-nebula window                         open a second Herdr window on the same core
 //   herdr-nebula update [--check [--json]]      pull the latest herdr-nebula and reinstall (or only report)
@@ -15,6 +16,7 @@ import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION } from "../mods/nebula/lib/labels.js";
+import { transcriptTail, recap, sessionOf } from "../mods/nebula/lib/reply.js";
 import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
 import { SUB_PREFIX } from "../mods/nebula/lib/subagents.js";
@@ -323,6 +325,15 @@ function installOne(label, file, templateFile) {
   return true;
 }
 
+// Printed into a sleeping agent's shell by the board (mods/nebula/sleeper.js). Prints nothing when there is nothing to show.
+function printRecap(label) {
+  const s = sessionOf(label);
+  if (!s) return;
+  const r = spawnSync("/bin/sh", ["-c", transcriptTail(8000000)[s.app], "sh", s.id], { encoding: "utf8", timeout: 5000, maxBuffer: 1 << 24 });
+  const text = recap(r.stdout);
+  if (text) console.log(text);
+}
+
 function installHooks() {
   const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
   const codexDir = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
@@ -495,12 +506,13 @@ try {
       hookSubagent(rest[2]);
     } catch {}
   } else if (cmd === "title") title(rest);
+  else if (cmd === "recap") printRecap(rest[0]);
   else if (cmd === "install-hooks") installHooks();
   else if (cmd === "window") openWindow();
   else if (cmd === "update") update(rest);
   else {
     console.error(
-      "usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | install-hooks | window | update [--check [--json]]",
+      "usage: herdr-nebula title <words> | hook prompt claude|codex | hook subagent claude start|stop | recap <app>:<id> | install-hooks | window | update [--check [--json]]",
     );
     process.exitCode = 2;
   }

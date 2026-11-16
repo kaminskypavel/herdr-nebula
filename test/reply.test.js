@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sessionOf, lastReply, gist, question, replyLine } from "../mods/nebula/lib/reply.js";
+import { sessionOf, lastReply, gist, question, replyLine, lastPrompt, recap, recapCommand } from "../mods/nebula/lib/reply.js";
 
 test("the conversation is the prompt hook's claude:<id> or codex:<id>; anything else is none", () => {
   assert.deepEqual(sessionOf("claude:eb72a2eb-80f8"), { app: "claude", id: "eb72a2eb-80f8" });
@@ -39,4 +39,20 @@ test("an agent that needs you is quoted by its question; a finished one by its f
   assert.equal(replyLine(reply, "needs"), "Commit it after the meeting?");
   assert.equal(replyLine(reply, "unseen"), "I updated slide 5.");
   assert.equal(replyLine("No question here.", "needs"), "No question here.");
+});
+
+test("a sleeping agent's recap is the last typed prompt and the last reply; tool results, wrappers and hook notes are not prompts", () => {
+  const j = JSON.stringify;
+  const tail = [
+    j({ type: "user", message: { content: "fix the login redirect" } }),
+    j({ type: "assistant", message: { content: [{ type: "text", text: "Fixed in auth.ts." }] } }),
+    j({ type: "user", message: { content: [{ type: "tool_result", content: "ok" }] } }),
+    j({ type: "user", message: { content: "<command-name>/model</command-name>" } }),
+    j({ type: "user", isMeta: true, message: { content: "note" } }),
+  ].join("\n");
+  assert.equal(lastPrompt(tail), "fix the login redirect");
+  assert.equal(recap(tail), "You: fix the login redirect\n\nFixed in auth.ts.\n\nAsleep. Enter on the board resumes this conversation.");
+  assert.equal(recap("cut line"), null);
+  assert.match(recapCommand("claude:eb72-a"), /clear && herdr-nebula recap claude:eb72-a$/);
+  assert.equal(recapCommand("claude:x; rm -rf ~"), null);
 });

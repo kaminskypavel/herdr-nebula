@@ -2,7 +2,8 @@
 // nebula.asleep. The rail's sweep and the board's `z` both call it. The order of steps and
 // the grace are in lib/sleep.js (sleepAgent); this file only wires them to hc.
 import { terminals, hc } from "herdr";
-import { ASLEEP } from "./lib/labels.js";
+import { ASLEEP, SESSION } from "./lib/labels.js";
+import { recapCommand } from "./lib/reply.js";
 import { statusOf } from "./lib/status.js";
 import { sleepAgent } from "./lib/sleep.js";
 
@@ -19,13 +20,17 @@ export async function putToSleep(address, cx) {
   if (busy.has(address)) return "busy";
   busy.add(address);
   try {
-    return await sleepAgent({
+    const r = await sleepAgent({
       exited: () => hasExited(address),
       send: (text) => hc(["send", address, text]),
       keys: (...keys) => hc(["keys", address, ...keys]),
       mark: () => hc(["label", address, `${ASLEEP}=1`]),
       wait: (ms) => new Promise((done) => cx.timer.after(ms, () => done(undefined))),
     });
+    // The CLI cleared its screen on the way out: print the last exchange there, so the pane is worth showing.
+    const recap = r === "asleep" && recapCommand(terminals().find((x) => x.address === address)?.labels?.[SESSION]);
+    if (recap) await hc(["send", address, recap]).catch(() => null);
+    return r;
   } finally {
     busy.delete(address);
   }
