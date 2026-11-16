@@ -472,6 +472,18 @@ test("install-hooks updates a stale managed group in place and keeps the user gr
   assert.deepEqual(groups[1], user);
 });
 
+test("install-hooks folds untagged copies from older installs into one managed group", () => {
+  const w = world();
+  const old = { matcher: "", hooks: [{ type: "command", command: "command -v herdr-nebula >/dev/null 2>&1 && herdr-nebula hook prompt claude || true" }] };
+  const mixed = { hooks: [{ type: "command", command: "echo mine" }, old.hooks[0]] };
+  writeJson(claudeFile(w), { hooks: { UserPromptSubmit: [old, old, mixed, old] } });
+  assert.equal(w.run(["install-hooks"]).status, 0);
+  const groups = JSON.parse(fs.readFileSync(claudeFile(w), "utf8")).hooks.UserPromptSubmit;
+  assert.equal(groups.length, 2);
+  assert.ok(mine(groups[0]));
+  assert.deepEqual(groups[1], mixed);
+});
+
 for (const [name, content] of [
   ["hooks.UserPromptSubmit that is not a list", { hooks: { UserPromptSubmit: {} } }],
   ["permissions.allow that is not a list", { permissions: { allow: "x" } }],

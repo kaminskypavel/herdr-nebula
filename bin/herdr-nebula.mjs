@@ -248,7 +248,9 @@ function title(words) {
 
 const readTemplate = (file) => JSON.parse(fs.readFileSync(path.join(HOOKS_DIR, file), "utf8"));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const managed = (g) => g && typeof g === "object" && g._herdrNebulaManaged === true;
+// Older installs wrote untagged groups, so a group whose every hook runs `herdr-nebula hook` is ours too.
+const ours = (h) => typeof h?.command === "string" && /\bherdr-nebula hook /.test(h.command);
+const managed = (g) => g && typeof g === "object" && (g._herdrNebulaManaged === true || (Array.isArray(g.hooks) && g.hooks.length > 0 && g.hooks.every(ours)));
 
 function merge(settings, template) {
   const next = structuredClone(settings);
