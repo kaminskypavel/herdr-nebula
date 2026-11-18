@@ -38,11 +38,16 @@ export function withPin(tree, address) {
   const at = body.children.findIndex((c) => c.id === PIN_ID);
   if (!address) {
     if (at >= 0) body.children.splice(at, 1);
-    delete body.gap;
   } else if (at >= 0) body.children[at].content = { terminal: address };
-  else {
-    body.children.push({ id: PIN_ID, type: "block", content: { terminal: address }, size: { weight: 1 }, min: 240, ...look() });
-    body.gap = 8;
-  }
+  // Right after main, before Herdr's Files/Changes panel (the row's gap is in the shipped layout).
+  else
+    body.children.splice(body.children.findIndex((c) => c.id === "main") + 1, 0, {
+      id: PIN_ID,
+      type: "block",
+      content: { terminal: address },
+      size: { weight: 1 },
+      min: 240,
+      ...look(),
+    });
   return copy;
 }

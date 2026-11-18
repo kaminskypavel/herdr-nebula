@@ -31,7 +31,7 @@ test("withPin adds a pinned block beside main and leaves the input alone", () =>
     json = JSON.stringify(before);
   const out = withPin(before, "t7");
   assert.equal(JSON.stringify(before), json);
-  assert.deepEqual(kids(out), ["main", PIN_ID]);
+  assert.deepEqual(kids(out), ["main", PIN_ID, "panel"]);
   const pin = findNode(out, PIN_ID);
   assert.deepEqual(pin.content, { terminal: "t7" });
   assert.equal(pin.type, "block");
@@ -44,7 +44,7 @@ test("withPin on a pinned tree swaps the terminal and keeps size", () => {
   const a = withPin(tree(), "t1");
   findNode(a, PIN_ID).size = { px: 500 };
   const b = withPin(a, "t2");
-  assert.deepEqual(kids(b), ["main", PIN_ID]);
+  assert.deepEqual(kids(b), ["main", PIN_ID, "panel"]);
   assert.equal(pinnedIn(b), "t2");
   assert.deepEqual(findNode(b, PIN_ID).size, { px: 500 });
 });
