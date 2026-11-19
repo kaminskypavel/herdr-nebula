@@ -62,3 +62,14 @@ test("withPin: a layout without work-body is not touched", () => {
 test("the shipped layout has the row the pin needs", () => {
   assert.ok(findNode(tree(), "work-body"));
 });
+
+// Herdr's own tabs mod (its Files and Changes buttons, and the per-space restore) runs layout.show {id: "panel"} and
+// layout.select {stack: "panel-body", child: "files" | "changes"}; a layout without these ids makes both fail.
+test("the shipped layout has Herdr's Files/Changes side panel the tab bar opens", () => {
+  const body = findNode(tree(), "panel-body");
+  assert.ok(findNode(tree(), "panel"), 'no "panel" node: Herdr\'s Files button fails with layout.show');
+  assert.deepEqual(
+    body?.children?.map((c) => c.id),
+    ["files", "changes"],
+  );
+});
