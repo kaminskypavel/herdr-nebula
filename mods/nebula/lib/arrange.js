@@ -45,7 +45,7 @@ export function arrange(model, { filter = "", sort = "status", order = [] } = {}
     has = (s) => fold(s).includes(q),
     byTitle = byName((r) => r.title),
     // Manual: the saved order; a session not in it yet keeps its place after the ordered ones (sort is stable).
-    at = new Map(order.map((id, i) => [id, i])),
+    at = new Map((Array.isArray(order) ? order : []).map((id, i) => [id, i])),
     byOrder = (a, b) => (at.get(a.id) ?? Infinity) - (at.get(b.id) ?? Infinity) || 0,
     within = sort === "name" ? byTitle : sort === "manual" ? byOrder : null;
   const repos = [];

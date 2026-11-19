@@ -29,12 +29,19 @@ function launchOf(v) {
   }
 }
 
+// A paste the CLI wrapped (<pasted_content id="ac93">...</pasted_content>) reads as its text, not the tags.
+export const unwrapPaste = (s) =>
+  String(s ?? "")
+    .replace(/<\/?pasted_content\b[^>]*>/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+
 export function readLabels(labels) {
   const l = labels ?? {};
   return {
     board: isBoardLaunched(l),
     launch: launchOf(l[LAUNCH]),
-    prompt: text(l[PROMPT]),
+    prompt: unwrapPaste(text(l[PROMPT])),
     autotitle: text(l[AUTOTITLE]),
     claudetitle: text(l[CLAUDETITLE]),
     session: text(l[SESSION]),

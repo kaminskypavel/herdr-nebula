@@ -210,7 +210,7 @@ export class Board {
     this.bandsFolded = new Set(ui.bandsFolded ?? load("bands.folded", [])); // worktree band paths, in every view but Columns
     this.showArchived = false;
     this.sort = cleanSort(ui.sort ?? load("sort", "status"));
-    this.order = Array.isArray(ui.order) ? ui.order : []; // Manual sort: session ids in the order ⌥↑ ⌥↓ made
+    this.manualOrder = Array.isArray(ui.order) ? ui.order : []; // Manual sort: session ids in the order ⌥↑ ⌥↓ made
     this.filter = ""; // not persisted
     this.filtering = false; // the filter input has the keyboard
     this.leftAt = 0;
@@ -741,8 +741,8 @@ export class Board {
   // Shares the folds, sort and Columns mode with every window (and keeps them in localStorage too).
   saveUi() {
     const live = new Set((this.base?.repos ?? []).flatMap((r) => r.rows.map((x) => x.id)));
-    if (live.size) this.order = this.order.filter((id) => live.has(id)); // gone sessions leave the order
-    const ui = { folded: [...this.folded], bandsFolded: [...this.bandsFolded], sort: this.sort, colMode: this.colMode, order: this.order };
+    if (live.size) this.manualOrder = this.manualOrder.filter((id) => live.has(id)); // gone sessions leave the order
+    const ui = { folded: [...this.folded], bandsFolded: [...this.bandsFolded], sort: this.sort, colMode: this.colMode, order: this.manualOrder };
     this.uiKey = JSON.stringify(ui);
     setShared(BOARD_UI, ui);
   }
@@ -755,7 +755,7 @@ export class Board {
     this.folded = new Set(ui.folded ?? []);
     this.bandsFolded = new Set(ui.bandsFolded ?? []);
     this.sort = cleanSort(ui.sort ?? this.sort);
-    if (Array.isArray(ui.order)) this.order = ui.order;
+    if (Array.isArray(ui.order)) this.manualOrder = ui.order;
     this.colMode = ui.colMode === "projects" ? "projects" : "status";
   }
 
@@ -773,9 +773,9 @@ export class Board {
   moveSession(dir, cx) {
     const item = this.byKey.get(this.cursor);
     if (item?.type !== "session" || !this.model) return;
-    const next = moveRow(this.order, this.model, item.key, dir);
+    const next = moveRow(this.manualOrder, this.model, item.key, dir);
     if (!next) return;
-    this.order = next;
+    this.manualOrder = next;
     this.setSort("manual", cx);
   }
 
@@ -1520,7 +1520,7 @@ export class Board {
       } else this.unfold(item.repo.root);
     } else if (k === "." || k === ",") {
       const id = attentionTarget(
-        arrange(this.base, { sort: this.sort, order: this.order }),
+        arrange(this.base, { sort: this.sort, order: this.manualOrder }),
         item?.type === "session" ? item.key : null,
         k === "." ? 1 : -1,
         undefined,
@@ -1530,7 +1530,7 @@ export class Board {
       else this.say(NOTHING_WAITING, undefined, cx);
     } else if (k === ";") {
       const id = attentionTarget(
-        arrange(this.base, { sort: this.sort, order: this.order }),
+        arrange(this.base, { sort: this.sort, order: this.manualOrder }),
         item?.type === "session" ? item.key : null,
         1,
         ["unseen"],
@@ -1616,7 +1616,7 @@ export class Board {
     this.tab = tabOf(this.tabRoots, picked);
     this.root = this.tab === ALL ? null : this.tab;
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
-    this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort, order: this.order });
+    this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort, order: this.manualOrder });
     this.waitQueue = waitingRows(this.base, shared(CLEARED)); // across every open project: the one count the card, the status line and ⌘] share
     this.upnext = upNext(this.waitQueue);
     // Coming back to Herdr after a while (the icon bar sets BACK): the stack opens with "While you were away".
@@ -1643,7 +1643,7 @@ export class Board {
     if (this.pc) this.fitColumn();
     // the agent order ignores the filter: a hidden agent keeps its place
     const shown = agentOrder(
-      this.filter ? arrange(this.scoped, { sort: this.sort, order: this.order }) : this.model,
+      this.filter ? arrange(this.scoped, { sort: this.sort, order: this.manualOrder }) : this.model,
       this.view,
       this.root,
       this.pc ? { mode: "projects", sel: this.cols } : {},

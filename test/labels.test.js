@@ -32,3 +32,7 @@ test("terminals without labels are not board launched", () => {
   assert.equal(isBoardLaunched(launchLabels(launch)), true);
   assert.deepEqual(readLabels(null), { board: false, launch: null, prompt: "", autotitle: "", claudetitle: "", session: "", asleep: false });
 });
+
+test("a prompt label drops the CLI's pasted_content tags, so a title made from it does too", () => {
+  assert.equal(readLabels({ "nebula.prompt": '<pasted_content id="4e13">This view broke</pasted_content>' }).prompt, "This view broke");
+});
