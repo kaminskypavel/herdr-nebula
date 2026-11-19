@@ -55,7 +55,7 @@ import {
 import { putToSleep, hasExited } from "./sleeper.js";
 import { canResume, resumeCommand } from "./lib/resume.js";
 import { sleepVerdict } from "./lib/sleep.js";
-import { ASLEEP, SESSION, AUTOTITLE, CLAUDETITLE } from "./lib/labels.js";
+import { ASLEEP, SESSION, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, claudeTitleFile, renamedTitle } from "./lib/labels.js";
 import { railOrder } from "./lib/rail.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, commonDirOf, tilde } from "./lib/repos.js";
 import { REFOCUS_MS, findNode, moveStep } from "./lib/focus.js";
@@ -314,7 +314,10 @@ export class Board {
       this.loadNebula(c);
     });
     cx.timer.every(30000, (c) => c.notify());
-    cx.timer.every(PORTS_EVERY, (c) => this.loadPorts(c));
+    cx.timer.every(PORTS_EVERY, (c) => {
+      this.loadPorts(c);
+      this.syncTitles(c);
+    });
     this.loadAll(cx);
     this.loadNebula(cx);
     this.loadPorts(cx);
@@ -335,6 +338,44 @@ export class Board {
         }
       } finally {
         this.portsBusy = false;
+      }
+    });
+  }
+
+  // A /rename inside Claude is not a prompt, so the prompt hook never sees it: read each live Claude conversation's
+  // custom-title.json and give its tab the new name (lib/labels.js renamedTitle decides when).
+  syncTitles(cx) {
+    if (this.titlesBusy) return;
+    this.titlesBusy = true;
+    const tabs = new Map(
+      spaces()
+        .flatMap((sp) => sp.tabs ?? [])
+        .map((tb) => [tb.id, tb]),
+    );
+    cx.spawn(async () => {
+      try {
+        for (const t of terminals()) {
+          const l = t.labels ?? {},
+            s = sessionOf(l[SESSION]),
+            tab = tabs.get(l["herdr.tab"]);
+          if (s?.app !== "claude" || !tab) continue;
+          let launch = null;
+          try {
+            launch = JSON.parse(l["nebula.launch"] ?? "null");
+          } catch {}
+          let text = null;
+          for (const folder of [...new Set([launch?.checkout, t.cwd].filter(Boolean))]) {
+            text = await readTextFile(claudeTitleFile(home(), folder, s.id)).catch(() => null);
+            if (text) break;
+          }
+          const placeholder = !tab.named || tab.name === l[LAUNCHNAME] || tab.name === l[AUTOTITLE];
+          const title = text && renamedTitle(text, l[CLAUDETITLE], placeholder);
+          if (!title) continue;
+          await hc(["label", t.address, `${CLAUDETITLE}=${title}`]).catch(() => null);
+          if (tab.name !== title) run("tab.rename", { id: tab.id, name: title });
+        }
+      } finally {
+        this.titlesBusy = false;
       }
     });
   }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readLabels, launchLabels, isBoardLaunched } from "../mods/nebula/lib/labels.js";
+import { readLabels, launchLabels, isBoardLaunched, claudeTitleFile, renamedTitle } from "../mods/nebula/lib/labels.js";
 
 const launch = { harness: "claude", model: "opus", effort: "high", preset: "reviewer", checkout: "/Users/dev/devl/acme-web" };
 
@@ -35,4 +35,20 @@ test("terminals without labels are not board launched", () => {
 
 test("a prompt label drops the CLI's pasted_content tags, so a title made from it does too", () => {
   assert.equal(readLabels({ "nebula.prompt": '<pasted_content id="4e13">This view broke</pasted_content>' }).prompt, "This view broke");
+});
+
+test("claudeTitleFile: Claude's project folder name turns every non-alphanumeric into -", () => {
+  assert.equal(
+    claudeTitleFile("/Users/pk", "/Users/pk/devl/app/.claude/worktrees/x", "abc-1"),
+    "/Users/pk/.claude/projects/-Users-pk-devl-app--claude-worktrees-x/abc-1/custom-title.json",
+  );
+});
+
+test("renamedTitle: a /rename reaches a placeholder tab or one that follows Claude, never a hand-named one", () => {
+  const file = JSON.stringify({ customTitle: "integrate-grow" });
+  assert.equal(renamedTitle(file, "", true), "integrate-grow");
+  assert.equal(renamedTitle(file, "old title", false), "integrate-grow");
+  assert.equal(renamedTitle(file, "", false), null);
+  assert.equal(renamedTitle(file, "integrate-grow", true), null);
+  assert.equal(renamedTitle("not json", "", true), null);
 });

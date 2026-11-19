@@ -50,3 +50,24 @@ export function readLabels(labels) {
 }
 
 export const launchLabels = (launch, name = null) => ({ [BOARD]: "1", [LAUNCH]: JSON.stringify(launch), ...(name ? { [LAUNCHNAME]: name } : {}) });
+
+// Where Claude Code keeps a conversation's /rename title: ~/.claude/projects/<its folder, every character that is
+// not a letter or digit turned into "-">/<id>/custom-title.json.
+export const claudeTitleFile = (home, folder, id) => `${home}/.claude/projects/${String(folder).replace(/[^A-Za-z0-9]/g, "-")}/${id}/custom-title.json`;
+
+/**
+ * The title a /rename in Claude gave the conversation, when the tab should take it, else null. `text` is
+ * custom-title.json; `held` the title the tab last took from Claude (nebula.claudetitle). The tab takes it when it
+ * changed and the tab still has a placeholder name (`placeholder`) or already followed Claude (`held` is set): a name
+ * typed into the tab by hand stays.
+ */
+export function renamedTitle(text, held, placeholder) {
+  let title = "";
+  try {
+    title = String(JSON.parse(text)?.customTitle ?? "");
+  } catch {
+    return null;
+  }
+  title = Array.from(title.replace(/\s+/g, " ").trim()).slice(0, 60).join("").trimEnd();
+  return title && title !== (held ?? "") && (placeholder || Boolean(held)) ? title : null;
+}
