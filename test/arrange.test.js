@@ -216,3 +216,16 @@ test("a filter keeps an empty band whose own label matches, and drops the other 
   assert.equal(arrange(m).repos[0].bands.length, 3);
   assert.equal(arrange(m, { filter: "proj" }).repos[0].bands.length, 3);
 });
+
+test("A-Z keeps a sleeping session under the running ones", () => {
+  const rows = [
+    { id: "a", title: "currently", status: "working" },
+    { id: "b", title: "Lior", status: "exited", exited: true },
+    { id: "c", title: "lior us", status: "working" },
+  ];
+  const model = { repos: [{ root: "/r", name: "r", rows, bands: [{ path: "/r", label: "master", rows }] }] };
+  assert.deepEqual(
+    arrange(model, { sort: "name" }).repos[0].bands[0].rows.map((r) => r.id),
+    ["a", "c", "b"],
+  );
+});

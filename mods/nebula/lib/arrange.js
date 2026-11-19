@@ -14,7 +14,8 @@ export const NO_MATCH = "No matches";
 export const cleanSort = (v) => (SORTS.includes(v) ? v : "status");
 
 // Where a row sits in its band: live rows, then archived ones, then nebula's own.
-export const rowGroup = (r) => (r.kind === "nebula" ? 2 : r.archived ? 1 : 0);
+// A band's rows in groups, whatever the sort: running, then stopped or asleep, then archived, then nebula's.
+export const rowGroup = (r) => (r.kind === "nebula" ? 3 : r.archived ? 2 : r.exited ? 1 : 0);
 
 const fold = (s) => String(s ?? "").toLowerCase();
 
