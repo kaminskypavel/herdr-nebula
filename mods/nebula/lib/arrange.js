@@ -4,10 +4,11 @@
 // columnsModel and projectColumns follow the same sort.
 import { STATUS_ORDER, tally } from "./status.js";
 
-export const SORTS = ["status", "name"];
-// The sort button's word and its tooltip: Status puts what needs you first, Name is alphabetical.
-export const SORT_TITLE = { status: "Urgent", name: "A–Z" };
-export const SORT_TIP = { status: "Sort: urgent first", name: "Sort: by name" };
+export const SORTS = ["status", "name", "manual"];
+// The sort button's word and its tooltip: Status puts what needs you first, Name is alphabetical, Manual is the
+// order ⌥↑ and ⌥↓ made (lib/arrange.js moveRow).
+export const SORT_TITLE = { status: "Urgent", name: "A–Z", manual: "Manual" };
+export const SORT_TIP = { status: "Sort: urgent first", name: "Sort: by name", manual: "Sort: your order (⌥↑ ⌥↓ move)" };
 
 export const NO_MATCH = "No matches";
 
@@ -39,10 +40,14 @@ const needsFirst = (band) => (band.rows.some((r) => r.status === "needs" && !r.a
 // Sort "status": sessions as buildBoard ordered them (needs you ... grey last), projects by
 // their most urgent status, and inside a project the worktrees with a session that needs you first
 // (otherwise in the order they came). Sort "name": projects, worktrees and sessions alphabetical.
-export function arrange(model, { filter = "", sort = "status" } = {}) {
+export function arrange(model, { filter = "", sort = "status", order = [] } = {}) {
   const q = fold(filter).trim(),
     has = (s) => fold(s).includes(q),
-    byTitle = byName((r) => r.title);
+    byTitle = byName((r) => r.title),
+    // Manual: the saved order; a session not in it yet keeps its place after the ordered ones (sort is stable).
+    at = new Map(order.map((id, i) => [id, i])),
+    byOrder = (a, b) => (at.get(a.id) ?? Infinity) - (at.get(b.id) ?? Infinity) || 0,
+    within = sort === "name" ? byTitle : sort === "manual" ? byOrder : null;
   const repos = [];
   for (const repo of model.repos) {
     const whole = !q || has(repo.name);
@@ -50,14 +55,36 @@ export function arrange(model, { filter = "", sort = "status" } = {}) {
     for (const b of repo.bands) {
       const all = whole || has(b.label) || has(b.branch);
       const rows = all ? b.rows : b.rows.filter((r) => has(r.title));
-      if (rows.length || !q || all) bands.push({ ...b, rows: sort === "name" ? [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || byTitle(a, b)) : rows });
+      if (rows.length || !q || all) bands.push({ ...b, rows: within ? [...rows].sort((a, b) => rowGroup(a) - rowGroup(b) || within(a, b)) : rows });
     }
     if (q && !whole && !bands.length) continue;
     if (sort === "name") bands = [...bands].sort(byName((b) => b.label));
-    else bands = [...bands].sort((a, b) => needsFirst(a) - needsFirst(b));
+    else if (sort === "status") bands = [...bands].sort((a, b) => needsFirst(a) - needsFirst(b));
     const rows = bands.flatMap((b) => b.rows);
     repos.push({ ...repo, bands, rows, counts: tally(rows.map((r) => r.status)) });
   }
-  repos.sort(sort === "name" ? byName((r) => r.name) : (a, b) => urgency(a.rows) - urgency(b.rows));
+  if (sort === "name") repos.sort(byName((r) => r.name));
+  else if (sort === "status") repos.sort((a, b) => urgency(a.rows) - urgency(b.rows));
   return { ...model, repos, sort, filter: q };
+}
+
+/**
+ * The saved order after moving session `id` one place up (dir -1) or down (dir 1) among its band's rows as shown,
+ * staying inside its group (running, stopped, archived). `arranged` is the model as the board shows it. Returns the
+ * new order (the band's rows, in their new order, go to the end), or null when the row cannot move that way.
+ */
+export function moveRow(order, arranged, id, dir) {
+  for (const repo of arranged.repos)
+    for (const band of repo.bands) {
+      const i = band.rows.findIndex((r) => r.id === id);
+      if (i < 0) continue;
+      const j = i + dir,
+        other = band.rows[j];
+      if (!other || rowGroup(other) !== rowGroup(band.rows[i])) return null;
+      const ids = band.rows.map((r) => r.id);
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      const mine = new Set(ids);
+      return [...order.filter((x) => !mine.has(x)), ...ids];
+    }
+  return null;
 }

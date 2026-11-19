@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arrange, cleanSort, byName } from "../mods/nebula/lib/arrange.js";
+import { arrange, cleanSort, byName, moveRow } from "../mods/nebula/lib/arrange.js";
 import { bandStats, bandParts, columnsModel, projectColumns } from "../mods/nebula/lib/viewmodel.js";
 
 const row = (id, title, status, extra = {}) => ({ id, title, status, subs: [], ...extra });
@@ -228,4 +228,21 @@ test("A-Z keeps a sleeping session under the running ones", () => {
     arrange(model, { sort: "name" }).repos[0].bands[0].rows.map((r) => r.id),
     ["a", "c", "b"],
   );
+});
+
+test("Manual: rows follow the saved order; moveRow swaps inside a group only", () => {
+  const rows = [
+    { id: "a", title: "a", status: "working" },
+    { id: "b", title: "b", status: "seen" },
+    { id: "z", title: "z", status: "exited", exited: true },
+  ];
+  const model = { repos: [{ root: "/r", name: "r", rows, bands: [{ path: "/r", label: "master", rows }] }] };
+  const ids = (m) => m.repos[0].bands[0].rows.map((r) => r.id);
+  const shown = arrange(model, { sort: "manual", order: [] });
+  assert.deepEqual(ids(shown), ["a", "b", "z"]);
+  const order = moveRow([], shown, "b", -1);
+  assert.deepEqual(ids(arrange(model, { sort: "manual", order })), ["b", "a", "z"]);
+  // the sleeping one stays under the running ones
+  assert.equal(moveRow(order, arrange(model, { sort: "manual", order }), "z", -1), null);
+  assert.equal(moveRow(order, arrange(model, { sort: "manual", order }), "b", -1), null);
 });

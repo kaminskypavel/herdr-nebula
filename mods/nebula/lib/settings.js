@@ -170,6 +170,7 @@ const SHORTCUTS = [
       { keys: ["p", "t", "v"], text: "new, presets, view" },
       { keys: ["e", "⇧E"], text: "clear Up next, clear all waiting" },
       { keys: ["o", "m"], text: "sort, Columns by status or project" },
+      { keys: ["⌥↑", "⌥↓"], text: "move a session (Manual sort)" },
       { keys: ["-", "="], text: "fold all, expand all" },
       { keys: ["p", "d"], text: "on an empty worktree: new, delete" },
       { keys: ["s"], text: "pin beside, again to unpin" },

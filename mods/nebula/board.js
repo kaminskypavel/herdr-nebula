@@ -132,7 +132,7 @@ import {
   parseWt,
   objectsOnly,
 } from "./lib/viewmodel.js";
-import { arrange, cleanSort, SORTS, SORT_TITLE, SORT_TIP } from "./lib/arrange.js";
+import { arrange, cleanSort, moveRow, SORTS, SORT_TITLE, SORT_TIP } from "./lib/arrange.js";
 import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState } from "./lib/tabs.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
@@ -210,6 +210,7 @@ export class Board {
     this.bandsFolded = new Set(ui.bandsFolded ?? load("bands.folded", [])); // worktree band paths, in every view but Columns
     this.showArchived = false;
     this.sort = cleanSort(ui.sort ?? load("sort", "status"));
+    this.order = Array.isArray(ui.order) ? ui.order : []; // Manual sort: session ids in the order ⌥↑ ⌥↓ made
     this.filter = ""; // not persisted
     this.filtering = false; // the filter input has the keyboard
     this.leftAt = 0;
@@ -739,7 +740,9 @@ export class Board {
 
   // Shares the folds, sort and Columns mode with every window (and keeps them in localStorage too).
   saveUi() {
-    const ui = { folded: [...this.folded], bandsFolded: [...this.bandsFolded], sort: this.sort, colMode: this.colMode };
+    const live = new Set((this.base?.repos ?? []).flatMap((r) => r.rows.map((x) => x.id)));
+    if (live.size) this.order = this.order.filter((id) => live.has(id)); // gone sessions leave the order
+    const ui = { folded: [...this.folded], bandsFolded: [...this.bandsFolded], sort: this.sort, colMode: this.colMode, order: this.order };
     this.uiKey = JSON.stringify(ui);
     setShared(BOARD_UI, ui);
   }
@@ -752,6 +755,7 @@ export class Board {
     this.folded = new Set(ui.folded ?? []);
     this.bandsFolded = new Set(ui.bandsFolded ?? []);
     this.sort = cleanSort(ui.sort ?? this.sort);
+    if (Array.isArray(ui.order)) this.order = ui.order;
     this.colMode = ui.colMode === "projects" ? "projects" : "status";
   }
 
@@ -762,6 +766,17 @@ export class Board {
     localStorage.setItem("columns.mode", JSON.stringify(mode));
     this.saveUi();
     cx.notify();
+  }
+
+  // ⌥↑ / ⌥↓: the selected session one place up or down in its worktree; the sort turns Manual, starting from the
+  // order on screen.
+  moveSession(dir, cx) {
+    const item = this.byKey.get(this.cursor);
+    if (item?.type !== "session" || !this.model) return;
+    const next = moveRow(this.order, this.model, item.key, dir);
+    if (!next) return;
+    this.order = next;
+    this.setSort("manual", cx);
   }
 
   setSort(sort, cx) {
@@ -1469,6 +1484,10 @@ export class Board {
       this.filterKey(e.key, cx);
       return;
     }
+    if (m.alt && !m.control && !m.platform && (e.key === "up" || e.key === "down")) {
+      this.moveSession(e.key === "up" ? -1 : 1, cx);
+      return;
+    }
     if (m.control || m.alt || m.platform) return;
     if (e.key === "enter" && Date.now() - this.leftAt < 150) return;
     const k = e.key,
@@ -1501,7 +1520,7 @@ export class Board {
       } else this.unfold(item.repo.root);
     } else if (k === "." || k === ",") {
       const id = attentionTarget(
-        arrange(this.base, { sort: this.sort }),
+        arrange(this.base, { sort: this.sort, order: this.order }),
         item?.type === "session" ? item.key : null,
         k === "." ? 1 : -1,
         undefined,
@@ -1510,7 +1529,13 @@ export class Board {
       if (id) this.goTo(id, cx);
       else this.say(NOTHING_WAITING, undefined, cx);
     } else if (k === ";") {
-      const id = attentionTarget(arrange(this.base, { sort: this.sort }), item?.type === "session" ? item.key : null, 1, ["unseen"], shared(CLEARED));
+      const id = attentionTarget(
+        arrange(this.base, { sort: this.sort, order: this.order }),
+        item?.type === "session" ? item.key : null,
+        1,
+        ["unseen"],
+        shared(CLEARED),
+      );
       if (id) this.goTo(id, cx);
       else this.say(NOTHING_DONE, undefined, cx);
     } else if (k === "o") {
@@ -1591,7 +1616,7 @@ export class Board {
     this.tab = tabOf(this.tabRoots, picked);
     this.root = this.tab === ALL ? null : this.tab;
     this.scoped = scopeModel(this.base, this.tab); // the selected tab's part of the open projects: every view draws from it
-    this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort });
+    this.model = arrange(this.scoped, { filter: this.filter, sort: this.sort, order: this.order });
     this.waitQueue = waitingRows(this.base, shared(CLEARED)); // across every open project: the one count the card, the status line and ⌘] share
     this.upnext = upNext(this.waitQueue);
     // Coming back to Herdr after a while (the icon bar sets BACK): the stack opens with "While you were away".
@@ -1618,7 +1643,7 @@ export class Board {
     if (this.pc) this.fitColumn();
     // the agent order ignores the filter: a hidden agent keeps its place
     const shown = agentOrder(
-      this.filter ? arrange(this.scoped, { sort: this.sort }) : this.model,
+      this.filter ? arrange(this.scoped, { sort: this.sort, order: this.order }) : this.model,
       this.view,
       this.root,
       this.pc ? { mode: "projects", sel: this.cols } : {},
