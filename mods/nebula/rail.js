@@ -44,6 +44,7 @@ import { STATE_DIR, STATE_FILE, SYNCED, same, snapshot, parseState, stateText, a
 import { applySound } from "./lib/sounds.js";
 import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
 import { mergeSettings } from "./lib/settings.js";
+import { generalRoot, generalStep } from "./lib/general.js";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
 import { statusOf, withSeen } from "./lib/status.js";
@@ -254,6 +255,7 @@ export class Rail {
       this.hud = null;
     }
     if (this.state !== BOARD) this.lastPane = focused()?.pane ?? this.lastPane;
+    this.syncGeneral();
     if (rootsKey(store()) !== this.rootsKey) this.refresh(cx);
     const shown = boardShown(),
       keys = shared(BOARD_KEYS) === true,
@@ -405,6 +407,28 @@ export class Rail {
       g.archived = step.archived;
       this.writeState();
     }
+  }
+
+  // The General setting (lib/general.js): on, make its hidden folder and put General on the list, open and pinned
+  // first; off, take it away. Every window runs this; the second finds nothing to do.
+  syncGeneral() {
+    if (this.generalBusy) return;
+    const on = mergeSettings(shared(SETTINGS)).general,
+      root = generalRoot(home()),
+      next = () => generalStep({ on, root, store: store(), open: shared(OPEN), pinned: shared(PINNED_PROJECTS) });
+    if (!next()) return;
+    this.generalBusy = true;
+    (on ? exec("/bin/mkdir", ["-p", root]).catch(() => null) : Promise.resolve())
+      .then(() => {
+        const s = next();
+        if (!s) return;
+        setShared(STORE, s.store);
+        setShared(OPEN, s.open);
+        setShared(PINNED_PROJECTS, s.pinned);
+      })
+      .finally(() => {
+        this.generalBusy = false;
+      });
   }
 
   // The Sound setting is shared, but Herdr reads its sounds from this window's own settings.json: make that file

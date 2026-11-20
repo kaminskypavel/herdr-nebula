@@ -62,6 +62,7 @@ export const DEFAULTS = {
   away: "macos",
   sound: "herdr",
   upNext: true,
+  general: false,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -97,6 +98,7 @@ export function mergeSettings(stored) {
     away: AWAY_CHOICES.includes(s.away) ? s.away : DEFAULTS.away,
     sound: SOUND_CHOICES.includes(s.sound) ? s.sound : DEFAULTS.sound,
     upNext: typeof s.upNext === "boolean" ? s.upNext : DEFAULTS.upNext,
+    general: typeof s.general === "boolean" ? s.general : DEFAULTS.general,
   };
 }
 

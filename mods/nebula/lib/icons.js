@@ -5,6 +5,7 @@
 // is hashed; a hash that two or more projects picked is a framework default (the create-next-app
 // favicon, the CRA logo, ...) and says nothing about the project, so those projects get initials.
 // Without an icon: two letters on a color picked from the name.
+import { isGeneral, GENERAL_ICON } from "./general.js";
 
 export const MAX_ICON_BYTES = 512 * 1024;
 // Where the board keeps the chosen files (under the app home; a hidden folder, so saving there does not reload the mod).
@@ -81,4 +82,8 @@ export function buildIcons(projects, picks) {
 }
 
 // The entry to draw for a project: the published one, else initials worked out on the spot (before the scan is done).
-export const iconFor = (icons, root, name) => icons?.[root] ?? { path: null, initials: initialsOf(name), color: colorOf(name) };
+// General (lib/general.js) draws its own symbol, not a favicon or initials.
+export const iconFor = (icons, root, name) =>
+  isGeneral(root)
+    ? { path: null, svg: GENERAL_ICON, initials: "", color: colorOf(name) }
+    : (icons?.[root] ?? { path: null, initials: initialsOf(name), color: colorOf(name) });

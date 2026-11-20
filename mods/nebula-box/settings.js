@@ -38,6 +38,7 @@ const TOGGLES = {
   promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   preview: ["Preview while moving", "Show the agent as you move the highlight; Herdr moves the keys there. Off: only Enter or a click opens"],
+  general: ["General workspace", "Experimental. A General tab under All for questions and research, tied to no project; its sessions share one hidden folder"],
   upNext: ["Up next stack", "The cards on top of the board; its \u00d7 turns this off"],
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
@@ -55,7 +56,7 @@ const PICK_W = 150;
 // one row per installed agent.
 /** @type {[string, string[]][]} */
 const TABS = [
-  ["Board", ["view", "newWorktree", "autoTitle", "confirmArchive", "promptLine", "showEmptyWorktrees", "preview", "presetSide", "editor"]],
+  ["Board", ["view", "newWorktree", "autoTitle", "confirmArchive", "promptLine", "showEmptyWorktrees", "preview", "presetSide", "editor", "general"]],
   ["Look", ["textSize", "reduceMotion"]],
   ["Agents", ["harness", "h:*", "sleepAfter"]],
   ["Alerts", ["upNext", "away", "sound"]],

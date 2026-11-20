@@ -1,7 +1,7 @@
 // A project's icon as an element: the picture (or initials on a colored square) with an optional
 // badge (the status dot) at its bottom right. Used by the board's tabs and the picker and +N lists.
 // This file imports gpui, so node tests do not load it.
-import { div, image } from "gpui-kit";
+import { div, image, svg } from "gpui-kit";
 
 const RADIUS = 5;
 
@@ -22,7 +22,13 @@ export function projectIcon({ icon, size = 18, badge = null, ring }) {
         .text_size(Math.max(11, Math.round(size * 0.45)))
         .font_semibold()
         .text_color("#ffffff")
-        .child(icon.initials);
+        .child(
+          icon.svg
+            ? svg(icon.svg)
+                .size(Math.round(size * 0.6))
+                .text_color("#ffffff")
+            : icon.initials,
+        );
   return div()
     .relative()
     .size(size)
