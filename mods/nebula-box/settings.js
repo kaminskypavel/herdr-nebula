@@ -461,6 +461,7 @@ export class Settings {
                   }),
                 ),
                 this.line(t, at("editor"), "Open folder with", "The editor for Shift+Enter and the right-click menu", this.pick(t, "editor")),
+                toggle("general"),
               ]),
             ),
           )
