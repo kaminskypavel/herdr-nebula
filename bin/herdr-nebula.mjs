@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION } from "../mods/nebula/lib/labels.js";
+import { ASLEEP, AUTOTITLE, CLAUDETITLE, LAUNCHNAME, PROMPT, SESSION, tabFromWhere } from "../mods/nebula/lib/labels.js";
 import { transcriptTail, recap, sessionOf } from "../mods/nebula/lib/reply.js";
 import { nextSession } from "../mods/nebula/lib/resume.js";
 import { SETTINGS } from "../mods/nebula/lib/shared.js";
@@ -59,7 +59,13 @@ function findTab(id) {
       }
     }
   }
-  return null;
+  // Herdr 0.1.16's `herdr-app ls` prints null: the core still knows the tab's name (hc ls --json, "space / tab").
+  try {
+    const t = (JSON.parse(run("hc", ["ls", "--json", "--label", `herdr.tab=${id}`])).terminals ?? [])[0];
+    return tabFromWhere(t?.where);
+  } catch {
+    return null;
+  }
 }
 const renameTab = (id, name) => run("herdr-app", ["do", "tab.rename", JSON.stringify({ id, name })], { ...process.env, HERDR_APP_HOME: tabHome ?? appHome() });
 

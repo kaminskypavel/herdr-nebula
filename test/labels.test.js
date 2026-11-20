@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readLabels, launchLabels, isBoardLaunched, claudeTitleFile, renamedTitle } from "../mods/nebula/lib/labels.js";
+import * as labelsLib from "../mods/nebula/lib/labels.js";
 
 const launch = { harness: "claude", model: "opus", effort: "high", preset: "reviewer", checkout: "/Users/dev/devl/acme-web" };
 
@@ -51,4 +52,11 @@ test("renamedTitle: a /rename reaches a placeholder tab or one that follows Clau
   assert.equal(renamedTitle(file, "", false), null);
   assert.equal(renamedTitle(file, "integrate-grow", true), null);
   assert.equal(renamedTitle("not json", "", true), null);
+});
+
+test("tabFromWhere: the tab's name from the core's where; a bare position is no name", () => {
+  const { tabFromWhere } = labelsLib;
+  assert.deepEqual(tabFromWhere("general / I really like the way"), { name: "I really like the way", named: true });
+  assert.deepEqual(tabFromWhere("app / 2"), { name: "2", named: false });
+  assert.equal(tabFromWhere(""), null);
 });

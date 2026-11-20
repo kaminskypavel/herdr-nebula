@@ -61,6 +61,18 @@ export const claudeTitleFile = (home, folder, id) => `${home}/.claude/projects/$
  * changed and the tab still has a placeholder name (`placeholder`) or already followed Claude (`held` is set): a name
  * typed into the tab by hand stays.
  */
+/**
+ * A tab's name from the core's `where` ("space / tab", hc ls --json), as { name, named }, or null. Herdr shows an
+ * unnamed tab by its position ("2"), so a bare number is not a name.
+ */
+export function tabFromWhere(where) {
+  const w = String(where ?? ""),
+    cut = w.indexOf(" / ");
+  if (cut < 0) return null;
+  const name = w.slice(cut + 3);
+  return { name, named: !/^\d+$/.test(name) };
+}
+
 export function renamedTitle(text, held, placeholder) {
   let title = "";
   try {
