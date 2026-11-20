@@ -44,7 +44,7 @@ import { STATE_DIR, STATE_FILE, SYNCED, same, snapshot, parseState, stateText, a
 import { applySound } from "./lib/sounds.js";
 import { trackIdle, sleepDue, SWEEP_MS, TRACK_MS } from "./lib/sleep.js";
 import { mergeSettings } from "./lib/settings.js";
-import { generalRoot, generalStep } from "./lib/general.js";
+import { generalFolder, generalStep } from "./lib/general.js";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
 import { statusOf, withSeen } from "./lib/status.js";
@@ -413,8 +413,9 @@ export class Rail {
   // first; off, take it away. Every window runs this; the second finds nothing to do.
   syncGeneral() {
     if (this.generalBusy) return;
-    const on = mergeSettings(shared(SETTINGS)).general,
-      root = generalRoot(home()),
+    const set = mergeSettings(shared(SETTINGS)),
+      on = set.general,
+      root = generalFolder(home(), set.generalDir),
       next = () => generalStep({ on, root, store: store(), open: shared(OPEN), pinned: shared(PINNED_PROJECTS) });
     if (!next()) return;
     this.generalBusy = true;

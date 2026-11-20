@@ -1,6 +1,7 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run, exec, appHome, playSound } from "herdr";
+import { props, closeOverlay, openOverlay, theme, shared, setShared, knownAgents, run, exec, appHome, home, playSound, pickFolder } from "herdr";
+import { tilde } from "./lib/repos.js";
 import { HARNESSES } from "./lib/harness.js";
 import { installedHarnesses } from "./lib/launch.js";
 import {
@@ -38,7 +39,7 @@ const TOGGLES = {
   promptLine: ["Prompt line on rows", "Show the last prompt under each session's title"],
   showEmptyWorktrees: ["Show empty worktrees", "Give every worktree a band, one with nothing running too"],
   preview: ["Preview while moving", "Show the agent as you move the highlight; Herdr moves the keys there. Off: only Enter or a click opens"],
-  general: ["General workspace", "Experimental. A General tab under All for questions and research, tied to no project; its sessions share one hidden folder"],
+  general: ["General workspace", "Experimental. A General tab under All for questions and research, tied to no project; its sessions share one folder"],
   upNext: ["Up next stack", "The cards on top of the board; its \u00d7 turns this off"],
   reduceMotion: ["Reduce motion", "Turn every animation off: spinners, bobbing, nudges and slides"],
 };
@@ -56,7 +57,8 @@ const PICK_W = 150;
 // one row per installed agent.
 /** @type {[string, string[]][]} */
 const TABS = [
-  ["Board", ["view", "newWorktree", "autoTitle", "confirmArchive", "promptLine", "showEmptyWorktrees", "preview", "presetSide", "editor", "general"]],
+  ["Board", ["view", "newWorktree", "autoTitle", "confirmArchive", "promptLine", "showEmptyWorktrees", "preview", "presetSide", "editor"]],
+  ["General", ["general", "generalDir"]],
   ["Look", ["textSize", "reduceMotion"]],
   ["Agents", ["harness", "h:*", "sleepAfter"]],
   ["Alerts", ["upNext", "away", "sound"]],
@@ -64,7 +66,7 @@ const TABS = [
   ["Updates", ["update"]],
 ];
 const TAB_NAMES = TABS.map(([name]) => name);
-const TAB_ICONS = { Board: "layout-grid", Look: "palette", Agents: "bot", Alerts: "bell", Data: "database", Updates: "refresh-cw" };
+const TAB_ICONS = { Board: "layout-grid", General: "message-circle", Look: "palette", Agents: "bot", Alerts: "bell", Data: "database", Updates: "refresh-cw" };
 
 export class Settings {
   init(cx) {
@@ -297,6 +299,7 @@ export class Settings {
       else if (row === "editor") this.openDd("editor", cx);
       else if (row.startsWith("h:")) this.openAgent(row.slice(2), m.shift ? "effort" : "model", cx);
       else if (row === "import") this.openImport();
+      else if (row === "generalDir") this.chooseGeneralDir();
       else if (row === "update") this.updateNow();
       else this.change(row, 1);
     } else return;
@@ -310,6 +313,12 @@ export class Settings {
 
   // One settings row: the label and an optional description on the left, the control
   // right-aligned. The keyboard row gets a quiet highlight that fills the card's width.
+  // The folder General's sessions run in; Cancel in the picker keeps the current one.
+  async chooseGeneralDir() {
+    const folder = await pickFolder({ prompt: "Choose the folder General's sessions run in" }).catch(() => null);
+    if (folder) this.save({ generalDir: folder });
+  }
+
   line(t, i, label, desc, control, onLabel) {
     return h_flex()
       .id(`row-${i}`)
@@ -461,7 +470,23 @@ export class Settings {
                   }),
                 ),
                 this.line(t, at("editor"), "Open folder with", "The editor for Shift+Enter and the right-click menu", this.pick(t, "editor")),
+              ]),
+            ),
+          )
+          .when(this.tab === "General", (el) =>
+            el.child(
+              this.group(t, "", [
                 toggle("general"),
+                this.line(
+                  t,
+                  at("generalDir"),
+                  "Folder",
+                  s.generalDir ? tilde(s.generalDir, home()) : "Hidden: ~/.config/herdr-nebula/general",
+                  h_flex()
+                    .gap(6)
+                    .when(Boolean(s.generalDir), (r) => r.child(button(t, "st-gdir-reset", "Default", "plain", () => this.save({ generalDir: null }))))
+                    .child(button(t, "st-gdir", "Choose...", "plain", () => this.chooseGeneralDir())),
+                ),
               ]),
             ),
           )

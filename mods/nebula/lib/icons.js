@@ -73,8 +73,9 @@ export function buildIcons(projects, picks) {
     projects.map((p) => [
       p.root,
       {
-        path: kept[p.root] ? cachedPath(kept[p.root]) : null,
-        initials: initialsOf(p.name),
+        path: kept[p.root] && !p.general ? cachedPath(kept[p.root]) : null,
+        ...(p.general ? { svg: GENERAL_ICON } : {}),
+        initials: p.general ? "" : initialsOf(p.name),
         color: colorOf(p.name),
       },
     ]),

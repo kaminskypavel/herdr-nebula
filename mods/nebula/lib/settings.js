@@ -63,6 +63,7 @@ export const DEFAULTS = {
   sound: "herdr",
   upNext: true,
   general: false,
+  generalDir: null,
 };
 
 const text = (v) => (typeof v === "string" && v.trim() ? v : null);
@@ -99,6 +100,7 @@ export function mergeSettings(stored) {
     sound: SOUND_CHOICES.includes(s.sound) ? s.sound : DEFAULTS.sound,
     upNext: typeof s.upNext === "boolean" ? s.upNext : DEFAULTS.upNext,
     general: typeof s.general === "boolean" ? s.general : DEFAULTS.general,
+    generalDir: text(s.generalDir) ?? DEFAULTS.generalDir,
   };
 }
 
