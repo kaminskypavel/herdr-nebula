@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ALL, tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState } from "../mods/nebula/lib/tabs.js";
+import { ALL, tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState, allFolded } from "../mods/nebula/lib/tabs.js";
 import { OTHER, buildBoard, columnsModel, treeItems, listItems, projectColumns, projectItems, bandPaths, agentOrder } from "../mods/nebula/lib/viewmodel.js";
 import { onlyOpen } from "../mods/nebula/lib/open.js";
 import { arrange } from "../mods/nebula/lib/arrange.js";
@@ -210,4 +210,23 @@ test("picking a project lands on the agent last looked at there, else the most u
   assert.equal(landing(model, "/nope", null), null);
   assert.equal(rootOf(model, "t2"), "/a");
   assert.equal(rootOf(model, "zz"), null);
+});
+
+test("allFolded: All counts projects, a project tab counts its worktrees; the button flips with it", () => {
+  const repos = [
+    {
+      root: "/a",
+      bands: [
+        { path: "/a", label: "main" },
+        { path: "/a-wt/x", label: "x" },
+      ],
+    },
+    { root: "/b", bands: [{ path: "/b", label: "main" }] },
+  ];
+  const none = { folded: new Set(), bands: new Set() };
+  assert.equal(allFolded(none, repos, ALL), false);
+  const folded = foldAllState(none, repos, true, ALL);
+  assert.equal(allFolded(folded, repos, ALL), true);
+  assert.equal(allFolded(foldAllState(none, repos.slice(0, 1), true, "/a"), repos.slice(0, 1), "/a"), true);
+  assert.equal(allFolded(none, [], ALL), false);
 });

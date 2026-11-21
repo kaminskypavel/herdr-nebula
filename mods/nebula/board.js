@@ -133,7 +133,7 @@ import {
   objectsOnly,
 } from "./lib/viewmodel.js";
 import { arrange, cleanSort, moveRow, SORTS, SORT_TITLE, SORT_TIP } from "./lib/arrange.js";
-import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState } from "./lib/tabs.js";
+import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState, allFolded } from "./lib/tabs.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
 import * as list from "./views/list.js";
@@ -1904,7 +1904,32 @@ export class Board {
           .text_color(t.foreground)
           .child(all ? "All projects" : repo.name),
       )
-      .when(all || (n > 0 && n <= 9), (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(`\u2318${n}`)));
+      .when(all || (n > 0 && n <= 9), (el) => el.child(div().flex_none().text_size(fs(11)).text_color(t.dim).child(`\u2318${n}`)))
+      .when(this.canFoldAll(), (el) => el.child(this.foldButton(t)));
+  }
+
+  // Collapse all (-) or, when everything is folded, expand all (=): projects on All, worktrees on a project tab.
+  foldButton(t) {
+    const folded = allFolded({ folded: this.folded, bands: this.bandsFolded }, this.scoped.repos, this.tab);
+    return div()
+      .id("fold-all")
+      .flex_none()
+      .size(22)
+      .flex()
+      .items_center()
+      .justify_center()
+      .rounded(6)
+      .text_color(t.muted)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .tooltip(folded ? "Expand all · =" : "Collapse all · -")
+      .on_mouse_down("left", (_e, cx) => {
+        cx.stop_propagation();
+        this.handle.focus();
+        this.foldAll(!folded);
+        cx.notify();
+      })
+      .child(svg(`mods/nebula/icons/${folded ? "chevrons-up-down" : "chevrons-down-up"}.svg`).size(14));
   }
 
   // Docked at the bottom, above the status line: Up next as a stack of cards, across every open project (top is where

@@ -52,6 +52,13 @@ export function foldAllState({ folded, bands }, repos, fold, tab) {
   return { folded: fold ? new Set(folded) : set(folded, roots, false), bands: set(bands, paths, fold) };
 }
 
+// Whether everything foldAllState folds is folded already: on All every project, on a project tab every worktree.
+export function allFolded({ folded, bands }, repos, tab) {
+  const items = tab === ALL ? repos.map((r) => r.root) : repos.flatMap(bandPaths),
+    set = tab === ALL ? folded : bands;
+  return items.length > 0 && items.every((i) => set.has(i));
+}
+
 // Picking a project (its icon or ⌘n) shows one of its agents in the main area, like switching a
 // workspace: the one the user last looked at there while it is still live, else the most urgent
 // (needs you, working, unseen, seen). Archived and nebula rows never count. -> the row, or null.
