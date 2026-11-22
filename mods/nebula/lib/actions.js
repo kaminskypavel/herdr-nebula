@@ -85,6 +85,7 @@ export function worktreeOffer(model, id) {
  */
 export const worktreeActions = ({ editors, editor, deletable, sessions = 0 }) => [
   ...editorItems(editors, editor).map((it) => ({ ...it, key: "" })),
+  { id: "terminal", label: "Open terminal", key: "", icon: "mods/nebula/icons/square-terminal.svg" },
   ...(deletable
     ? [
         {

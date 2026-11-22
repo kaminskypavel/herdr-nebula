@@ -337,6 +337,7 @@ test("a worktree header's menu opens the folder and, for a linked worktree, remo
     [
       ["folder", "Open in Zed"],
       ["editor:finder", "Reveal in Finder"],
+      ["terminal", "Open terminal"],
       ["removeWorktree", "Remove worktree (ends 2 sessions)"],
     ],
   );

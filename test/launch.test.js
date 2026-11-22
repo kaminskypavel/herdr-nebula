@@ -7,6 +7,7 @@ import {
   seedTask,
   draftOf,
   planLaunch,
+  planTerminal,
   runSteps,
   bind,
   worktreePath,
@@ -341,4 +342,19 @@ test("the default branch is offered even when no checkout has it, as a new workt
   assert.equal(defaultBranchOf("origin/main\n"), "main");
   assert.equal(defaultBranchOf("", { master: true }), "master");
   assert.equal(defaultBranchOf("", {}), null);
+});
+
+test("planTerminal: a shell tab in the workspace showing that checkout, else a new workspace there", () => {
+  const checkouts = [
+    { path: "/w/app", branch: "main" },
+    { path: "/w/app-worktrees/fix-x", branch: "fix-x" },
+  ];
+  const spaces = [{ id: "s2", path: "/w/app-worktrees/fix-x" }];
+  assert.deepEqual(planTerminal({ folder: "/w/app-worktrees/fix-x", checkouts, spaces }), [
+    { type: "do", name: "space.select", args: { id: "s2" } },
+    { type: "do", name: "tab.new", args: { space: "s2", folder: "/w/app-worktrees/fix-x", name: "Terminal" }, launch: true },
+  ]);
+  assert.deepEqual(planTerminal({ folder: "/w/app", checkouts, spaces }), [
+    { type: "do", name: "space.new", args: { folder: "/w/app", tab: "Terminal" }, launch: true },
+  ]);
 });

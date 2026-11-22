@@ -1,17 +1,19 @@
 // The right-click menu on a project in the icon bar, a pointer popup (role "project-menu";
 // props: { root, name, open (the open roots, in order), selected (the shown project or null for All),
 // pinned (it is pinned to the top of the icon bar) }).
-// Pin to top keeps the project above the others in the icon bar (and ⌘1, ⌘2 ... follow); Close takes the project out of the open list (the next one is shown when it was the selected
+// Open terminal starts a shell in the project's folder, in its workspace. Pin to top keeps the project above the others in the icon bar (and ⌘1, ⌘2 ... follow); Close takes the project out of the open list (the next one is shown when it was the selected
 // one); Remove asks first, then drops it from the list altogether.
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { props, closeOverlay, openOverlay, setShared, shared, theme } from "herdr";
+import { props, closeOverlay, openOverlay, setShared, shared, theme, exec, run, notify, spaces, panes } from "herdr";
+import { planTerminal, runSteps, placedSpaces } from "./lib/launch.js";
 import { OPEN, REPO, PINNED_PROJECTS } from "./lib/shared.js";
 import { togglePinned } from "./lib/rail.js";
 import { closeProject } from "./lib/open.js";
 import { fs } from "./lib/scale.js";
 
 const items = (pinned) => [
+  { id: "terminal", label: "Open terminal" },
   { id: "pin", label: pinned ? "Unpin" : "Pin to top" },
   { id: "close", label: "Close" },
   { id: "remove", label: "Remove", danger: true },
@@ -28,7 +30,14 @@ export class ProjectMenu {
     const p = props() ?? {},
       id = items(p.pinned)[i]?.id;
     closeOverlay(p.overlay);
-    if (id === "pin") setShared(PINNED_PROJECTS, togglePinned(shared(PINNED_PROJECTS), p.root));
+    if (id === "terminal") {
+      // A shell in the project's folder, in its workspace (lib/launch.js planTerminal), then focused.
+      const steps = planTerminal({ folder: p.root, checkouts: [{ path: p.root, branch: null }], spaces: placedSpaces(spaces(), panes()) });
+      runSteps(steps, exec).then((r) => {
+        if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
+        else if (r.terminal) run("pane.focus", { terminal: r.terminal });
+      });
+    } else if (id === "pin") setShared(PINNED_PROJECTS, togglePinned(shared(PINNED_PROJECTS), p.root));
     else if (id === "close") {
       const r = closeProject(p.open ?? [], p.root, p.selected ?? null);
       setShared(OPEN, r.open);

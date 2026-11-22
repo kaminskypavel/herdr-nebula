@@ -64,7 +64,7 @@ import { HISTORY, parseHistory, readNebulaSessions, closedEntry, addToHistory } 
 import { continueTargets, continueItems, handoffTask } from "./lib/handoff.js";
 import { sessionOf } from "./lib/reply.js";
 import { resumeArgv, recordResumed, resumedTerminal, shownSessions, withHidden } from "./lib/nebula-sessions.js";
-import { planLaunch, runSteps, placedSpaces } from "./lib/launch.js";
+import { planLaunch, planTerminal, runSteps, placedSpaces } from "./lib/launch.js";
 import { mergeSettings, cycleOf, shortcutLabel, VIEW_IDS, VIEW_TITLE } from "./lib/settings.js";
 import {
   ALL,
@@ -1287,7 +1287,18 @@ export class Board {
   worktreeAct(path, action, cx) {
     if (action === "folder") this.openFolder(defaultOpen(shared(SETTINGS)?.editor, this.editors, path), cx);
     else if (action.startsWith("editor:")) this.openFolder(openIn(action.slice(7), path), cx);
+    else if (action === "terminal") this.openTerminal(path, cx);
     else if (action === "removeWorktree" || action === "delete") this.removeWorktree(path);
+  }
+
+  // Open terminal (a worktree's menu): a shell in its folder, in the workspace that already shows it, then focused.
+  openTerminal(path, cx) {
+    const steps = planTerminal({ folder: path, checkouts: this.repos().flatMap((r) => r.checkouts), spaces: placedSpaces(spaces(), panes()) });
+    cx.spawn(async () => {
+      const r = await runSteps(steps, exec);
+      if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
+      else if (r.terminal) run("pane.focus", { terminal: r.terminal });
+    });
   }
 
   // The delete confirm for a whole worktree: the same git check, its sessions ended, then `wt remove` (by path). A

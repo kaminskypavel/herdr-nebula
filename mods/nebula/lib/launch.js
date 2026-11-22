@@ -160,6 +160,18 @@ export function planLaunch(o) {
   return { steps, existing };
 }
 
+// A plain shell in `folder` (Open terminal on a worktree or a project): a new tab in the workspace already showing
+// that checkout, else a new workspace there. No argv, so Herdr starts the user's shell; no labels, it is no agent.
+export function planTerminal({ folder, checkouts, spaces, name = "Terminal" }) {
+  const space = spaceFor(folder, checkouts, spaces);
+  return space
+    ? [
+        { type: "do", name: "space.select", args: { id: space } },
+        { type: "do", name: "tab.new", args: { space, folder, name }, launch: true },
+      ]
+    : [{ type: "do", name: "space.new", args: { folder, tab: name }, launch: true }];
+}
+
 // What the box says when a project's folder is gone (moved or deleted), instead of the terminal's
 // "cannot start /bin/zsh: No such file or directory", which names the shell, not the folder.
 export const goneText = (name, path) => `${name} is not at ${path} anymore. Remove it in Projects (+), then add it from where it is now.`;
