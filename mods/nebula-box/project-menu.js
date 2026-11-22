@@ -29,15 +29,21 @@ export class ProjectMenu {
   choose(i) {
     const p = props() ?? {},
       id = items(p.pinned)[i]?.id;
-    closeOverlay(p.overlay);
     if (id === "terminal") {
-      // A shell in the project's folder, in its workspace (lib/launch.js planTerminal), then focused.
+      // A shell in the project's folder, in its workspace (lib/launch.js planTerminal), then focused. The menu closes
+      // after: a closed popup's code stops, so closing first would drop the half-run steps.
       const steps = planTerminal({ folder: p.root, checkouts: [{ path: p.root, branch: null }], spaces: placedSpaces(spaces(), panes()) });
-      runSteps(steps, exec).then((r) => {
-        if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
-        else if (r.terminal) run("pane.focus", { terminal: r.terminal });
-      });
-    } else if (id === "pin") setShared(PINNED_PROJECTS, togglePinned(shared(PINNED_PROJECTS), p.root));
+      runSteps(steps, exec)
+        .catch((e) => ({ error: String(e), terminal: null }))
+        .then((r) => {
+          if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
+          closeOverlay(p.overlay);
+          if (r.terminal) run("pane.focus", { terminal: r.terminal });
+        });
+      return;
+    }
+    closeOverlay(p.overlay);
+    if (id === "pin") setShared(PINNED_PROJECTS, togglePinned(shared(PINNED_PROJECTS), p.root));
     else if (id === "close") {
       const r = closeProject(p.open ?? [], p.root, p.selected ?? null);
       setShared(OPEN, r.open);

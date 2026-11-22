@@ -15,14 +15,16 @@ export class OpenTerminal {
     cx.timer.after(300, () => this.handle.focus());
   }
 
-  submit() {
+  // Opens it, then closes: a closed dialog's code stops, so closing first would drop the half-run steps.
+  async submit() {
+    if (this.busy) return;
+    this.busy = true;
     const p = props() ?? {};
-    closeOverlay(p.overlay);
     const steps = planTerminal({ folder: p.folder, checkouts: p.checkouts ?? [{ path: p.folder, branch: null }], spaces: placedSpaces(spaces(), panes()) });
-    runSteps(steps, exec).then((r) => {
-      if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
-      else if (r.terminal) run("pane.focus", { terminal: r.terminal });
-    });
+    const r = await runSteps(steps, exec).catch((e) => ({ error: String(e), terminal: null }));
+    if (r.error) notify({ title: "Could not open a terminal", body: r.error, level: "error", timeout: 5000 });
+    closeOverlay(p.overlay);
+    if (r.terminal) run("pane.focus", { terminal: r.terminal });
   }
 
   render() {
