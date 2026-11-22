@@ -78,6 +78,7 @@ export class Confirm {
             }
           }
           this.killed = true;
+          if (p.next) await doCmd("pane.focus", { terminal: p.next }); // stay in the project (the board's afterDelete)
         }
         let dirty = 0;
         if (this.remove && p.offer) {

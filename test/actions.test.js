@@ -367,3 +367,24 @@ test("a worktree whose folder is gone: hide its nebula sessions and prune git's 
   };
   assert.deepEqual(planForget(band, "/w/app"), { hide: ["n1"], prune: { cmd: "git", args: ["-C", "/w/app", "worktree", "prune"] } });
 });
+
+test("afterDelete lands on the next live session in the worktree, else the one before, else the project's", async () => {
+  const { afterDelete } = await import("../mods/nebula/lib/actions.js");
+  const row = (id, extra = {}) => ({ id, address: id, ...extra });
+  const model = {
+    repos: [
+      {
+        root: "/w/app",
+        bands: [
+          { path: "/w/app", rows: [row("a"), row("b"), row("c", { exited: true }), row("d")] },
+          { path: "/w/app-wt/x", rows: [row("x")] },
+        ],
+      },
+      { root: "/w/other", bands: [{ path: "/w/other", rows: [row("o")] }] },
+    ],
+  };
+  assert.deepEqual(afterDelete(model, "b"), { root: "/w/app", next: "d" });
+  assert.deepEqual(afterDelete(model, "d"), { root: "/w/app", next: "b" });
+  assert.deepEqual(afterDelete(model, "x"), { root: "/w/app", next: "a" });
+  assert.deepEqual(afterDelete(model, "o"), { root: "/w/other", next: null });
+});

@@ -155,6 +155,18 @@ export const planForget = (band, root) => ({
   prune: { cmd: "git", args: ["-C", root, "worktree", "prune"] },
 });
 
+// Where to land after deleting a session: the next live session in its worktree, else the one before it, else any
+// in its project, so the cursor and the main area stay in that project. -> { root, next } (next: an address or null).
+export function afterDelete(model, id) {
+  const at = whereIs(model, id);
+  if (!at) return { root: null, next: null };
+  const live = (r) => r.id !== id && r.address && !r.exited && !r.archived && r.kind !== "nebula";
+  const rows = at.band.rows,
+    i = rows.findIndex((r) => r.id === id);
+  const pick = rows.slice(i + 1).find(live) ?? [...rows.slice(0, i)].reverse().find(live) ?? at.repo.bands.flatMap((b) => b.rows).find(live);
+  return { root: at.repo.root, next: pick?.address ?? null };
+}
+
 export const aloneInTab = (panes, tab, terminal) => Boolean(tab) && !panes.some((p) => p.tab === tab && p.terminal !== terminal);
 
 export const planDelete = ({ terminal, tab, alone }) => [

@@ -107,7 +107,18 @@ import { syncOpen, openProject, onlyOpen, pickerHeight, summarize } from "./lib/
 import { buildIcons } from "./lib/icons.js";
 import { pickIcon } from "./lib/icon-scan.js";
 import { togglePin, pinnable, pinnedIn, pinGone, withPin } from "./lib/pin.js";
-import { actionsFor, rowAction, worktreeOffer, aloneInTab, tabCommand, whereIs, worktreeActions, worktreeSessions, planForget } from "./lib/actions.js";
+import {
+  actionsFor,
+  rowAction,
+  worktreeOffer,
+  aloneInTab,
+  afterDelete,
+  tabCommand,
+  whereIs,
+  worktreeActions,
+  worktreeSessions,
+  planForget,
+} from "./lib/actions.js";
 import { trackStates, freshState, nudging, popping } from "./lib/attention.js";
 import { PORTS_SCRIPT, parsePorts, portUrl, portAt } from "./lib/ports.js";
 import { LIST_APPS, installedEditors, openIn, defaultOpen, ICON_SCRIPT, APP_ICONS, iconArgs, withIcons } from "./lib/editors.js";
@@ -159,6 +170,7 @@ const rowActionOf = (k, m) => {
 
 const COLUMN_TYPES = ["project", "worktree", "session"];
 const DOUBLE_CLICK_MS = 400;
+const STAY_MS = 4000; // after a delete, how long the board keeps to that project while Herdr refocuses (deleteProps)
 const PORTS_EVERY = 5000; // how often the board looks for listening ports
 const KEEP_MS = 250; // after a click shows an agent, when the board asks for the keys back again
 const COMPACT_BELOW = 500;
@@ -602,7 +614,8 @@ export class Board {
     if (term !== this.lastTerm && this.all) {
       const r = followFocus({ terminal: term, last: this.lastTerm, boardKeys: has, model: this.all });
       this.lastTerm = r.last;
-      if (r.id) {
+      const away = r.id && this.stay && Date.now() < this.stay.until && whereIs(this.all, r.id)?.repo.root !== this.stay.root;
+      if (r.id && !away) {
         this.goTo(r.id, cx);
         cx.notify();
       }
@@ -1248,8 +1261,13 @@ export class Board {
 
   deleteProps(row) {
     if (row.address) this.deleting.add(row.address); // ended on purpose: not remembered as closed
-    const full = buildBoard(this.boardArgs(true));
+    const full = buildBoard(this.boardArgs(true)),
+      land = afterDelete(this.all, row.id);
+    // Closing its tab lets Herdr focus a terminal anywhere: for a few seconds the board does not follow that out of
+    // this project, and the dialog focuses `next`, a sibling session, once it is done.
+    if (land.root) this.stay = { root: land.root, until: Date.now() + STAY_MS };
     return {
+      next: land.next,
       title: row.title,
       worktree: whereIs(full, row.id)?.band.label ?? "",
       status: LABEL[row.status] ?? row.status,
