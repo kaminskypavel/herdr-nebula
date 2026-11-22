@@ -18,11 +18,12 @@ const PORTS_SHOWN = 3;
 
 // Row heights, for the virtual lists, which place rows by stated sizes.
 // `sessionTall` is a session row with the prompt line under its title.
-export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 42, vacant: 26, sub: 22, shelf: 24, empty: 40 };
+// asleep: a stopped or asleep session, one small line (the 2026-11-22 rows pick); sessionTall: a live one with its prompt.
+export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 38, asleep: 22, vacant: 26, sub: 22, shelf: 24, empty: 40 };
 
 // The stated height of an item in a virtual list; opts: { promptLine } (the setting).
-export const itemHeight = (item, opts = {}) =>
-  rh(item.type === "session" && rowText(item.row, opts.promptLine !== false).sub ? HEIGHT.sessionTall : HEIGHT[item.type]);
+const rowHeight = (row, promptLine) => (row.exited && !row.archived ? HEIGHT.asleep : rowText(row, promptLine).sub ? HEIGHT.sessionTall : HEIGHT.session);
+export const itemHeight = (item, opts = {}) => rh(item.type === "session" ? rowHeight(item.row, opts.promptLine !== false) : HEIGHT[item.type]);
 
 const tone = (status, t) => t[COLOR[status]] ?? t.unknown;
 
@@ -53,7 +54,7 @@ export function rowDot(row, t, size = 8) {
       .items_center()
       .justify_center()
       .child(
-        row.asleep ? svg("mods/nebula/icons/moon.svg").size(11).flex_none().text_color(t.dim) : div().size(size).rounded_full().border(1.5).border_color(t.dim),
+        row.asleep ? svg("mods/nebula/icons/moon.svg").size(10).flex_none().text_color(t.dim) : div().size(7).rounded_full().border(1.5).border_color(t.dim),
       );
   if (row.archived || reduced()) return ball(row.status, t, size, row.archived, row.fresh);
   if (row.status === "unseen" && row.fresh) {
@@ -230,7 +231,8 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     ports = portCells(row, t),
     look = rowLook(row);
   const text = rowText(row, promptLine);
-  const height = rh(text.sub ? HEIGHT.sessionTall : HEIGHT.session);
+  const height = rh(rowHeight(row, promptLine)),
+    asleep = row.exited && !row.archived;
   // Needs you wins the left edge; a selected row then shows the fill and an accent outline instead of the accent bar.
   const outline = pinned || (selected && look.bar === "needs");
   return entering(h_flex(), enter, `session-${row.id}`)
@@ -242,7 +244,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     .pl(indent)
     .pr(10)
     .rounded(6)
-    .text_size(fs(13))
+    .text_size(fs(asleep ? 12 : 13))
     .when(selected, (el) => el.bg(t.selected))
     .when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
     .when(outline, (el) => el.border_1().border_color(t.accent))
