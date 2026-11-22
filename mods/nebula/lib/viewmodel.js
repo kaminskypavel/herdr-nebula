@@ -1,5 +1,5 @@
 import { groupSessions, bestBand, norm, baseName } from "./projects.js";
-import { statusOf, tally, withSeen, COLOR, STATUS_ORDER } from "./status.js";
+import { statusOf, tally, withSeen, isShell, COLOR, STATUS_ORDER } from "./status.js";
 import { readLabels } from "./labels.js";
 import { duration, hookSubs, sameApp, byParent, tree as subTree, kidStatus, subRow } from "./subagents.js";
 import { nextAttention } from "./order.js";
@@ -91,7 +91,8 @@ function sessionRow(t, where, ctx) {
     fresh: freshState(status, archived, stateSince, ctx.now),
     unseenSince,
     stateSince,
-    title: tab?.named && tab.name ? tab.name : NEW_SESSION,
+    title: tab?.named && tab.name ? tab.name : isShell(t) ? programName(t) || "Terminal" : NEW_SESSION,
+    kind: isShell(t) ? "shell" : undefined,
     program: programName(t),
     model: labels.launch?.model ?? "",
     effort: labels.launch?.effort ?? "",
@@ -101,7 +102,7 @@ function sessionRow(t, where, ctx) {
     asleep: resume.asleep,
     changedAt: tab?.changed_at > 0 ? tab.changed_at : 0,
     turn: Number.isInteger(t.turn) ? t.turn : null, // the core's turn count, the same in every window (lib/waiting.js clearKey)
-    age: tab?.settled ? "archived" : exited ? resumeHint(resume) || "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
+    age: tab?.settled ? "archived" : isShell(t) ? "" : exited ? resumeHint(resume) || "exited" : since ? duration(Math.max(0, ctx.now - since)) : "",
     subs: subsOf(t, ctx),
     ports: ctx.ports?.[t.address] ?? [],
   };

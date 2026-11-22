@@ -1,7 +1,7 @@
 // How a session row's state shows in its text, not only in its dot (the critique: every title was the
 // same white). One pure mapping that Tree, List, Cards and Columns share. No herdr imports, so node can test it.
 //
-//   title   "needs" white semibold (red is its dot, bar and "needs you"), "unseen" white semibold, "seen" white regular, "plain" white, "dim" (exited, asleep, archived, nebula)
+//   title   "needs" white semibold (red is its dot, bar and "needs you"), "unseen" white semibold, "seen" white regular, "plain" white, "dim" (exited, asleep, archived, nebula), "shell" muted (a plain terminal)
 //   ageText the right-hand words: "needs you" for a row that needs you, else the row's age
 //   ageTone "needs" red semibold, "unseen" cyan, "plain" the view's usual age color
 //   bar     "needs" for the red bar at the row's left edge, else null
@@ -12,6 +12,7 @@ const DIM = { title: "dim", ageTone: "plain", bar: null };
 export function rowLook(row) {
   const age = row.age ?? "";
   if (row.exited || row.archived || row.kind === "nebula") return { ...DIM, ageText: age };
+  if (row.kind === "shell") return { title: "shell", ageText: "", ageTone: "plain", bar: null };
   switch (row.status) {
     case "needs":
       return { title: "needs", ageText: "needs you", ageTone: "needs", bar: "needs" };

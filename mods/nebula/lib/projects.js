@@ -8,7 +8,7 @@
 // checkout (empty ones too). A terminal outside every checkout but carrying a git
 // `commonDir` of a listed project gets a band of its own at its cwd. Sub-agent terminals
 // (with a parent), plain shells and anything not live are left out.
-import { statusOf, tally } from "./status.js";
+import { statusOf, tally, isShell } from "./status.js";
 
 // A path without trailing slashes ("/" stays "/").
 export const norm = (path) => {
@@ -76,7 +76,7 @@ export function groupSessions(terminals, projects) {
   };
 
   for (const t of terminals) {
-    if (t.parent || t.state !== "live" || statusOf(t) === null) continue;
+    if (t.parent || t.state !== "live" || (statusOf(t) === null && !isShell(t))) continue;
     (place(t)?.sessions ?? other).push(t);
   }
   return { repos, other };

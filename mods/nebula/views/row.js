@@ -22,7 +22,9 @@ const PORTS_SHOWN = 3;
 export const HEIGHT = { repo: 28, band: 32, session: 26, sessionTall: 38, asleep: 22, vacant: 26, sub: 22, shelf: 24, empty: 40 };
 
 // The stated height of an item in a virtual list; opts: { promptLine } (the setting).
-const rowHeight = (row, promptLine) => (row.exited && !row.archived ? HEIGHT.asleep : rowText(row, promptLine).sub ? HEIGHT.sessionTall : HEIGHT.session);
+// One small line: a stopped or asleep agent, or a plain terminal.
+const compact = (row) => (row.exited && !row.archived) || row.kind === "shell";
+const rowHeight = (row, promptLine) => (compact(row) ? HEIGHT.asleep : rowText(row, promptLine).sub ? HEIGHT.sessionTall : HEIGHT.session);
 export const itemHeight = (item, opts = {}) => rh(item.type === "session" ? rowHeight(item.row, opts.promptLine !== false) : HEIGHT[item.type]);
 
 const tone = (status, t) => t[COLOR[status]] ?? t.unknown;
@@ -45,6 +47,15 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
 // big, then small, so the spring has a start and a target). Still (the plain dot) when the row is archived or
 // motion is reduced.
 export function rowDot(row, t, size = 8) {
+  // A plain terminal: the terminal icon, muted, where an agent's dot goes.
+  if (row.kind === "shell" && !row.archived)
+    return div()
+      .size(size)
+      .flex_none()
+      .flex()
+      .items_center()
+      .justify_center()
+      .child(svg("mods/nebula/icons/square-terminal.svg").size(11).flex_none().text_color(t.muted));
   // Asleep: a dim moon where the dot goes; stopped: a dim ring. Live rows keep their colored dot.
   if (row.exited && !row.archived)
     return div()
@@ -99,7 +110,7 @@ const agentGlyph = (row, icon, t) => {
 // model (lib/rowmeta.js stampOdd): the common case stays quiet. The text shrinks and truncates, so a long
 // value never pushes the age off.
 export function metaLine(row, t, size = 12, selected = false) {
-  if (!selected && !row.metaOdd) return null;
+  if (row.kind === "shell" || (!selected && !row.metaOdd)) return null; // a terminal's title already names its program
   const { icon, text } = rowMeta(row);
   if (!icon && !text) return null;
   return h_flex()
@@ -115,7 +126,7 @@ export function metaLine(row, t, size = 12, selected = false) {
 // A session's title, colored by its state (lib/rowstyle.js): bold when it needs you or finished unseen, white
 // (regular) when live and seen, dim when stopped, asleep or archived, so a live row never reads like an asleep one. An archived one is italic with an archive icon before it.
 // A row that needs you keeps a white title: red is only its dot, its left bar and "needs you" (all red read as harsh).
-const TITLE_COLOR = { needs: "foreground", unseen: "foreground", seen: "foreground", plain: "foreground", dim: "dim" };
+const TITLE_COLOR = { needs: "foreground", unseen: "foreground", seen: "foreground", plain: "foreground", dim: "dim", shell: "muted" };
 export function title(row, t, look = rowLook(row)) {
   const text = div()
     .min_w(0)
@@ -232,7 +243,7 @@ export function sessionLine(row, t, { selected, indent = 14, click = null, pinne
     look = rowLook(row);
   const text = rowText(row, promptLine);
   const height = rh(rowHeight(row, promptLine)),
-    asleep = row.exited && !row.archived;
+    asleep = compact(row);
   // Needs you wins the left edge; a selected row then shows the fill and an accent outline instead of the accent bar.
   const outline = pinned || (selected && look.bar === "needs");
   return entering(h_flex(), enter, `session-${row.id}`)

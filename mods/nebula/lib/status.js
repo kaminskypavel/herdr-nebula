@@ -12,6 +12,8 @@ const atPrompt = (t) => Boolean(t.program?.shell) || SHELLS.has(String(t.program
 
 export function statusOf(t) {
   if (isBoardLaunched(t?.labels)) return atPrompt(t) ? "exited" : (FROM_HERDR[t.status] ?? "exited");
+  // An agent Herdr started that exited to its shell still carries its conversation: a stopped agent (Enter resumes).
+  if (t?.labels?.["nebula.session"] && atPrompt(t)) return "exited";
   return FROM_HERDR[t?.status] ?? null;
 }
 
@@ -21,6 +23,10 @@ export function withSeen(terminals, agents) {
   const said = new Map(agents.map((a) => [a.address, a.status]));
   return terminals.map((t) => (t.status === "done" && said.get(t.address) === "idle" ? { ...t, status: "idle" } : t));
 }
+
+// A plain terminal in a Herdr tab (a shell from ⌘T or Open terminal, or a dev server): no agent status, not one the
+// board launched (that is an agent still starting), and in a Herdr tab. The board lists it as a quiet row.
+export const isShell = (t) => statusOf(t) === null && !isBoardLaunched(t?.labels) && Boolean(t?.labels?.["herdr.tab"]);
 
 export const STATUS_ORDER = ["needs", "working", "unseen", "seen"];
 

@@ -77,3 +77,22 @@ test("two sessions in the same checkout the list does not know yet share one ban
   const g = groupSessions([claude("t1", cwd, "idle", common), claude("t2", cwd, "working", common)], [acme]);
   assert.equal(g.repos[0].bands.filter((b) => b.sessions.length).length, 1);
 });
+
+test("a plain terminal in a Herdr tab is listed; another app's terminal is not", async () => {
+  const { groupSessions } = await import("../mods/nebula/lib/projects.js");
+  const repos = [{ root: "/w/app", name: "app", checkouts: [{ path: "/w/app", branch: "main" }] }];
+  const shell = { address: "t1", state: "live", cwd: "/w/app", status: null, program: { name: "zsh", shell: true }, labels: { "herdr.tab": "tb1" } };
+  const foreign = { ...shell, address: "t3", labels: {} };
+  const g = groupSessions([shell, foreign], repos);
+  assert.deepEqual(
+    g.repos[0].bands.flatMap((b) => b.sessions).map((t) => t.address),
+    ["t1"],
+  );
+});
+
+test("an agent that exited to its shell is a stopped agent, not a terminal, even when the board did not start it", async () => {
+  const { statusOf, isShell } = await import("../mods/nebula/lib/status.js");
+  const t = { status: null, program: { name: "zsh", shell: true }, labels: { "herdr.tab": "tb1", "nebula.session": "claude:abc" } };
+  assert.equal(statusOf(t), "exited");
+  assert.equal(isShell(t), false);
+});
