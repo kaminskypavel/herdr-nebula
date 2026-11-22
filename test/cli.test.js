@@ -12,8 +12,8 @@ const FAKE = path.join(root, "test", "fixtures", "cli", "fake-cli.txt");
 
 // A temp world: fake hc and herdr-app first on PATH, a HOME with Herdr's shared.json, and
 // the fake's state file. Nothing here touches the live core, Herdr or ~/.claude.
-/** @param {{ labels?: object, tabs?: { id: string, name: string }[], settings?: any, term?: string | null }} [o] */
-function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term = "t1" } = {}) {
+/** @param {{ labels?: object, tabs?: { id: string, name: string }[], settings?: any, term?: string | null, lsNull?: boolean }} [o] */
+function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term = "t1", lsNull = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hn-cli-"));
   const bin = path.join(dir, "bin");
   fs.mkdirSync(bin);
@@ -29,7 +29,7 @@ function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term 
   fs.mkdirSync(appHome, { recursive: true });
   if (settings !== undefined) fs.writeFileSync(path.join(appHome, "shared.json"), JSON.stringify({ "nebula.settings": settings }));
   const stateFile = path.join(dir, "state.json");
-  const state = { labels: { "herdr.tab": "tb1", "herdr.space": "sp1", ...labels }, tabs, calls: [] };
+  const state = { labels: { "herdr.tab": "tb1", "herdr.space": "sp1", ...labels }, tabs, calls: [], lsNull };
   fs.writeFileSync(stateFile, JSON.stringify(state));
   const env = { PATH: `${bin}:${process.env.PATH}`, HOME: home, FAKE_STATE: stateFile, HERDR_NEBULA_BUDGET_MS: "10000" };
   if (term) env.HC_TERMINAL_ID = term;
@@ -539,4 +539,13 @@ test("a tab the board named from the task at launch still counts as unnamed: the
   assert.equal(out.sessionTitle, undefined);
   w.run(["title", "Sqlite", "Radar", "Report"]);
   assert.equal(w.state().tabs[0].name, "Sqlite Radar Report");
+});
+
+// Herdr 0.1.16 cut `herdr-app ls` replies at 8 KiB and the client printed null (herdrdev/herdr-app#1286): sessions
+// stopped naming themselves. The core still knows the tab's name, so the hook asks it instead.
+test("with herdr-app ls printing null, the hook still finds the tab through hc", () => {
+  const w = world({ lsNull: true });
+  assert.match(reply(w.run(["hook", "prompt", "claude"], payload())).additionalContext, /herdr-nebula title <title>/);
+  const named = world({ lsNull: true, tabs: [{ id: "tb1", name: "Shopify sync" }] });
+  assert.equal(reply(named.run(["hook", "prompt", "claude"], payload())).additionalContext, undefined);
 });

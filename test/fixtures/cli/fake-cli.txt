@@ -1,6 +1,7 @@
 // A stand-in for `hc` and `herdr-app` (the tests run a .cjs copy with node or bun; the .txt name
 // keeps `node --test` from treating it as a test file). argv[2] is which tool it plays. All state lives in the JSON
-// file named by FAKE_STATE: { labels, tabs: [{ id, name }], calls: [[tool, ...args]] }.
+// file named by FAKE_STATE: { labels, tabs: [{ id, name }], calls: [[tool, ...args]], lsNull }. lsNull: `herdr-app ls`
+// prints null, as Herdr 0.1.16 did when its reply passed 8 KiB (herdrdev/herdr-app#1286).
 const fs = require("node:fs");
 
 const [, , tool, ...args] = process.argv;
@@ -17,8 +18,12 @@ if (tool === "hc" && args[0] === "get") {
     const k = pair.slice(0, i), v = pair.slice(i + 1);
     if (v === "") delete state.labels[k]; else state.labels[k] = v;
   }
+} else if (tool === "hc" && args[0] === "ls") {
+  const id = (args.find((a) => a.startsWith("herdr.tab=")) ?? "").slice("herdr.tab=".length);
+  const tab = state.tabs.find((t) => t.id === id);
+  console.log(JSON.stringify({ terminals: tab ? [{ address: "t1", where: `sp / ${tab.name}` }] : [] }));
 } else if (tool === "herdr-app" && args[0] === "ls") {
-  console.log(JSON.stringify({ spaces: [{ id: "sp1", tabs: state.tabs }] }));
+  console.log(state.lsNull ? "null" : JSON.stringify({ spaces: [{ id: "sp1", tabs: state.tabs }] }));
 } else if (tool === "herdr-app" && args[0] === "do" && args[1] === "tab.rename") {
   const { id, name } = JSON.parse(args[2]);
   state.tabs.find((t) => t.id === id).name = name;
