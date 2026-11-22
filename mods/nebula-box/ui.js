@@ -24,6 +24,7 @@ const BUTTON_ICONS = [
   [/^(add|new)/i, "plus"],
   [/^choose/i, "folder-open"],
   [/^(rename)/i, "pencil"],
+  [/^open terminal/i, "square-terminal"],
 ];
 export const buttonIcon = (text) => {
   const hit = BUTTON_ICONS.find(([re]) => re.test(String(text ?? "")));

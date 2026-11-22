@@ -136,6 +136,8 @@ export class Rail {
           if (passFocusOn({ pending: Boolean(this.repick), at: this.repickedAt, now: Date.now(), ms: REPICK_MS })) run("pane.go", { direction: "right" });
         } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
+        else if (c === "terminal" && shared(BOARD_KEYS) !== true)
+          this.askTerminal(); // ⌘⇧T from a terminal: its folder
         else if (c === "new" && shared(BOARD_KEYS) !== true)
           openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 640, height: 460 }); // ⌘K from an agent: its project (the board opens it when it has the keys)
         else if (c === "tab0")
@@ -430,6 +432,26 @@ export class Rail {
       .finally(() => {
         this.generalBusy = false;
       });
+  }
+
+  // ⌘⇧T while a terminal has the keys: ask, then open a shell in that terminal's folder (nebula-box terminal.js).
+  askTerminal() {
+    const folder = focused()?.cwd;
+    if (!folder) return;
+    openOverlay({
+      mod: "nebula-box",
+      kind: "dialog",
+      modal: true,
+      width: 440,
+      height: 170,
+      props: {
+        role: "terminal",
+        folder,
+        label: folder.split("/").pop(),
+        where: folder.replace(home(), "~"),
+        checkouts: this.repos().flatMap((r) => r.checkouts),
+      },
+    });
   }
 
   // The Sound setting is shared, but Herdr reads its sounds from this window's own settings.json: make that file

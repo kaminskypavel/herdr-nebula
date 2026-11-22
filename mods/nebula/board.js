@@ -305,6 +305,8 @@ export class Board {
         if (c === "focus") this.handle.focus();
         else if (c === "new" && this.has)
           this.openLaunch(); // ⌘K while the board has the keys: like p (the rail opens it otherwise)
+        else if (c === "terminal" && this.has)
+          this.askTerminal(cx); // ⌘⇧T: the selected row's worktree
         else continue;
         cx.notify();
       }
@@ -1291,6 +1293,23 @@ export class Board {
     else if (action === "removeWorktree" || action === "delete") this.removeWorktree(path);
   }
 
+  // ⌃T on the board, or ⌘⇧T while it has the keys: asks, then opens a shell in the selected row's worktree (a session's
+  // or a worktree's line), the selected project's folder, or the shown project's. ⌃T is board only: in a terminal it is
+  // the shell's and Claude Code's; ⌘⇧T from a terminal is the icon bar's (its folder).
+  askTerminal(cx) {
+    const item = this.byKey.get(this.cursor),
+      band = item?.type === "session" ? whereIs(this.all, item.row.id)?.band : (item?.band ?? null),
+      root = item?.type === "repo" ? item.repo.root : this.tab !== ALL ? this.tab : null,
+      repo = this.all.repos.find((r) => r.root === root),
+      folder = band?.path || root;
+    if (!folder) {
+      this.say("Select a project or worktree first", undefined, cx);
+      return;
+    }
+    const label = band?.label || repo?.name || folder.split("/").pop();
+    box(440, 170, { role: "terminal", folder, label, where: tilde(folder, home()), checkouts: this.repos().flatMap((r) => r.checkouts) });
+  }
+
   // Open terminal (a worktree's menu): a shell in its folder, in the workspace that already shows it, then focused.
   openTerminal(path, cx) {
     const steps = planTerminal({ folder: path, checkouts: this.repos().flatMap((r) => r.checkouts), spaces: placedSpaces(spaces(), panes()) });
@@ -1534,6 +1553,10 @@ export class Board {
     const m = e.modifiers ?? {};
     if (this.filtering) {
       this.filterKey(e.key, cx);
+      return;
+    }
+    if (m.control && !m.alt && !m.platform && e.key === "t") {
+      this.askTerminal(cx);
       return;
     }
     if (m.alt && !m.control && !m.platform && (e.key === "up" || e.key === "down")) {
