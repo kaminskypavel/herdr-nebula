@@ -53,3 +53,9 @@ test("a pasted block shows its text, not the CLI's pasted_content tags", () => {
   const row = { title: "Admin Dashboard", prompt: '<pasted_content id="ac93">first line\nsecond</pasted_content> then mine' };
   assert.equal(rowText(row).sub, "first line second then mine");
 });
+
+test("a stopped or asleep row is one line: no prompt under its title", () => {
+  const row = { title: "integrate-grow", prompt: "we still need the real credentials", exited: true };
+  assert.deepEqual(rowText(row), { title: "integrate-grow", sub: "" });
+  assert.equal(rowText({ ...row, exited: false }).sub, "we still need the real credentials");
+});

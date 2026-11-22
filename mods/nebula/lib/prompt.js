@@ -17,7 +17,8 @@ export function rowText(row, promptLine = true) {
   const prompt = clean(row.prompt),
     said = clean(row.said);
   const asTitle = !row.taskTitle && row.title === NEW_SESSION && Boolean(prompt);
-  const sub = said || (asTitle || row.taskTitle ? "" : prompt);
+  // A stopped or asleep row is one line: its prompt stays in the tooltip (the design picked 2026-11-22, B).
+  const sub = row.exited ? "" : said || (asTitle || row.taskTitle ? "" : prompt);
   return { title: asTitle ? prompt : row.title, sub: promptLine ? sub : "" };
 }
 

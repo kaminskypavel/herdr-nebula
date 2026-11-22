@@ -44,6 +44,17 @@ export function ball(status, t, size = 8, hollow = false, fresh = false) {
 // big, then small, so the spring has a start and a target). Still (the plain dot) when the row is archived or
 // motion is reduced.
 export function rowDot(row, t, size = 8) {
+  // Asleep: a dim moon where the dot goes; stopped: a dim ring. Live rows keep their colored dot.
+  if (row.exited && !row.archived)
+    return div()
+      .size(size)
+      .flex_none()
+      .flex()
+      .items_center()
+      .justify_center()
+      .child(
+        row.asleep ? svg("mods/nebula/icons/moon.svg").size(11).flex_none().text_color(t.dim) : div().size(size).rounded_full().border(1.5).border_color(t.dim),
+      );
   if (row.archived || reduced()) return ball(row.status, t, size, row.archived, row.fresh);
   if (row.status === "unseen" && row.fresh) {
     const side = popping(row, Date.now()) ? POP : size,
@@ -64,8 +75,8 @@ export function rowDot(row, t, size = 8) {
 // The color of a row's age: red for needs you, cyan for an unseen finish, else `plain` (what the view uses).
 export const ageColor = (look, t, plain) => (look.ageTone === "needs" ? t.ansi1 : look.ageTone === "unseen" ? t.ansi6 : plain);
 
-// The right-hand words of a row; `moon` puts a small moon before them (an asleep agent); `bold` for needs you.
-const age = (text, color, moon = false, bold = false) =>
+// The right-hand words of a row; `bold` for needs you.
+const age = (text, color, bold = false) =>
   h_flex()
     .flex_none()
     .items_center()
@@ -73,7 +84,6 @@ const age = (text, color, moon = false, bold = false) =>
     .text_size(fs(12))
     .text_color(color)
     .when(bold, (el) => el.font_semibold())
-    .when(moon, (el) => el.child(svg("mods/nebula/icons/moon.svg").size(11).flex_none()))
     .child(text);
 
 // The agent's icon; while the row works it bobs 2px up and down, on a wrapper so the line does not move.
@@ -101,10 +111,10 @@ export function metaLine(row, t, size = 12, selected = false) {
     .when(Boolean(text), (el) => el.child(div().min_w(0).truncate().child(text)));
 }
 
-// A session's title, colored by its state (lib/rowstyle.js): red and bold when it needs you, bold when it
-// finished unseen, muted once seen, dim when exited or archived. An archived one is italic with an archive icon before it.
+// A session's title, colored by its state (lib/rowstyle.js): bold when it needs you or finished unseen, white
+// (regular) when live and seen, dim when stopped, asleep or archived, so a live row never reads like an asleep one. An archived one is italic with an archive icon before it.
 // A row that needs you keeps a white title: red is only its dot, its left bar and "needs you" (all red read as harsh).
-const TITLE_COLOR = { needs: "foreground", unseen: "foreground", seen: "muted", plain: "foreground", dim: "dim" };
+const TITLE_COLOR = { needs: "foreground", unseen: "foreground", seen: "foreground", plain: "foreground", dim: "dim" };
 export function title(row, t, look = rowLook(row)) {
   const text = div()
     .min_w(0)
@@ -276,7 +286,11 @@ export function sessionLine(
             .when(Boolean(text.sub), (el) => el.child(div().min_w(0).truncate().text_size(fs(12)).text_color(t.muted).child(text.sub))),
         )
         .child(
-          pinned && look.ageTone !== "needs" ? age("pinned", t.muted) : age(look.ageText, ageColor(look, t, t.muted), row.asleep, look.ageTone === "needs"),
+          pinned && look.ageTone !== "needs"
+            ? age("pinned", t.muted)
+            : row.exited && !row.archived
+              ? age(selected ? look.ageText : look.ageText.split(" · ")[0], t.dim) // "asleep"; "· Enter resumes" once selected
+              : age(look.ageText, ageColor(look, t, t.muted), look.ageTone === "needs"),
         ),
     )
     .when(Boolean(ports), (el) => el.child(div().ml_auto().child(ports)));
