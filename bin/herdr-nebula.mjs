@@ -25,8 +25,9 @@ import { parseCheck, updateState, notesSince, notesOf } from "../mods/nebula/lib
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOOKS_DIR = path.join(HERE, "..", "hooks");
 
-// The hook must answer well inside Claude's 5 second limit: every child call shares one budget.
-const BUDGET_MS = 1800;
+// The hook must answer well inside Claude's 5 second limit: every child call shares one budget. Tests raise it
+// (HERDR_NEBULA_BUDGET_MS): under a full parallel test run, process start-up alone can use 1.8 s.
+const BUDGET_MS = Number(process.env.HERDR_NEBULA_BUDGET_MS) || 1800;
 let deadline = Date.now() + BUDGET_MS;
 function run(cmd, args, env = process.env) {
   const left = deadline - Date.now();

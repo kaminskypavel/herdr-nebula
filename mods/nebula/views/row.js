@@ -225,11 +225,7 @@ const edgeBar = (color, height, breathe = false) =>
     breathe,
   );
 
-export function sessionLine(
-  row,
-  t,
-  { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set(), enter = null, guide = null },
-) {
+export function sessionLine(row, t, { selected, indent = 14, click = null, pinned = false, promptLine = true, viewing = new Set(), enter = null }) {
   const meta = metaLine(row, t, 12, selected),
     ports = portCells(row, t),
     look = rowLook(row);
@@ -257,7 +253,6 @@ export function sessionLine(
         .cursor_pointer()
         .on_click((_e, cx) => click(row.id, cx)),
     )
-    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .when(look.bar === "needs", (el) => el.child(edgeBar(t.ansi1, height, !viewing.has(row.id))))
     .when(selected && look.bar !== "needs", (el) => el.child(edgeBar(t.accent, height)))
     .child(
@@ -297,10 +292,9 @@ export function sessionLine(
 }
 
 // The line under a band with no session: it can hold the cursor, `p` and `d` act on it.
-export function vacantLine(item, t, { selected, indent = 14, click = null, guide = null }) {
+export function vacantLine(item, t, { selected, indent = 14, click = null }) {
   return h_flex()
     .relative()
-    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .h(rh(HEIGHT.vacant))
     .flex_none()
     .items_center()
@@ -320,10 +314,9 @@ export function vacantLine(item, t, { selected, indent = 14, click = null, guide
     .child(div().min_w(0).truncate().child(vacantHint(item.band)));
 }
 
-export function subLine(sub, t, { indent = 30, guide = null }) {
+export function subLine(sub, t, { indent = 30 }) {
   return h_flex()
     .relative()
-    .when(guide !== null, (el) => el.child(guideLine(t, guide)))
     .h(rh(HEIGHT.sub))
     .flex_none()
     .items_center()
@@ -338,14 +331,9 @@ export function subLine(sub, t, { indent = 30, guide = null }) {
     .when(Boolean(sub.age), (el) => el.child(age(sub.age, t.muted).text_size(fs(11))));
 }
 
-// A worktree's header: its branch icon and name (bright), the ahead and diff counts as small chips; its sessions get a
-// guide line down their left (guideLine), like a file tree.
-const BRANCH_ICON = "mods/nebula/icons/git-branch.svg";
-export const GUIDE_STEP = 12; // how far a worktree's lines move right to make room for the guide
-
-/** The guide line down the left of a worktree's rows, at `x` (just right of the header's chevron). */
-const guideLine = (t, x) => div().absolute().left(x).top(0).bottom(0).w(2).rounded(1).bg(t.border);
-
+// A worktree's header, in the same shape as the Archived line under it (shelfLine): a chevron, its branch name, a
+// thin rule, then its ahead and diff counts as quiet colored text (and, folded, its sessions' status counts). Its
+// sessions sit flush under it (the 2026-11-22 session-rows pick, B: one header style).
 export function bandLine(band, t, { indent = 10, folded = false, click = null, menu = null, drop = null }) {
   const parts = bandStats(band);
   return h_flex()
@@ -370,21 +358,20 @@ export function bandLine(band, t, { indent = 10, folded = false, click = null, m
       div()
         .w(10)
         .flex_none()
-        .text_size(fs(11))
         .text_color(t.dim)
-        .child(folded ? "▸" : "▾"),
+        .child(folded ? "\u25b8" : "\u25be"),
     )
-    .child(svg(BRANCH_ICON).size(12).flex_none().text_color(t.muted))
-    .child(div().flex_none().font_medium().text_color(t.foreground).child(band.label))
+    .child(div().flex_none().text_size(fs(12)).font_medium().text_color(t.foreground).child(band.label))
+    .child(div().flex_1().h(1).bg(t.border))
     .when(parts.length > 0, (el) =>
       el.child(
         h_flex()
           .flex_none()
-          .gap(4)
-          .children(parts.map((p) => div().flex_none().px(5).rounded(4).bg(t.raised).text_color(t[BAND_COLOR[p.kind]]).child(p.text))),
+          .gap(6)
+          .opacity(0.8)
+          .children(parts.map((p) => div().flex_none().text_color(t[BAND_COLOR[p.kind]]).child(p.text))),
       ),
     )
-    .child(div().flex_1())
     .when(folded, (el) =>
       el.child(
         h_flex()
@@ -445,14 +432,14 @@ export function repoLine(repo, t, { folded, selected, click = null }) {
 // An "Archived" line: open (above a band's archived rows, ▾) or folded ("Archived · N" for a project's hidden ones,
 // ▸). Both are clickable (the board shows or hides the archived sessions); lists without per-row handlers send the
 // click through on_item_click with the item's key.
-export const shelfLine = (item, t, click = null) =>
+export const shelfLine = (item, t, click = null, indent = 10) =>
   h_flex()
     .h(rh(HEIGHT.shelf))
     .flex_none()
     .pt(6)
     .items_center()
     .gap(8)
-    .pl(14)
+    .pl(indent)
     .pr(10)
     .text_size(fs(11))
     .text_color(t.muted)
@@ -485,8 +472,7 @@ export function drawItem(item, t, { cursor, deep = false, click = null, menu = n
     case "session":
       return sessionLine(item.row, t, {
         selected,
-        indent: (deep ? 32 : 14) + (item.guide ? GUIDE_STEP : 0),
-        guide: item.guide ? (deep ? 24 : 10) + 4 : null,
+        indent: deep ? 32 : 14,
         click,
         pinned: item.row.id === pinned,
         promptLine,
@@ -496,14 +482,13 @@ export function drawItem(item, t, { cursor, deep = false, click = null, menu = n
     case "vacant":
       return vacantLine(item, t, {
         selected,
-        indent: (deep ? 32 : 14) + (item.guide ? GUIDE_STEP : 0),
+        indent: deep ? 32 : 14,
         click,
-        guide: item.guide ? (deep ? 24 : 10) + 4 : null,
       });
     case "sub":
-      return subLine(item.sub, t, { indent: (deep ? 48 : 30) + (item.guide ? GUIDE_STEP : 0), guide: item.guide ? (deep ? 24 : 10) + 4 : null });
+      return subLine(item.sub, t, { indent: deep ? 48 : 30 });
     case "shelf":
-      return shelfLine(item, t, click);
+      return shelfLine(item, t, click, deep ? 24 : 10); // its arrow under the worktree headers' arrows
     default:
       return emptyLine(item.text ?? "", t);
   }

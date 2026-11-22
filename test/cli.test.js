@@ -31,7 +31,7 @@ function world({ labels = {}, tabs = [{ id: "tb1", name: "1" }], settings, term 
   const stateFile = path.join(dir, "state.json");
   const state = { labels: { "herdr.tab": "tb1", "herdr.space": "sp1", ...labels }, tabs, calls: [] };
   fs.writeFileSync(stateFile, JSON.stringify(state));
-  const env = { PATH: `${bin}:${process.env.PATH}`, HOME: home, FAKE_STATE: stateFile };
+  const env = { PATH: `${bin}:${process.env.PATH}`, HOME: home, FAKE_STATE: stateFile, HERDR_NEBULA_BUDGET_MS: "10000" };
   if (term) env.HC_TERMINAL_ID = term;
   return {
     dir,
