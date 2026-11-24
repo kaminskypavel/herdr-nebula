@@ -28,6 +28,10 @@ export function withSeen(terminals, agents) {
 // board launched (that is an agent still starting), and in a Herdr tab. The board lists it as a quiet row.
 export const isShell = (t) => statusOf(t) === null && !isBoardLaunched(t?.labels) && Boolean(t?.labels?.["herdr.tab"]);
 
+// How many agents in tab `tab` are still running (not stopped, not plain shells): ⌘W asks before closing such a tab.
+export const liveAgentsIn = (terminals, tab) =>
+  terminals.filter((t) => t.labels?.["herdr.tab"] === tab && t.state !== "exited" && !t.parent && ![null, "exited"].includes(statusOf(t))).length;
+
 export const STATUS_ORDER = ["needs", "working", "unseen", "seen"];
 
 export function tally(statuses) {

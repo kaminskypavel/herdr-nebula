@@ -6,6 +6,7 @@
     "cmd-k": "nebula.new",
     "cmd-j": "nebula.jump",
     "cmd-shift-t": "nebula.terminal",
+    "cmd-w": "nebula.close",
     "cmd-0": "nebula.tab0",
     "cmd-1": "nebula.tab1",
     "cmd-2": "nebula.tab2",

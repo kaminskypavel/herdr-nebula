@@ -18,6 +18,7 @@ import { ArchiveConfirm } from "./archive-confirm.js";
 import { Help } from "./help.js";
 import { RemoveProject } from "./remove-project.js";
 import { OpenTerminal } from "./terminal.js";
+import { CloseTab } from "./close-tab.js";
 import { Import } from "./import.js";
 import { Projects } from "./projects.js";
 import { ProjectMenu } from "./project-menu.js";
@@ -41,6 +42,7 @@ const PARTS = {
   "archive-confirm": ArchiveConfirm,
   "remove-project": RemoveProject,
   terminal: OpenTerminal,
+  "close-tab": CloseTab,
   import: Import,
   projects: Projects,
   "project-menu": ProjectMenu,

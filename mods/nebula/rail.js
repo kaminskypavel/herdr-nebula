@@ -47,7 +47,7 @@ import { mergeSettings } from "./lib/settings.js";
 import { generalFolder, generalStep } from "./lib/general.js";
 import { groupSessions } from "./lib/projects.js";
 import { flatten } from "./lib/order.js";
-import { statusOf, withSeen } from "./lib/status.js";
+import { statusOf, withSeen, liveAgentsIn } from "./lib/status.js";
 import { step, findNode, FOLDED, TERMINAL, BOARD } from "./lib/focus.js";
 import { STORE, projectList, reposWith, rootsKey, listCheckouts, jumpTarget } from "./lib/repos.js";
 import { pickerHeight, summarize, currentOpen, closedNeeding } from "./lib/open.js";
@@ -136,6 +136,8 @@ export class Rail {
           if (passFocusOn({ pending: Boolean(this.repick), at: this.repickedAt, now: Date.now(), ms: REPICK_MS })) run("pane.go", { direction: "right" });
         } else if (c === "next" || c === "prev") this.jump(c === "next" ? 1 : -1);
         else if (c === "jump") this.openJump();
+        else if (c === "close")
+          this.closeTab(); // ⌘W
         else if (c === "terminal" && shared(BOARD_KEYS) !== true)
           this.askTerminal(); // ⌘⇧T from a terminal: its folder
         else if (c === "new" && shared(BOARD_KEYS) !== true)
@@ -432,6 +434,23 @@ export class Rail {
       .finally(() => {
         this.generalBusy = false;
       });
+  }
+
+  // ⌘W in the nebula layout: a tab with a running agent asks first (nebula-box close-tab.js); any other closes at
+  // once, as Herdr's own ⌘W does (which still asks before a workspace's last tab).
+  closeTab() {
+    const f = focused();
+    if (!f?.tab) return;
+    const agents = liveAgentsIn(terminals(), f.tab);
+    if (!agents) {
+      run("tab.close", { id: f.tab });
+      return;
+    }
+    const name =
+      spaces()
+        .flatMap((s) => s.tabs ?? [])
+        .find((t) => t.id === f.tab)?.name ?? "";
+    openOverlay({ mod: "nebula-box", kind: "dialog", modal: true, width: 460, height: 170, props: { role: "close-tab", tab: f.tab, name, agents } });
   }
 
   // ⌘⇧T while a terminal has the keys: ask, then open a shell in that terminal's folder (nebula-box terminal.js).

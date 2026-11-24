@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { statusOf, withSeen, COLOR } from "../mods/nebula/lib/status.js";
+import { statusOf, withSeen, liveAgentsIn, COLOR } from "../mods/nebula/lib/status.js";
 
 test("Herdr statuses blocked, working, done and idle map to needs you, working, unseen and seen", () => {
   assert.equal(statusOf({ status: "blocked" }), "needs");
@@ -49,4 +49,16 @@ test("withSeen: a done agent you looked at reads idle, the rest stay as the core
     out.map((t) => t.status),
     ["idle", "done", "working"],
   );
+});
+
+test("liveAgentsIn counts a tab's running agents, not its shells or stopped ones", () => {
+  const tab = { "herdr.tab": "tb1" };
+  const ts = [
+    { status: "working", labels: tab, state: "live" },
+    { status: "idle", labels: tab, state: "live" },
+    { status: null, labels: tab, state: "live", program: { name: "zsh", shell: true } },
+    { status: "idle", labels: { "herdr.tab": "tb2" }, state: "live" },
+  ];
+  assert.equal(liveAgentsIn(ts, "tb1"), 2);
+  assert.equal(liveAgentsIn(ts, "tb3"), 0);
 });
