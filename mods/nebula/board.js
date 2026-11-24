@@ -172,6 +172,7 @@ const COLUMN_TYPES = ["project", "worktree", "session"];
 const DOUBLE_CLICK_MS = 400;
 const STAY_MS = 4000; // after a delete, how long the board keeps to that project while Herdr refocuses (deleteProps)
 const ICONS_EVERY = 10 * 60000; // how often the board looks again for each project's logo file
+const ARROW_HIT = 8 + 10 + 10; // the list's padding, the header arrow's width, and some slack: a worktree folds left of this
 const PORTS_EVERY = 5000; // how often the board looks for listening ports
 const KEEP_MS = 250; // after a click shows an agent, when the board asks for the keys back again
 const COMPACT_BELOW = 500;
@@ -1224,8 +1225,18 @@ export class Board {
     else if (item.type === "repo") {
       this.place(item.key);
       if (!dbl) this.toggle(item.repo.root);
-    } else if (item.type === "band") this.toggleBand(item.band.path);
+    } else if (item.type === "band" && this.onArrow()) this.toggleBand(item.band.path);
     cx.notify();
+  }
+
+  // A worktree header folds from its arrow only (the user: clicking the rest of the header should not collapse it).
+  // Tree and List report a click by row, so the press position (virtualList's listDown) says where it landed; the
+  // other views draw the header with its own click and fold from anywhere on it.
+  onArrow() {
+    if (!viewOf(this.view).virtual) return true;
+    const down = this.listDown;
+    if (!down || Date.now() - down.at > 1500 || typeof down.fromLeft !== "number") return false;
+    return down.fromLeft <= ARROW_HIT + (this.tab === ALL ? 24 : 10); // the header's indent (drawItem): 24 on All, else 10
   }
 
   // The project (and checkout) the user is looking at, for the new session box to preselect:

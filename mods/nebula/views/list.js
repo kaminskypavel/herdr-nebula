@@ -20,7 +20,7 @@ export function virtualList(b, list, t, deep) {
       // Where the press landed, from the right edge: on_item_click names only the row, so the board
       // tells a click on a port cell from one on the row with it (lib/ports.js portAt).
       .on_mouse_down("left", (e) => {
-        b.listDown = e.local_position && e.bounds ? { at: Date.now(), fromRight: e.bounds.width - e.local_position.x } : null;
+        b.listDown = e.local_position && e.bounds ? { at: Date.now(), fromRight: e.bounds.width - e.local_position.x, fromLeft: e.local_position.x } : null;
       })
       .child(
         v_virtual_list(
