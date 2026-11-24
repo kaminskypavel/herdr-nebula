@@ -171,6 +171,7 @@ const rowActionOf = (k, m) => {
 const COLUMN_TYPES = ["project", "worktree", "session"];
 const DOUBLE_CLICK_MS = 400;
 const STAY_MS = 4000; // after a delete, how long the board keeps to that project while Herdr refocuses (deleteProps)
+const ICONS_EVERY = 10 * 60000; // how often the board looks again for each project's logo file
 const PORTS_EVERY = 5000; // how often the board looks for listening ports
 const KEEP_MS = 250; // after a click shows an agent, when the board asks for the keys back again
 const COMPACT_BELOW = 500;
@@ -753,9 +754,12 @@ export class Board {
   // first appears in the list), then buildIcons applies the framework-default filter over all of them.
   syncIcons(cx) {
     const list = projectList(store()),
-      key = JSON.stringify(list.map((p) => [p.root, p.name]));
-    if (key === this.iconsKey || this.iconsBusy) return;
+      key = JSON.stringify(list.map((p) => [p.root, p.name])),
+      stale = Date.now() - (this.iconsAt ?? 0) > ICONS_EVERY; // a project's logo changed on disk (a new commit)
+    if ((key === this.iconsKey && !stale) || this.iconsBusy) return;
     this.iconsBusy = true;
+    this.iconsAt = Date.now();
+    if (stale) this.picks = {};
     for (const root of Object.keys(this.picks)) if (!list.some((p) => p.root === root)) delete this.picks[root];
     const todo = list.filter((p) => !(p.root in this.picks));
     cx.spawn(async () => {
