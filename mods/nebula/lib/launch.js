@@ -233,6 +233,13 @@ export function defaultBranchItem(list, def) {
   return { value: `@default:${def}`, label: `${def} (new worktree)` };
 }
 
+// The checkout a new session starts in when nothing picked one: the default branch's (`def`, else main or master),
+// else the first git lists. -> a path, or null for an empty list.
+export function defaultCheckout(list, def) {
+  const on = (b) => (list ?? []).find((c) => c.branch === b);
+  return (on(def) ?? on("main") ?? on("master") ?? list?.[0])?.path ?? null;
+}
+
 // The default branch from git's answers: origin/HEAD ("origin/main"), else the first of main and master that exists.
 export function defaultBranchOf(originHead, has = {}) {
   const head = String(originHead ?? "")

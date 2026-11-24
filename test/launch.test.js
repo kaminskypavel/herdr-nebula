@@ -17,6 +17,7 @@ import {
   cyclePreset,
   prefillOf,
   checkoutIndex,
+  defaultCheckout,
 } from "../mods/nebula/lib/launch.js";
 import { launchLabels } from "../mods/nebula/lib/labels.js";
 import { HARNESSES } from "../mods/nebula/lib/harness.js";
@@ -357,4 +358,16 @@ test("planTerminal: a shell tab in the workspace showing that checkout, else a n
   assert.deepEqual(planTerminal({ folder: "/w/app", checkouts, spaces }), [
     { type: "do", name: "space.new", args: { folder: "/w/app", tab: "Terminal" }, launch: true },
   ]);
+});
+
+test("defaultCheckout: the default branch's checkout, else main or master, else the first", () => {
+  const list = [
+    { path: "/w/app", branch: "fix-x" },
+    { path: "/w/app-worktrees/master", branch: "master" },
+    { path: "/w/app-worktrees/dev", branch: "dev" },
+  ];
+  assert.equal(defaultCheckout(list, "dev"), "/w/app-worktrees/dev");
+  assert.equal(defaultCheckout(list, null), "/w/app-worktrees/master");
+  assert.equal(defaultCheckout([{ path: "/w/plain", branch: null }], null), "/w/plain");
+  assert.equal(defaultCheckout([], "main"), null);
 });

@@ -37,6 +37,7 @@ import {
   draftOf,
   goneText,
   defaultBranchItem,
+  defaultCheckout,
   defaultBranchOf,
 } from "./lib/launch.js";
 import { fs } from "./lib/scale.js";
@@ -223,8 +224,9 @@ export class Launch {
     this.r = Math.max(0, [byRoot, byGit, byPrefill, byCwd, at((p) => p.root === want)].find((i) => i >= 0) ?? 0);
     await this.ensureList();
     const list = this.list();
+    // The highlighted worktree (or, from a terminal, its own), else the default branch's checkout.
     const i = checkoutIndex(pf?.checkout, list) >= 0 ? checkoutIndex(pf.checkout, list) : checkoutIndex(cwd, list);
-    this.checkout = list[Math.max(0, i)]?.path ?? null;
+    this.checkout = i >= 0 ? list[i].path : defaultCheckout(list, this.defaults[this.repo()?.root]);
     this.harness = pf?.harness ?? defaultHarness(this.settings, this.ids);
     if (!pf?.harness) Object.assign(this, harnessChoice(this.settings, this.harness));
     if (pf?.harness) {
@@ -287,7 +289,7 @@ export class Launch {
 
   setRepo(i) {
     this.r = i;
-    this.checkout = this.list()[0]?.path ?? null;
+    this.checkout = defaultCheckout(this.list(), this.defaults[this.repo()?.root]);
   }
 
   cycle(what, dir, cx) {
@@ -296,7 +298,7 @@ export class Launch {
       this.setRepo((this.r + dir + this.repos.length) % this.repos.length);
       cx.spawn(async (cx) => {
         await this.ensureList();
-        this.checkout = this.list()[0]?.path ?? null;
+        this.checkout = defaultCheckout(this.list(), this.defaults[this.repo()?.root]);
         cx.notify();
       });
     } else if (what === "checkout") {
