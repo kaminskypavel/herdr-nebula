@@ -1,7 +1,7 @@
 // What the icon bar draws for the project tabs: the open projects in their shared order, each with
 // its most urgent status, and which tab is selected. Pure; no herdr imports, so node can test it.
 //
-// summary: the per-project list ([{ root, name, status, needs, ring }], lib/open.js summarize; the rail replaces
+// summary: the per-project list ([{ root, name, status, needs, ring, working }], lib/open.js summarize; the rail replaces
 // needs with what waits on you and adds ring, the finish ring's opacity, lib/alerts.js), open: the open
 // roots in tab order, selected: the shared "nebula.repo" value (a root, ALL or nothing).
 import { ALL, tabOf } from "./tabs.js";
@@ -27,6 +27,7 @@ export function railTabs({ summary, open, selected, pinned = [] }) {
       status: by.get(root).status,
       needs: by.get(root).needs ?? 0,
       ring: by.get(root).ring ?? 0,
+      working: by.get(root).working ?? 0,
       on: root === tab,
       pinned: pins.includes(root),
     }));

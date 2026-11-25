@@ -76,7 +76,7 @@ import {
   notifiedLock,
 } from "./lib/notify.js";
 import { fs, setTextScale } from "./lib/scale.js";
-import { setReduceMotion, animate, markerTops, hopping, FADE, SPRING, HOP_PX } from "./lib/motion.js";
+import { setReduceMotion, animate, markerTops, hopping, FADE, SPRING, HOP_PX, STAR, STAR_MS } from "./lib/motion.js";
 import { jumpSize } from "./lib/jump.js";
 import { CHECK_EVERY_MS, updateState, updateNotice, updatedNotice, shouldNotify, reportIn, releasedSince, releaseTag } from "./lib/update.js";
 import { HELP_SIZE } from "./lib/hints.js";
@@ -311,6 +311,7 @@ export class Rail {
     const summary = summarize(model).map((p) => ({
       ...p,
       ...projectAlerts(rowsOf.get(p.root) ?? [], cleared, now, p.root === shown ? now : (this.seenProject[p.root] ?? 0)),
+      working: (rowsOf.get(p.root) ?? []).filter((r) => r.status === "working" && !r.archived).length,
     }));
     return { ...railTabs({ summary, open, selected: shared(REPO), pinned }), open, plus: closedNeeding(model, open, shared(CLEARED) ?? {}) };
   }
@@ -904,8 +905,8 @@ export class Rail {
   }
 
   // A project's tab: its icon (the shared picture or initials), calm: a red pill with how many agents there need
-  // you, a cyan check while a finish waits unseen (fading over its last minute), and a hop when a row just started
-  // waiting. No status dot: four dots alike told you nothing.
+  // you, a cyan check while a finish waits unseen (fading over its last minute), the working star while an agent
+  // there works, and a hop when a row just started waiting. No status dot: four dots alike told you nothing.
   projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {},
       hint = tabHint(p.name, n),
@@ -970,6 +971,26 @@ export class Rail {
         .flex_none()
         .top(hop ? -HOP_PX : 0)
         .child(shown)
+        // An agent at work: the working star on the free bottom-left corner (still with Reduce motion).
+        .when(p.working > 0, (el) =>
+          el.child(
+            div()
+              .absolute()
+              .left(-6)
+              .bottom(-6)
+              .size(16)
+              .rounded_full()
+              .bg(ring)
+              .flex()
+              .items_center()
+              .justify_center()
+              .child(
+                this.reduceMotion()
+                  ? div().text_size(fs(11)).line_height(1).text_color(t.ansi3).child("\u2733")
+                  : div().text_size(fs(11)).line_height(1).text_color(t.ansi3).frames(STAR, STAR_MS),
+              ),
+          ),
+        )
         .when(p.ring > 0 && !(p.needs > 0), (el) =>
           el.child(
             div()

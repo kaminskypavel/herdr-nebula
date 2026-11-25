@@ -24,8 +24,8 @@ test("the rail follows the open list's order, not the store's, and never moves t
 test("each item carries its name and status; only the selected one is on", () => {
   const r = railTabs({ summary, open: ["/r/a", "/r/b"], selected: "/r/b" });
   assert.deepEqual(r.items, [
-    { root: "/r/a", name: "a", status: "done", needs: 0, ring: 0, on: false, pinned: false },
-    { root: "/r/b", name: "b", status: "needs", needs: 2, ring: 0.5, on: true, pinned: false },
+    { root: "/r/a", name: "a", status: "done", needs: 0, ring: 0, working: 0, on: false, pinned: false },
+    { root: "/r/b", name: "b", status: "needs", needs: 2, ring: 0.5, working: 0, on: true, pinned: false },
   ]);
   assert.equal(r.all, false);
 });
@@ -119,4 +119,19 @@ test("the ⌘ digits follow the icon bar: pins first, then the open order", asyn
   const { railOrder } = await import("../mods/nebula/lib/rail.js");
   assert.deepEqual(railOrder(["/a", "/b", "/c", "/d"], ["/c", "/gone", "/a"]), ["/c", "/a", "/b", "/d"]);
   assert.deepEqual(railOrder(["/a"], undefined), ["/a"]);
+});
+
+test("a tab carries how many of its agents are working, for the working star on its icon", () => {
+  const summary = [
+    { root: "/r/a", name: "a", working: 2 },
+    { root: "/r/b", name: "b" },
+  ];
+  const items = railTabs({ summary, open: ["/r/a", "/r/b"], selected: "/r/a" }).items;
+  assert.deepEqual(
+    items.map((i) => [i.root, i.working]),
+    [
+      ["/r/a", 2],
+      ["/r/b", 0],
+    ],
+  );
 });
