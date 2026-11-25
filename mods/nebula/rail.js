@@ -103,6 +103,23 @@ function savedPins() {
 }
 const icon = (name) => `mods/nebula/icons/${name}.svg`;
 
+// The selected tile's background: the accent mixed into the bar's chrome, opaque so the badges' rings (drawn in the
+// same color) blend in. mix(a, b, w): hex colors, w of b; a color that is not #rrggbb is returned as is.
+const mix = (a, b, w) => {
+  const hex = (c) => /^#[0-9a-f]{6}/i.test(String(c)) && [1, 3, 5].map((i) => parseInt(String(c).slice(i, i + 2), 16));
+  const x = hex(a),
+    y = hex(b);
+  if (!x || !y) return a;
+  return `#${x
+    .map((v, i) =>
+      Math.round(v + (y[i] - v) * w)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+};
+const onBg = (t) => mix(t.chrome, t.accent, 0.22);
+
 export class Rail {
   init(cx) {
     this.drag = null; // a press on a project tab: { root, index, y, moved } (drag to reorder)
@@ -817,7 +834,12 @@ export class Rail {
       .cursor_pointer()
       .tooltip(tip)
       .text_color(on ? t.foreground : t.muted)
-      .when(on, (el) => el.bg(t.selected))
+      .when(on, (el) =>
+        el
+          .bg(onBg(t))
+          .border_1()
+          .border_color(mix(t.chrome, t.accent, 0.55)),
+      )
       .when(!on, (el) => el.hover((s) => s.bg(t.hover).text_color(t.foreground)))
       .when(Boolean(menu), (el) => el.on_mouse_down("right", menu))
       .on_click(action)
@@ -910,7 +932,7 @@ export class Rail {
   projectTab(t, p, { open, selected, n }) {
     const icons = shared(ICONS) ?? {},
       hint = tabHint(p.name, n),
-      ring = p.on ? t.selected : t.chrome;
+      ring = p.on ? onBg(t) : t.chrome;
     const face = projectIcon({ icon: iconFor(icons, p.root, p.name), size: ICON });
     const icon =
       p.needs > 0
@@ -971,8 +993,9 @@ export class Rail {
         .flex_none()
         .top(hop ? -HOP_PX : 0)
         .child(shown)
-        // An agent at work: the working star on the free bottom-left corner (still with Reduce motion).
-        .when(p.working > 0, (el) =>
+        // An agent at work: the working star on the free bottom-left corner (still with Reduce motion). Not on the
+        // selected project: its rows already show who works, and a star spinning there only distracts.
+        .when(p.working > 0 && !p.on, (el) =>
           el.child(
             div()
               .absolute()
