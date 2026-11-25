@@ -1,4 +1,4 @@
-// What a Tree or List session row says: its title and, under it, one line: what the agent said (a row that needs
+// What a Tree session row says: its title and, under it, one line: what the agent said (a row that needs
 // you or finished unseen, once the board has read its reply: viewmodel sets `said`), else the last prompt.
 // A row still called "New session" has nothing better to show than its prompt, so the prompt
 // becomes the title; a row whose title is already its task (`taskTitle`) does not repeat it. Any other row keeps its

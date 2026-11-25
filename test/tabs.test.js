@@ -131,7 +131,7 @@ test("Projects mode: a project tab has no PROJECTS column, All keeps all three",
 
 test("the agent order of a scoped model lists its sessions in tree order", () => {
   assert.deepEqual(agentOrder(scopeModel(shown(), "/r/beta"), "cards", "/r/beta"), ["b1"]);
-  assert.deepEqual(agentOrder(scopeModel(shown(), ALL), "list", null).sort(), ["a1", "a2", "b1", "s1"]);
+  assert.deepEqual(agentOrder(scopeModel(shown(), ALL), "tree", null).sort(), ["a1", "a2", "b1", "s1"]);
 });
 
 test("0 is All, 1 to 9 the open tabs in order, anything else nothing", () => {

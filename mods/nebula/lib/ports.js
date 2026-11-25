@@ -49,7 +49,7 @@ export function portsLabel(ports, max = 3) {
   );
 }
 
-// Tree and List take one click handler for the whole list (no handler inside a row), so a click on a
+// Tree takes one click handler for the whole list (no handler inside a row), so a click on a
 // row's port is found by where it landed: the ports are fixed-width cells at the row's right end.
 // `fromRight` is the click's distance from the list's right edge; `inset` the space between that edge
 // and the last cell, `width` and `gap` a cell's. Cells hold the first `shown` ports, left to right.

@@ -14,7 +14,7 @@
 //                   postfix (after it)
 //   confirmArchive  ask before archiving a session
 //   editor          the command that opens a checkout (the folder is appended)
-//   promptLine      Tree and List rows carry a dim second line with the last prompt
+//   promptLine      Tree rows carry a dim second line with the last prompt
 //   showEmptyWorktrees  every checkout gets a band, one with no session in it too
 //   preview         moving the highlight shows that agent in the main area while the board keeps
 //                   the keys; Enter or a click steps in (lib/preview.js)
@@ -32,7 +32,7 @@ import { HARNESSES } from "./harness.js";
 import { SLEEP_CHOICES, SLEEP_DEFAULT } from "./sleep.js";
 import { TEXT_SIZES } from "./scale.js";
 
-export const VIEW_TITLE = { tree: "Tree", cards: "Cards", list: "List", columns: "Columns" };
+export const VIEW_TITLE = { tree: "Tree", cards: "Cards", columns: "Columns" }; // a saved "list" (dropped) falls back to Tree
 export const VIEW_IDS = Object.keys(VIEW_TITLE);
 export const SIDES = ["prefix", "postfix"];
 export const AWAY_CHOICES = ["macos", "herdr", "off"];

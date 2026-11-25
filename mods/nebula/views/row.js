@@ -167,7 +167,7 @@ export function portLinks(row, t, open, size = 11) {
     );
 }
 
-// A session's ports at the right end of its row in Tree and List, in fixed-width cells: those lists
+// A session's ports at the right end of its row in Tree, in fixed-width cells: that list
 // take no handler inside a row, so the board finds the port a click hit by its distance from the
 // list's right edge (lib/ports.js portAt, with PORT_HIT). Cards and Columns use portLinks.
 const LIST_PAD = 8, // virtualList's px
@@ -219,7 +219,7 @@ export const badge = (text, t) => div().flex_none().px(4).rounded(3).border(1).b
 
 // A 3px bar down the left edge of a row, inset 6px top and bottom: red for needs you, the accent for the
 // selected row. `height` is the row's own (the lists state it), so the bar needs no stretch from its parent.
-const CONTENT_W = 560; // the widest a session row's content gets (Tree and List)
+const CONTENT_W = 560; // the widest a session row's content gets (Tree)
 
 // The bar of a row that needs you breathes (`breathe`: while nobody is looking at it).
 export const breathing = (bar, breathe) => (breathe ? animate(bar, (el) => el.loop("opacity", BREATHE)) : bar);

@@ -246,7 +246,7 @@ test("every view carries the rows: Tree, List, Columns status and Projects", () 
 
 test("nebula rows are not agents: not in the agent order, not an attention target", () => {
   const m = buildBoard({ ...base, nebula: joined });
-  for (const view of ["tree", "list", "cards", "columns"])
+  for (const view of ["tree", "cards", "columns"])
     assert.deepEqual(
       agentOrder(m, view, "/w/app").filter((id) => id.startsWith("nebula:")),
       [],

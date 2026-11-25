@@ -380,13 +380,12 @@ test("a terminal sub-agent nests under its parent with its own name", () => {
   );
 });
 
-test("Tree, List and Cards agent order follows the model; Columns go by status", () => {
+test("Tree and Cards agent order follows the model; Columns go by status", () => {
   const m = buildBoard(fleet());
   const ids = (r) => r.rows.map((x) => x.id);
   assert.equal(agentOrder(m, "tree", "/r/beta").length, 15);
-  assert.deepEqual(agentOrder(m, "list", "/r/beta"), agentOrder(m, "tree", "/r/beta"));
   assert.equal(new Set(agentOrder(m, "cards", "/r/beta")).size, 15);
-  assert.deepEqual(agentOrder({ repos: [m.repos[1]] }, "list", "/r/beta"), ids(m.repos[1]));
+  assert.deepEqual(agentOrder({ repos: [m.repos[1]] }, "tree", "/r/beta"), ids(m.repos[1]));
   const cols = agentOrder(m, "columns", "/r/beta");
   assert.deepEqual(
     cols.slice(0, 2).map((id) => m.repos.flatMap((r) => r.rows).find((r) => r.id === id).status),

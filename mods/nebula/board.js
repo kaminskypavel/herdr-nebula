@@ -147,7 +147,6 @@ import { arrange, cleanSort, moveRow, SORTS, SORT_TITLE, SORT_TIP } from "./lib/
 import { tabOf, scopeModel, tabKey, landOn, followFocus, foldAllState, allFolded } from "./lib/tabs.js";
 import * as tree from "./views/tree.js";
 import * as cards from "./views/cards.js";
-import * as list from "./views/list.js";
 import * as columns from "./views/columns.js";
 import { fs, rh, setTextScale } from "./lib/scale.js";
 import { setReduceMotion, reduced, animate, trackEntering, enterPhase, SPRING } from "./lib/motion.js";
@@ -155,7 +154,6 @@ import { setReduceMotion, reduced, animate, trackEntering, enterPhase, SPRING } 
 const VIEWS = [
   { id: "tree", view: tree, virtual: true },
   { id: "cards", view: cards },
-  { id: "list", view: list, virtual: true },
   { id: "columns", view: columns },
 ];
 const viewOf = (id) => VIEWS.find((v) => v.id === id) ?? VIEWS[0];
@@ -1230,7 +1228,7 @@ export class Board {
   }
 
   // A worktree header folds from its arrow only (the user: clicking the rest of the header should not collapse it).
-  // Tree and List report a click by row, so the press position (virtualList's listDown) says where it landed; the
+  // Tree reports a click by row, so the press position (virtualList's listDown) says where it landed; the
   // other views draw the header with its own click and fold from anywhere on it.
   onArrow() {
     if (!viewOf(this.view).virtual) return true;
@@ -1447,7 +1445,7 @@ export class Board {
     cx.notify();
   }
 
-  // A click in Tree or List that landed on one of the row's port cells opens that port (views/row.js).
+  // A click in Tree that landed on one of the row's port cells opens that port (views/row.js).
   portClick(row, cx) {
     const down = this.listDown;
     this.listDown = null;
