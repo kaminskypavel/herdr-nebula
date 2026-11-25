@@ -118,7 +118,7 @@ const mix = (a, b, w) => {
     )
     .join("")}`;
 };
-const onBg = (t) => mix(t.chrome, t.accent, 0.22);
+const onBg = (t) => mix(t.chrome, t.accent, 0.45);
 
 export class Rail {
   init(cx) {
@@ -834,12 +834,7 @@ export class Rail {
       .cursor_pointer()
       .tooltip(tip)
       .text_color(on ? t.foreground : t.muted)
-      .when(on, (el) =>
-        el
-          .bg(onBg(t))
-          .border_1()
-          .border_color(mix(t.chrome, t.accent, 0.55)),
-      )
+      .when(on, (el) => el.bg(onBg(t)).border_1().border_color(t.accent))
       .when(!on, (el) => el.hover((s) => s.bg(t.hover).text_color(t.foreground)))
       .when(Boolean(menu), (el) => el.on_mouse_down("right", menu))
       .on_click(action)
